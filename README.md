@@ -14,7 +14,7 @@ This slice uses six ERD tables: `Buildings`, `Floors`, `SpotType`, `Study Spot`,
 
 ## Tech Stack
 
-- **Frontend:** hand-built HTML, CSS, JavaScript, and SVG floor maps.
+- **Frontend:** HTML, CSS, JavaScript, and SVG floor maps.
 - **Backend/database:** Supabase's REST API and PostgreSQL, with row-level security.
 - **Local server:** Node.js loads connection settings from `.env` and serves the app.
 
