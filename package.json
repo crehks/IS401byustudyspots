@@ -1,0 +1,20 @@
+{
+  "name": "study-byu",
+  "version": "0.3.0",
+  "private": true,
+  "description": "BYU study finder with native floor maps and a Supabase report vertical slice",
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "start": "node server.mjs",
+    "dev": "node server.mjs",
+    "check:db": "node tools/check-database.mjs",
+    "test": "node --test tests/catalogue.test.mjs tests/database.test.mjs tests/server.test.mjs",
+    "package": "node tools/package.mjs",
+    "test:integration": "node tools/test-integration.mjs && node tools/test-existing-schema.mjs && node tools/test-actual-schema.mjs && node tools/test-preserve-existing.mjs"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.8",
+    "linkedom": "0.18.13"
+  }
+}

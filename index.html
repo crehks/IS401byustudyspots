@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b3153">
+  <meta name="description" content="Find a study space at BYU by building, floor, group size, noise, privacy, and outlets.">
+  <title>Study BYU | Find your place</title>
+  <link rel="stylesheet" href="styles.css?v=20261008-env">
+  <script defer src="wsc-plans.js?v=20261007"></script>
+  <script defer src="database.js?v=20261008-env"></script>
+  <script defer src="app.js?v=20261008-env"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <button class="brand" id="homeButton" type="button" aria-label="Study BYU home">
+        <span class="brand-mark" aria-hidden="true">S</span>
+        <span>Study<span class="brand-light">BYU</span></span>
+      </button>
+      <nav class="topnav" aria-label="Main navigation">
+        <button id="navExplore" class="nav-link is-active" type="button">Explore</button>
+        <button id="navSaved" class="nav-link" type="button">Saved <span id="savedCount" class="count-badge">0</span></button>
+        <button id="navReport" class="nav-link nav-report" type="button">Report a spot</button>
+      </nav>
+    </header>
+
+    <main id="mainContent">
+      <section id="databaseWarning" class="database-banner" role="status" aria-live="polite" hidden>
+        <p>Supabase is not connected.</p>
+      </section>
+      <section id="databaseReceipt" class="database-receipt" aria-live="polite" hidden></section>
+      <section id="exploreView" class="view">
+        <div class="page-heading">
+          <div>
+            <p class="kicker">Campus study finder</p>
+            <h1>Find a place that works for you.</h1>
+            <p class="intro">Explore study areas in the library, the Wilk, and the JKB. Filter by what matters before you walk over.</p>
+          </div>
+          <a class="text-link official-link" href="https://map.byu.edu/" target="_blank" rel="noopener noreferrer">Open BYU campus map <span aria-hidden="true">↗</span></a>
+        </div>
+
+        <div class="explore-layout">
+          <aside class="filter-panel" aria-labelledby="filterHeading">
+            <div class="panel-topline">
+              <div>
+                <h2 id="filterHeading">Your study setup</h2>
+                <p>Choose any combination.</p>
+              </div>
+              <div class="filter-actions"><button id="saveFilters" class="subtle-button" type="button">Save filters</button><button id="clearFilters" class="subtle-button" type="button">Clear</button></div>
+            </div>
+            <fieldset class="filter-group">
+              <legend>Buildings</legend>
+              <div id="buildingFilters" class="building-checks"></div>
+            </fieldset>
+            <fieldset class="filter-group">
+              <legend>Studying with</legend>
+              <div class="segmented" role="group" aria-label="Study type">
+                <button class="segment is-selected" data-study="any" type="button">Anyone</button>
+                <button class="segment" data-study="solo" type="button">Solo</button>
+                <button class="segment" data-study="group" type="button">Group</button>
+              </div>
+              <div id="groupSizeWrap" class="range-wrap" hidden>
+                <label for="groupSize">Group size <strong id="groupSizeValue">4 people</strong></label>
+                <input id="groupSize" type="range" min="2" max="8" value="4">
+                <div class="range-ends"><span>2</span><span>8 max</span></div>
+              </div>
+            </fieldset>
+            <fieldset class="filter-group">
+              <legend>Noise level</legend>
+              <div class="chip-row" role="group" aria-label="Maximum noise level">
+                <button class="chip is-selected" data-noise="any" type="button">Any</button>
+                <button class="chip" data-noise="low" type="button">Quiet</button>
+                <button class="chip" data-noise="medium" type="button">Conversational</button>
+              </div>
+            </fieldset>
+            <div class="switch-stack">
+              <label class="switch-row"><span><strong>Private space</strong><small>Enclosed or separated</small></span><input id="privateFilter" type="checkbox"><span class="switch-ui" aria-hidden="true"></span></label>
+              <label class="switch-row"><span><strong>Outlets nearby</strong><small>Power for your devices</small></span><input id="outletFilter" type="checkbox"><span class="switch-ui" aria-hidden="true"></span></label>
+            </div>
+            <button id="showMatches" class="primary-button wide" type="button">Show matching spaces <span id="matchCount">0</span></button>
+          </aside>
+
+          <div class="campus-area">
+            <div class="campus-map" role="group" aria-label="Schematic BYU campus map with featured buildings">
+              <div class="map-grid" aria-hidden="true"></div>
+              <div class="map-path path-one" aria-hidden="true"></div>
+              <div class="map-path path-two" aria-hidden="true"></div>
+              <div class="map-green green-one" aria-hidden="true"></div>
+              <div class="map-green green-two" aria-hidden="true"></div>
+              <div class="map-green green-three" aria-hidden="true"></div>
+              <span class="map-context ctx-north">NORTH CAMPUS</span>
+              <span class="map-context ctx-center">BRIGHAM SQUARE</span>
+              <span class="map-context ctx-east">EAST CAMPUS</span>
+              <button class="map-building map-hbll" data-open-building="HBLL" type="button"><span>HBLL</span><small>Harold B. Lee Library</small></button>
+              <button class="map-building map-wsc" data-open-building="WSC" type="button"><span>WSC</span><small>Wilkinson Student Center</small></button>
+              <button class="map-building map-jkb" data-open-building="JKB" type="button"><span>JKB</span><small>Jesse Knight Building</small></button>
+              <div class="map-compass" aria-hidden="true">N ↑</div>
+              <div class="map-caption">Campus overview <span>Illustrative layout</span></div>
+            </div>
+            <div class="map-footer">
+              <p>Select a building on the map or browse the best matches below.</p>
+              <a href="https://map.byu.edu/" target="_blank" rel="noopener noreferrer">View the official map ↗</a>
+            </div>
+          </div>
+        </div>
+
+        <section class="recommendations" aria-labelledby="recommendHeading">
+          <div class="section-heading"><div><h2 id="recommendHeading">Good places to start</h2><p>Suggestions use sample crowding data until campus reports are connected.</p></div><span class="demo-pill">Demo data</span></div>
+          <div id="recommendationsList" class="recommendation-grid"></div>
+        </section>
+      </section>
+
+      <section id="buildingView" class="view" hidden>
+        <div class="building-heading">
+          <div>
+            <button id="backToExplore" class="back-button" type="button">← Back to campus</button>
+            <div class="building-title-row"><div><p class="kicker">Explore by floor</p><h1 id="buildingTitle">Harold B. Lee Library</h1></div><label class="building-select-label">Building<select id="buildingSelect" aria-label="Choose building"></select></label></div>
+            <p id="buildingSummary" class="intro"></p>
+          </div>
+          <div class="building-links"><a id="officialFloorLink" href="https://pf.byu.edu/space/floor-plans/master" target="_blank" rel="noopener noreferrer">Official floor plans ↗</a><a id="buildingMapLink" href="https://map.byu.edu/" target="_blank" rel="noopener noreferrer">BYU map ↗</a></div>
+        </div>
+        <div class="building-layout">
+          <div class="floor-main">
+            <div class="floor-toolbar"><div><h2 id="floorTitle">Entry level</h2><p id="floorSubtitle">Select a spot on the floor view.</p></div><div class="floor-control-stack"><div id="floorTabs" class="floor-tabs" role="group" aria-label="Choose floor"></div><div id="floorSideTabs" class="floor-tabs side-tabs" role="group" aria-label="Choose side" hidden></div></div></div>
+            <div id="roomTools" class="room-tools" hidden>
+              <div class="room-search-wrap"><label for="roomSearch">Find a room in the Wilk</label><input id="roomSearch" type="search" placeholder="Room number, e.g. 2050" autocomplete="off" aria-controls="roomSearchResults"><div id="roomSearchResults" class="room-search-results" hidden></div></div>
+              <button id="toggleRoomLabels" class="map-label-toggle" type="button" aria-pressed="true">Room numbers</button>
+            </div>
+            <div id="planAssetBar" class="plan-asset-bar" hidden><span>Digitized floor plan</span><div class="plan-asset-actions"><div class="plan-zoom" role="group" aria-label="Plan zoom"><button id="zoomOut" type="button" aria-label="Zoom out">−</button><output id="zoomValue">100%</output><button id="zoomIn" type="button" aria-label="Zoom in">+</button><button id="zoomFit" type="button">Fit</button></div><a id="sourcePdfLink" href="#" target="_blank" rel="noopener noreferrer">Source drawing ↗</a></div></div>
+            <div class="floor-plan-shell">
+              <div id="floorPlan" class="floor-plan" aria-label="Illustrative floor view of study spots"></div>
+              <div id="mapInstructions" class="map-instructions" hidden><span>Drag to move · Select a room to locate it</span><span id="mapNorth" class="map-north" aria-label="North direction">N ↑</span></div>
+              <div id="floorLegend" class="floor-legend"><span><i class="legend-dot open"></i>Open study area</span><span><i class="legend-dot reserved"></i>Reservation required</span><span><i class="legend-dot amenity"></i>Amenity</span></div>
+            </div>
+            <p id="floorDisclaimer" class="floor-disclaimer">This is a schematic guide, not an architectural floor plan. Check the <a href="https://pf.byu.edu/space/floor-plans/master" target="_blank" rel="noopener noreferrer">BYU master floor plans</a> for exact room locations (BYU sign-in may be required).</p>
+          </div>
+          <aside class="results-panel">
+            <div id="selectedRoomPanel" class="selected-room-panel" hidden></div>
+            <div class="results-head"><div><h2>Study spots</h2><p id="resultsSummary">Matching your filters</p></div><button id="editFilters" class="subtle-button" type="button">Edit filters</button></div>
+            <div id="activeFilterBar" class="active-filters"></div>
+            <div id="spotList" class="spot-list"></div>
+          </aside>
+        </div>
+      </section>
+
+      <section id="savedView" class="view saved-view" hidden>
+        <button id="savedBack" class="back-button" type="button">← Back to explore</button>
+        <div class="saved-heading"><div><p class="kicker">Your spaces</p><h1>Saved places</h1><p class="intro">Keep your go-to study spots together on this device.</p></div><button id="createList" class="secondary-button" type="button">+ New list</button></div>
+        <div id="savedTabs" class="saved-tabs" role="group" aria-label="Saved lists"></div>
+        <div id="savedItems" class="saved-items"></div>
+      </section>
+    </main>
+
+    <footer class="site-footer"><span>Study BYU is a student project prototype. It is not an official BYU service.</span><span><a href="https://map.byu.edu/" target="_blank" rel="noopener noreferrer">Campus map</a><a href="https://pf.byu.edu/space/floor-plans/master" target="_blank" rel="noopener noreferrer">Floor plans</a></span></footer>
+  </div>
+
+  <div id="modalBackdrop" class="modal-backdrop" hidden>
+    <div id="modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle"></div>
+  </div>
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+</body>
+</html>
