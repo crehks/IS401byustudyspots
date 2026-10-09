@@ -8,7 +8,7 @@ This prototype uses illustrative inventory and historical data; reports are load
 
 ## ERD
 
-![Study BYU ERD](<Blank diagram.png>)
+![Study BYU ERD](<erd.png>)
 
 This slice uses six ERD tables: `Buildings`, `Floors`, `SpotType`, `Study Spot`, `User`, and `ReportSpotStatus`. Buildings contain floors; study spots reference a building, floor, and type; reports reference a spot and user. All six contain sample rows. Other ERD entities remain outside this slice.
 
