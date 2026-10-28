@@ -1,7 +1,9 @@
 // Offline PostgreSQL fixture matching the supplied screenshots. No .env access.
+// Confirmed schema fixture: Buildings and SpotType names; empty spot inventory. All writes use isolated PGlite.
 import {PGlite} from '@electric-sql/pglite';
 import {readFile} from 'node:fs/promises';
 import assert from 'node:assert/strict';
+// Build a separate database for this run; never load the real .env.
 const pg=await PGlite.create();
 try{
  await pg.exec(`create role anon nologin; create role authenticated nologin;

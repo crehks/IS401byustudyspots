@@ -3,6 +3,7 @@ import {readFile} from 'node:fs/promises';
 import path from 'node:path';
 import {APP_ROOT,parseEnv,validateSettings} from '../server.mjs';
 
+// Validate the same settings as the server, then GET one row from each API endpoint.
 async function main(){
   let raw;
   try{raw=await readFile(path.join(APP_ROOT,'.env'),'utf8');}
@@ -17,6 +18,7 @@ async function main(){
   }
   console.log('.env URL and publishable key format are valid. Values are not displayed.');
   let healthy=true;
+  // The team's numeric schema and the fresh lowercase schema use different columns/views.
   const numeric=config.table==='ReportSpotStatus';
   for(const name of numeric?['ReportSpotStatus','latest_report_spot_status']:['user_reports','latest_spot_reports']){
     try{
@@ -26,6 +28,7 @@ async function main(){
       });
       if(response.ok){console.log(`${name}: read connection works.`);continue;}
       healthy=false;
+      // Print only a recognized error code; omit project credentials and report content.
       let code='';try{const data=await response.json();if(/^[A-Z0-9]{3,12}$/.test(data.code||''))code=data.code;}catch{}
       console.error(`${name}: HTTP ${response.status}${code?' ('+code+')':''}.`);
       if(code==='PGRST205'||code==='42P01')console.error(numeric?'The API cannot find this table/view. Use supabase/SETUP_PRESERVE_EXISTING.sql for the confirmed schema. If already seeded, check names and API exposure; do not reset existing rows.':'The API cannot find this table/view. Inspect your schema and use the matching setup file; do not reset existing tables.');
@@ -38,4 +41,5 @@ async function main(){
   else console.error('Keep .env unchanged unless it points to the wrong project. Credentials alone do not create database tables.');
   return healthy;
 }
+// A failing exit code lets a terminal or script detect a failed connection check.
 process.exitCode=(await main())?0:1;

@@ -4,6 +4,7 @@
 -- No DROP, destructive reset, or changes to the old study_reports_demo table.
 begin;
 
+-- 1. Catalogue: buildings, physical floors, spot types, and study-spot details.
 create table public.buildings (
   building_id text primary key,
   location text not null,
@@ -38,12 +39,14 @@ create table public.study_spots (
   foreign key (floor_id, building_id) references public.floors(floor_id, building_id)
 );
 
+-- 2. Fictional users support report foreign keys; the public app cannot read names.
 create table public.users (
   user_id uuid primary key default gen_random_uuid(),
   first_name text not null,
   last_name text not null
 );
 
+-- 3. Reports get their own identity/time defaults and strict input constraints.
 create table public.user_reports (
   report_id uuid primary key default gen_random_uuid(),
   spot_id text not null references public.study_spots(spot_id),
@@ -55,11 +58,13 @@ create table public.user_reports (
   time_reported timestamptz not null default clock_timestamp()
 );
 
+-- 4. Index the relationships and latest-report lookup used by the app.
 create index study_spots_type_idx on public.study_spots(spot_type_id);
 create index study_spots_floor_idx on public.study_spots(floor_id, building_id);
 create index user_reports_spot_time_idx on public.user_reports(spot_id, time_reported desc, report_id desc);
 create index user_reports_user_idx on public.user_reports(user_id);
 
+-- 5. Enable row policies and grant only the reads/inserts needed by this demo.
 alter table public.buildings enable row level security;
 alter table public.floors enable row level security;
 alter table public.spot_types enable row level security;
@@ -87,6 +92,7 @@ create policy "Submit fictional classroom report" on public.user_reports for ins
 
 -- One latest row PER spot, not the latest N reports across the whole campus.
 -- security_invoker preserves the requesting role's underlying RLS policies.
+-- 6. The frontend reads this view to get the newest report for each spot.
 create view public.latest_spot_reports with (security_invoker = true) as
 select distinct on (spot_id)
   report_id, spot_id, user_id, noise_level, crowd_levels, notes, time_reported

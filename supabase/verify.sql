@@ -8,6 +8,7 @@ union all select 'users', count(*) from public.users
 union all select 'user_reports', count(*) from public.user_reports
 order by table_name;
 
+-- Read the newest report beside its spot, building, floor, and fictional user.
 select r.report_id, s.spot_name, b.building_id, f.floor_number,
        u.first_name, u.last_name, r.noise_level, r.crowd_levels,
        r.notes, r.time_reported

@@ -19,9 +19,11 @@ import numpy as np
 from pypdf import PdfWriter
 from pypdf.generic import ContentStream
 
+# Source PDFs stay unchanged. Outputs are SVGs, one JS bundle, and an audit manifest.
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "assets" / "wsc"
 DEST = SOURCE / "digital"
+# Temporary mask resolution for geometry cleanup; final output remains vector SVG.
 SCALE = 6
 
 # Crop regions were chosen after reviewing every supplied drawing. They remove
@@ -120,10 +122,12 @@ for _key,_spec in JKB_PLANS.items():
     _spec.update(building='Jesse Knight Building',north=-25,room_pattern=r'[1-4]\d{3}[A-Za-z]{0,2}')
 
 
+# Keep exported coordinates small and consistent without changing their units.
 def fmt(v):
     return str(round(float(v), 2)).rstrip("0").rstrip(".") if float(v) else "0"
 
 
+# Separate original drawing ink from text before creating wall and structure layers.
 def make_ink(page, spec):
     x0,y0,x1,y1 = spec["crop"]
     w,h = x1-x0,y1-y0
@@ -169,6 +173,7 @@ def make_ink(page, spec):
     return cv2.bitwise_and(ink,region),cv2.bitwise_and(heavy,region),region
 
 
+# Convert mask contours back to closed SVG paths, dropping only tiny artifacts.
 def polygon_path(mask, epsilon=.06, minimum_area=.025):
     contours,hierarchy = cv2.findContours(mask,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
     result=[]
@@ -182,6 +187,7 @@ def polygon_path(mask, epsilon=.06, minimum_area=.025):
     return "".join(result)
 
 
+# Extract room numbers and convert page coordinates into the cropped drawing space.
 def get_labels(page,spec):
     x0,y0,x1,y1=spec["crop"]
     labels=[]
@@ -212,6 +218,7 @@ def get_labels(page,spec):
     return labels
 
 
+# Keep source notes separate so they do not become searchable room IDs.
 def get_notes(page,spec):
     # Preserve stair direction and door/subdivision tags separately from rooms.
     # A tag such as 4300-1 is not a distinct study room in the search index.
@@ -234,6 +241,7 @@ def get_notes(page,spec):
     return notes
 
 
+# Infer display tints from enclosed regions; these are not verified room boundaries.
 def make_spaces(ink,labels,spec):
     # Close door-width gaps for floor tinting. Source wall/door geometry above
     # remains untouched. These are presentation regions, not navigation data.
@@ -285,6 +293,7 @@ def make_spaces(ink,labels,spec):
     return spaces
 
 
+# Assemble SVG layers and the matching room-search metadata for one drawing.
 def build_plan(key,spec):
     with fitz.open(SOURCE/(spec["file"]+".pdf")) as document:
         page=document[0]
@@ -338,6 +347,7 @@ def build_plan(key,spec):
             "north":spec["north"],"rooms":rooms,"svg":svg,"review":spec["review"],"labelCount":len(labels)}
 
 
+# Default: WSC. --hbll or --jkb selects a building; extra keys rebuild selected floors.
 def main():
     global SOURCE,DEST
     hbll='--hbll' in sys.argv
@@ -353,6 +363,7 @@ def main():
     DEST.mkdir(parents=True,exist_ok=True)
     plans={}
     requested=[value for value in sys.argv[1:] if value not in ('--hbll','--jkb')]
+    # Preserve unrequested floors by reading the existing bundle's JSON assignment.
     if requested:
         existing=ROOT/output
         if existing.exists():
@@ -364,6 +375,7 @@ def main():
         plans[key]=build_plan(key,spec)
         p=plans[key]
         print(f"  {len(p['rooms'])} room IDs, {p['labelCount']} labels, {len(p['svg']):,} SVG characters",flush=True)
+    # Export runtime data and a readable audit manifest; regeneration replaces bundle headers.
     (ROOT/output).write_text('window.'+global_name+'='+json.dumps(plans,separators=(",",":"))+";\n",encoding="utf-8")
     manifest={key:{k:v for k,v in plan.items() if k not in ("svg",)} for key,plan in plans.items()}
     (DEST/"digitization-audit.json").write_text(json.dumps(manifest,indent=2),encoding="utf-8")

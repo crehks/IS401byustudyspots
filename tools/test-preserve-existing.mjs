@@ -1,8 +1,10 @@
 // Offline PostgreSQL fixture matching the supplied screenshots. No .env access.
+// Preservation fixture: keep existing rows while adding separate sample IDs 1001+. All writes use isolated PGlite.
 import {PGlite} from '@electric-sql/pglite';
 import {readFile} from 'node:fs/promises';
 import assert from 'node:assert/strict';
 import '../database.js';
+// Build a separate database for this run; never load the real .env.
 const pg=await PGlite.create();
 try{
  await pg.exec(`create role anon nologin; create role authenticated nologin;

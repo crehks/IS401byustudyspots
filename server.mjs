@@ -1,13 +1,16 @@
+// Local server: approved app files and browser-safe settings read from .env.
 import http from 'node:http';
 import { readFile, realpath, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const APP_ROOT = path.dirname(fileURLToPath(import.meta.url));
+// Allowlists keep unrelated environment values and project files out of responses.
 const ENV_NAMES = ['SUPABASE_URL', 'SUPABASE_PUBLISHABLE_KEY', 'SUPABASE_REPORTS_TABLE'];
 const PUBLIC_FILES = new Set(['index.html','styles.css','app.js','database.js','wsc-plans.js','hbll-plans.js','jkb-plans.js']);
 const TYPES = {'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.svg':'image/svg+xml','.pdf':'application/pdf','.png':'image/png','.jpg':'image/jpeg','.webp':'image/webp','.json':'application/json; charset=utf-8'};
 
+// Read known .env names, including quoted values and trailing comments.
 export function parseEnv(text) {
   const result = {};
   for (const line of text.split(/\r?\n/)) {
@@ -23,6 +26,7 @@ export function parseEnv(text) {
   return result;
 }
 
+// Normalize the base URL and reject privileged keys before settings reach the browser.
 export function validateSettings(input) {
   const url = String(input.url || '').trim();
   const key = String(input.key || '').trim();
@@ -42,7 +46,9 @@ export function validateSettings(input) {
   return {url:parsed.origin, key, table};
 }
 
+// Tests supply temporary root/configFile paths instead of using real settings.
 export function createAppServer({root=APP_ROOT, configFile=path.join(root,'.env')} = {}) {
+  // Read each time so local .env edits take effect after a page refresh.
   async function loadSettings() {
     let text = '';
     try { text = await readFile(configFile,'utf8'); } catch (error) { if (error.code !== 'ENOENT') throw error; }
@@ -63,19 +69,23 @@ export function createAppServer({root=APP_ROOT, configFile=path.join(root,'.env'
     response.setHeader('Referrer-Policy','no-referrer');
     const route = new URL(request.url,host).pathname;
     try {
+      // Read-only settings endpoint; no route writes back to .env.
       if (route === '/api/config' && request.method === 'GET') {
         const config = await loadSettings();
         return json(response,200,config);
       }
       if (request.method !== 'GET' && request.method !== 'HEAD') return json(response,405,{error:'Method not allowed.'});
+      // Serve allowlisted files and assets; exclude .env, docs, tests, and source tools.
       let relative;
       try { relative = decodeURIComponent(route).replace(/^\/+/, '') || 'index.html'; } catch { return json(response,400,{error:'Invalid path.'}); }
       if (relative.includes('\\') || relative.split('/').some(part => part.startsWith('.') || part === '..') || (!PUBLIC_FILES.has(relative) && !relative.startsWith('assets/'))) return json(response,404,{error:'Not found.'});
+      // Resolve symlinks before checking the project boundary to prevent file escapes.
       const rootPath = await realpath(root);
       const filename = await realpath(path.join(rootPath,relative));
       if (!filename.startsWith(rootPath + path.sep) || !(await stat(filename)).isFile()) return json(response,404,{error:'Not found.'});
       const contents = await readFile(filename);
       response.writeHead(200,{'Content-Type':TYPES[path.extname(filename).toLowerCase()] || 'application/octet-stream','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});
+      // HEAD sends the same headers as GET with no file body.
       response.end(request.method === 'HEAD' ? undefined : contents);
     } catch (error) {
       if (error.code === 'ENOENT') return json(response,404,{error:'Not found.'});
@@ -84,6 +94,7 @@ export function createAppServer({root=APP_ROOT, configFile=path.join(root,'.env'
   });
 }
 
+// Importing this module in tests does not start a server; only direct execution does.
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const port = Number(process.env.PORT || 3000);
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('PORT must be a number from 1 to 65535.');

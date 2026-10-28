@@ -1,3 +1,4 @@
+// Adapter checks with fake HTTP responses; no real Supabase project is contacted.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import '../database.js';

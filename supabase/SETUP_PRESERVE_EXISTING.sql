@@ -1,3 +1,4 @@
+-- FILE ROLE: Team schema variant: preserve existing inventory; sample IDs begin at 1001.
 -- RUN ONCE for the confirmed LIVE schema, in the project used by .env.
 -- Preserves existing spots and parents; samples use IDs 1001+.
 -- ReportSpotStatus must still be empty for this one-time setup.
@@ -6,7 +7,9 @@
 -- Sequence values can advance on a failed transaction; skipped IDs are harmless.
 -- Public fictional classroom demo; no login or real personal information.
 begin;
+-- 1. Lock the related tables so setup checks and inserts see a stable state.
 lock table public."Buildings",public."Floors",public."SpotType",public."Study Spot",public."User",public."ReportSpotStatus" in access exclusive mode;
+-- 2. Refuse conflicting data or an unexpected identity-column setup.
 do $$
 begin
   if exists(select 1 from public."ReportSpotStatus") then
@@ -23,6 +26,7 @@ begin
     raise exception 'report_id must already be an identity column. No changes applied.';
   end if;
 end $$;
+-- 3. Add the fictional catalogue with stable IDs used by the matching adapter.
 insert into public."Buildings" (building_id,building_location,opening_hrs,closing_hrs,building_name) overriding system value values
 (1001,'Sample: HBLL','07:00','23:00','HBLL'),(1002,'Sample: WSC','07:00','22:00','WSC'),(1003,'Sample: JKB','08:00','21:00','JKB') on conflict(building_id) do nothing;
 insert into public."Floors" (floor_id,floor_number,building_id) overriding system value values
@@ -66,6 +70,7 @@ alter table public."Floors" add constraint studybyu_floor_building_unique unique
 alter table public."Study Spot" add constraint studybyu_spot_floor_building_fk foreign key(floor_id,building_id) references public."Floors"(floor_id,building_id);
 alter table public."ReportSpotStatus" add constraint studybyu_report_spot_fk foreign key(spot_id) references public."Study Spot"(spot_id);
 alter table public."ReportSpotStatus" add constraint studybyu_report_user_fk foreign key(user_id) references public."User"(user_id);
+-- Database defaults supply the demo user/time; the browser cannot choose them.
 alter table public."ReportSpotStatus" alter column user_id set default 1001;
 alter table public."ReportSpotStatus" alter column created_at set default now();
 alter table public."ReportSpotStatus" alter column spot_id set not null;
@@ -106,6 +111,7 @@ begin
    raise exception 'Existing RLS policies found. Request a policy review; this setup will not replace them.';
  end if;
 end $$;
+-- 4. Grants allow only the intended public demo reads and report inserts.
 revoke all on public."Buildings",public."Floors",public."SpotType",public."Study Spot",public."User",public."ReportSpotStatus" from public,anon,authenticated;
 grant usage on schema public to anon,authenticated;
 grant select on public."Study Spot",public."ReportSpotStatus" to anon,authenticated;
@@ -116,16 +122,19 @@ begin
  seq:=pg_get_serial_sequence('public."ReportSpotStatus"','report_id');
  if seq is not null then execute format('grant usage on sequence %s to anon,authenticated',seq); end if;
 end $$;
+-- 5. Row policies limit what the granted API actions may read or insert.
 create policy studybyu_read_spots on public."Study Spot" for select to anon,authenticated using(true);
 create policy studybyu_read_reports on public."ReportSpotStatus" for select to anon,authenticated using(spot_id between 1001 and 1025);
 create policy studybyu_submit_report on public."ReportSpotStatus" for insert to anon,authenticated with check
 (user_id=1001 and spot_id between 1001 and 1025 and exists(select 1 from public."Study Spot" s where s.spot_id="ReportSpotStatus".spot_id and s.reservable=false));
+-- 6. Return one newest report per spot while preserving the caller's row policies.
 create or replace view public.latest_report_spot_status with(security_invoker=true) as
 select distinct on(spot_id) report_id,created_at,spot_id,user_id,noise_level,crowd_level,notes
 from public."ReportSpotStatus" where spot_id between 1001 and 1025 order by spot_id,created_at desc,report_id desc;
 revoke all on public.latest_report_spot_status from public,anon,authenticated;
 grant select on public.latest_report_spot_status to anon,authenticated;
 notify pgrst,'reload schema';
+-- Commit setup, then run the read-only result queries below.
 commit;
 select 'Buildings' as table_name,count(*) as rows from public."Buildings"
 union all select 'Floors',count(*) from public."Floors"

@@ -1,12 +1,17 @@
 /* Database adapter: this file contains no project URL or key. */
+// Configuration, reads, and inserts live here; UI rendering belongs in app.js.
 (function(scope) {
   'use strict';
-  const numericSpotIds=['hbll-commons','hbll-west','hbll-group','hbll-think','hbll-reading','hbll-single','hbll-upper','wsc-tables','wsc-lounge','wsc-1w-atrium','wsc-1w-nook','wsc-upper','wsc-2e-seating','wsc-2w-open','wsc-2w-corner','wsc-3e-hall','wsc-3e-corner','wsc-3w-open','wsc-3w-south','wsc-4f','wsc-5f','wsc-6f','jkb-tables','jkb-nook','jkb-group'];
+    // Array position plus 1001 gives the numeric sample spot ID. Never reorder this list.
+const numericSpotIds=['hbll-commons','hbll-west','hbll-group','hbll-think','hbll-reading','hbll-single','hbll-upper','wsc-tables','wsc-lounge','wsc-1w-atrium','wsc-1w-nook','wsc-upper','wsc-2e-seating','wsc-2w-open','wsc-2w-corner','wsc-3e-hall','wsc-3e-corner','wsc-3w-open','wsc-3w-south','wsc-4f','wsc-5f','wsc-6f','jkb-tables','jkb-nook','jkb-group'];
+  // The UI uses words; the team schema stores levels 1, 2, and 3.
   const levelNumber={low:1,medium:2,high:3};
   class StudyDatabase {
+    // Tests inject a fake fetcher; the browser uses its normal fetch function.
     constructor(fetcher=(...args)=>fetch(...args)) {
       this.fetcher=fetcher;this.config={configured:false,table:'user_reports'};this.reports={};this.ready=false;this.error='';this.loading=true;this.configLoaded=false;
     }
+    // Bound network waits and avoid cached configuration or report responses.
     async request(url,options={}) {
       const controller=new AbortController();
       const timer=setTimeout(()=>controller.abort(),12000);
@@ -14,6 +19,7 @@
       catch(error) {throw new Error(error.name==='AbortError'?'The database request timed out. Check your connection and retry.':'Could not reach the database. Check the project URL and internet connection.');}
       finally {clearTimeout(timer);}
     }
+    // Configured means settings exist; ready means reports also loaded successfully.
     async initialize() {
       this.ready=false;this.error='';this.reports={};this.loading=true;this.configLoaded=false;
       try {
@@ -26,7 +32,9 @@
       finally {this.loading=false;this.configLoaded=true;}
       return this;
     }
+    // Only the browser-safe publishable key is sent; server validation rejects secrets.
     headers(extra={}) {return {apikey:this.config.key,...extra};}
+    // Translate API failures without exposing credentials or raw response contents.
     async apiError(response) {
       let result={};try {result=await response.json();} catch {}
       if (result.code==='PGRST205' || result.code==='42P01') return new Error(this.config.table==='ReportSpotStatus'?'ReportSpotStatus or latest_report_spot_status is missing from the API. Use SETUP_PRESERVE_EXISTING.sql for the confirmed schema and check Data API exposure. Do not reset existing rows.':'The reports table or latest-report view is missing from the Supabase API. Run the matching setup file for your schema; do not reset existing tables.');
@@ -37,6 +45,7 @@
       if (result.code==='23503') return new Error('A required study spot or demo user is missing. Check the sample rows and foreign keys in the same project; do not run a legacy seed against your existing tables.');
       return new Error(`Supabase could not complete the request (HTTP ${response.status}). Check the table, constraints, and project status.`);
     }
+    // Validate either supported schema and return the report shape expected by the UI.
     rowToReport(row) {
       if(this.config.table==='ReportSpotStatus'){
         const validId=value=>(Number.isSafeInteger(value)&&value>0)||(typeof value==='string'&&/^[1-9][0-9]*$/.test(value));
@@ -48,6 +57,7 @@
       if (!row || typeof row.spot_id!=='string' || typeof row.report_id!=='string' || typeof row.user_id!=='string' || !['low','medium','high'].includes(row.noise_level) || !['low','medium','high'].includes(row.crowd_levels) || typeof row.notes!=='string' || !Number.isFinite(time)) throw new Error('Supabase returned an unexpected report shape. Check the README column contract.');
       return {id:row.report_id,spotId:row.spot_id,userId:row.user_id,noise:row.noise_level,busy:row.crowd_levels,note:row.notes,time,source:'supabase'};
     }
+    // Read one latest row per spot, rather than a campus-wide limit that could miss spots.
     async loadReports() {
       if(this.config.table==='ReportSpotStatus'){
         const query=new URLSearchParams({select:'report_id,spot_id,user_id,noise_level,crowd_level,notes,created_at',order:'created_at.desc,report_id.desc'});
@@ -67,6 +77,7 @@
       for (const row of rows) {const report=this.rowToReport(row);(reports[report.spotId]??=[]).push(report);}
       this.reports=reports;return reports;
     }
+    // Send only report inputs. The database supplies user, report ID, and timestamp.
     async submitReport(spotId,input) {
       if (!this.config.configured) throw new Error('Configure Supabase in .env before saving a database report.');
       if(this.loading)throw new Error('Wait for the connection check to finish.');
@@ -74,6 +85,7 @@
       if (!['low','medium','high'].includes(input.noise) || !['low','medium','high'].includes(input.busy)) throw new Error('Choose a noise level and a crowding level.');
       const note=String(input.note || '').trim();
       if (note.length>240) throw new Error('Keep the report note to 240 characters.');
+      // ReportSpotStatus is the team schema; user_reports is the fresh-schema variant.
       const numeric=this.config.table==='ReportSpotStatus';
       const numericIndex=numericSpotIds.indexOf(spotId),numericId=numericIndex+1001;
       if(numeric&&numericIndex<0)throw new Error('This spot is not in the database sample inventory.');
@@ -82,10 +94,12 @@
       if (!response.ok) throw await this.apiError(response);
       const rows=await response.json();
       if (!Array.isArray(rows) || rows.length!==1) throw new Error('The insert did not return its saved row. Check SELECT permission and return=representation.');
+      // Require the returned row to match the inputs before declaring a successful save.
       const report=this.rowToReport(rows[0]);
       if (report.spotId!==spotId || report.noise!==input.noise || report.busy!==input.busy || report.note!==note) throw new Error('The database response did not match the submitted report.');
       this.reports[spotId]=[report];this.ready=true;this.error='';return report;
     }
   }
+  // Expose the same adapter to browser code and Node-based tests.
   scope.StudyDatabase=StudyDatabase;
 })(typeof window==='undefined'?globalThis:window);

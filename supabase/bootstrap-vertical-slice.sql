@@ -6,6 +6,7 @@
 -- Add authentication, moderation, and abuse controls before public deployment.
 begin;
 
+-- Historical single-table storage; current database.js does not use this table.
 create table if not exists public.study_reports_demo (
   id uuid primary key default gen_random_uuid(),
   spot_id text not null check (char_length(spot_id) between 3 and 80 and spot_id ~ '^[a-z0-9-]+$'),

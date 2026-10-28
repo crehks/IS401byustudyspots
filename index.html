@@ -6,15 +6,19 @@
   <meta name="theme-color" content="#0b3153">
   <meta name="description" content="Find a study space at BYU by building, floor, group size, noise, privacy, and outlets.">
   <title>Study BYU | Find your place</title>
-  <link rel="stylesheet" href="styles.css?v=20261014-campus-labels">
+  <!-- Load map bundles before the adapter and app. defer keeps the scripts in order. -->
+  <link rel="stylesheet" href="styles.css?v=20261027-polish">
   <script defer src="wsc-plans.js?v=20261007"></script>
   <script defer src="hbll-plans.js?v=20261009"></script>
   <script defer src="jkb-plans.js?v=20261009"></script>
   <script defer src="database.js?v=20261014-package"></script>
-  <script defer src="app.js?v=20261014-campus-labels"></script>
+  <script defer src="app.js?v=20261027-polish"></script>
 </head>
 <body>
+  <a class="skip-link" href="#mainContent">Skip to content</a>
+  <!-- Main content becomes inert while the shared dialog is open. -->
   <div class="app-shell">
+    <!-- Shared navigation for Explore, Saved, and local spot suggestions. -->
     <header class="topbar">
       <button class="brand" id="homeButton" type="button" aria-label="StudyBYU home">
         <span class="brand-mark" aria-hidden="true"></span>
@@ -27,11 +31,13 @@
       </nav>
     </header>
 
-    <main id="mainContent">
+    <main id="mainContent" tabindex="-1">
+      <!-- JavaScript controls this warning and the returned database receipt below. -->
       <section id="databaseWarning" class="database-banner" role="status" aria-live="polite" hidden>
         <p>Supabase is not connected.</p>
       </section>
       <section id="databaseReceipt" class="database-receipt" aria-live="polite" hidden></section>
+      <!-- EXPLORE VIEW: filters, the campus map, and ranked recommendations. -->
       <section id="exploreView" class="view">
         <div class="page-heading">
           <div>
@@ -43,6 +49,7 @@
         </div>
 
         <div class="explore-layout">
+          <!-- Keep these input IDs aligned with the shared event handlers in app.js. -->
           <aside class="filter-panel" aria-labelledby="filterHeading">
             <div class="panel-topline">
               <div>
@@ -83,6 +90,7 @@
             <button id="showMatches" class="primary-button wide" type="button">Show matching spaces <span id="matchCount">0</span></button>
           </aside>
 
+          <!-- The campus SVG comes from CAMPUS_BUILDINGS, not an external map API. -->
           <div class="campus-area">
             <div class="campus-map campus-map-digital" role="group" aria-label="Digitized BYU campus map. HBLL, WSC, and JKB have floor plans; other buildings are coming soon.">
               <div class="campus-map-heading"><div><h2>Find your building</h2><p>Three buildings ready to explore.</p></div><div class="campus-map-controls" aria-label="Campus map zoom"><button id="campusZoomOut" type="button" aria-label="Zoom campus map out">−</button><output id="campusZoomValue">100%</output><button id="campusZoomIn" type="button" aria-label="Zoom campus map in">+</button><button id="campusZoomFit" type="button">Reset map</button><span class="campus-north" aria-label="North is up">N ↑</span></div></div>
@@ -100,12 +108,14 @@
           </div>
         </div>
 
+        <!-- JavaScript inserts three matching spots or a clear empty state. -->
         <section class="recommendations" aria-labelledby="recommendHeading">
           <div class="section-heading"><div><h2 id="recommendHeading">Good places to start</h2><p>Suggestions use sample crowding data until campus reports are connected.</p></div><span class="demo-pill">Demo data</span></div>
           <div id="recommendationsList" class="recommendation-grid"></div>
         </section>
       </section>
 
+      <!-- BUILDING VIEW: floor/side controls, room search, native map, and study spots. -->
       <section id="buildingView" class="view" hidden>
         <div class="building-heading">
           <div>
@@ -118,11 +128,13 @@
         <div class="building-layout">
           <div class="floor-main">
             <div class="floor-toolbar"><div><h2 id="floorTitle">Entry level</h2><p id="floorSubtitle">Select a spot on the floor view.</p></div><div class="floor-control-stack"><div id="floorTabs" class="floor-tabs" role="group" aria-label="Choose floor"></div><div id="floorSideTabs" class="floor-tabs side-tabs" role="group" aria-label="Choose side" hidden></div></div></div>
+            <!-- Search spans this building and may switch to another floor drawing. -->
             <div id="roomTools" class="room-tools" hidden>
               <div class="room-search-wrap"><label for="roomSearch">Find a room in the Wilk</label><input id="roomSearch" type="search" placeholder="Room number, e.g. 2050" autocomplete="off" aria-controls="roomSearchResults"><div id="roomSearchResults" class="room-search-results" hidden></div></div>
               <button id="toggleRoomLabels" class="map-label-toggle" type="button" aria-pressed="true">Room numbers</button>
             </div>
             <div id="planAssetBar" class="plan-asset-bar" hidden><span>Digitized floor plan</span><div class="plan-asset-actions"><div class="plan-zoom" role="group" aria-label="Plan zoom"><button id="zoomOut" type="button" aria-label="Zoom out">−</button><output id="zoomValue">100%</output><button id="zoomIn" type="button" aria-label="Zoom in">+</button><button id="zoomFit" type="button">Fit</button></div><a id="sourcePdfLink" href="#" target="_blank" rel="noopener noreferrer">Source drawing ↗</a></div></div>
+            <!-- floorPlan receives the selected SVG and provisional study pins. -->
             <div class="floor-plan-shell">
               <div id="floorPlan" class="floor-plan" aria-label="Illustrative floor view of study spots"></div>
               <div id="mapInstructions" class="map-instructions" hidden><span>Drag to move · Select a room to locate it</span><span id="mapNorth" class="map-north" aria-label="North direction">N ↑</span></div>
@@ -130,6 +142,7 @@
             </div>
             <p id="floorDisclaimer" class="floor-disclaimer">This is a schematic guide, not an architectural floor plan. Check the <a href="https://pf.byu.edu/space/floor-plans/master" target="_blank" rel="noopener noreferrer">BYU master floor plans</a> for exact room locations (BYU sign-in may be required).</p>
           </div>
+          <!-- Room selection and study-spot filtering are separate actions. -->
           <aside class="results-panel">
             <div id="selectedRoomPanel" class="selected-room-panel" hidden></div>
             <div class="results-head"><div><h2>Study spots</h2><p id="resultsSummary">Matching your filters</p></div><button id="editFilters" class="subtle-button" type="button">Edit filters</button></div>
@@ -139,6 +152,7 @@
         </div>
       </section>
 
+      <!-- SAVED VIEW: device-local Favorites and up to two custom lists. -->
       <section id="savedView" class="view saved-view" hidden>
         <button id="savedBack" class="back-button" type="button">← Back to explore</button>
         <div class="saved-heading"><div><p class="kicker">Your spaces</p><h1>Saved places</h1><p class="intro">Keep your go-to study spots together on this device.</p></div><button id="createList" class="secondary-button" type="button">+ New list</button></div>
@@ -150,9 +164,11 @@
     <footer class="site-footer"><span>Study BYU is a student project prototype. It is not an official BYU service.</span><span><a href="https://map.byu.edu/" target="_blank" rel="noopener noreferrer">Campus map</a><a href="https://pf.byu.edu/space/floor-plans/master" target="_blank" rel="noopener noreferrer">Floor plans</a></span></footer>
   </div>
 
+  <!-- Shared dialog host. app.js manages content, focus, and guarded closing. -->
   <div id="modalBackdrop" class="modal-backdrop" hidden>
     <div id="modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle"></div>
   </div>
+  <!-- Brief status feedback is announced without moving keyboard focus. -->
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 </body>
 </html>

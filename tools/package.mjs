@@ -6,9 +6,11 @@ import {deflateRawSync} from 'node:zlib';
 import {parseEnv} from '../server.mjs';
 
 const root=path.dirname(path.dirname(fileURLToPath(import.meta.url)));
+// 1. Check the shareable template before collecting files.
 const template=await readFile(path.join(root,'.env.example'),'utf8');
 const templateSettings=parseEnv(template);
 if(templateSettings.SUPABASE_URL||templateSettings.SUPABASE_PUBLISHABLE_KEY)throw new Error('Refusing to package nonblank connection settings in .env.example. Keep real values only in .env.');
+// 2. Include approved root files and supported folders; preserve their directory structure.
 const files=['.gitignore','.env.example','package.json','package-lock.json','server.mjs','database.js','index.html','styles.css','app.js','wsc-plans.js','hbll-plans.js','jkb-plans.js','README.md'];
 async function walk(directory){
   for(const entry of await readdir(path.join(root,directory),{withFileTypes:true})){
@@ -19,14 +21,17 @@ async function walk(directory){
   }
 }
 for(const directory of ['assets','docs','supabase','tests','tools'])await walk(directory);
+// 3. ZIP stores a CRC-32 checksum for each uncompressed file.
 const crcTable=Array.from({length:256},(_,value)=>{
   for(let bit=0;bit<8;bit++)value=(value&1)?0xedb88320^(value>>>1):value>>>1;
   return value>>>0;
 });
 function crc32(data){let value=0xffffffff;for(const byte of data)value=crcTable[(value^byte)&255]^(value>>>8);return (value^0xffffffff)>>>0;}
+// ZIP timestamps use DOS date/time fields rather than JavaScript timestamps.
 const date=new Date();
 const dosTime=(date.getHours()<<11)|(date.getMinutes()<<5)|(date.getSeconds()>>1);
 const dosDate=((date.getFullYear()-1980)<<9)|((date.getMonth()+1)<<5)|date.getDate();
+// 4. Local headers precede file bytes; central headers form the archive index.
 const chunks=[],central=[];let offset=0;
 for(const relative of files){
   if(relative!=='.env.example'&&relative.split('/').some(part=>part.startsWith('.env')))throw new Error('Refusing to package environment credentials.');
@@ -36,6 +41,7 @@ for(const relative of files){
   const header=Buffer.alloc(46);header.writeUInt32LE(0x02014b50,0);header.writeUInt16LE(20,4);header.writeUInt16LE(20,6);header.writeUInt16LE(0x800,8);header.writeUInt16LE(8,10);header.writeUInt16LE(dosTime,12);header.writeUInt16LE(dosDate,14);header.writeUInt32LE(checksum,16);header.writeUInt32LE(compressed.length,20);header.writeUInt32LE(data.length,24);header.writeUInt16LE(name.length,28);header.writeUInt32LE(offset,42);
   central.push(header,name);offset+=local.length+name.length+compressed.length;
 }
+// 5. Finish the central directory, then update the same delivery ZIP in outputs.
 const directory=Buffer.concat(central),end=Buffer.alloc(22);
 end.writeUInt32LE(0x06054b50,0);end.writeUInt16LE(files.length,8);end.writeUInt16LE(files.length,10);end.writeUInt32LE(directory.length,12);end.writeUInt32LE(offset,16);
 const destination=path.join(path.dirname(root),'StudyBYUProduct.zip');

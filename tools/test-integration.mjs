@@ -14,6 +14,7 @@ import {createAppServer} from '../server.mjs';
 const root=path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const nativeFetch=globalThis.fetch;
 const directory=await mkdtemp(path.join(tmpdir(),'study-byu-integration-'));
+// 1. Start isolated PostgreSQL; every following SQL write stays inside this fixture.
 const pg=await PGlite.create();
 let gateway,app,rejectInserts=false;
 const publicKey='sb_publishable_local_integration_fixture';
@@ -48,7 +49,8 @@ try {
         "insert into public.user_reports (spot_id,noise_level,crowd_levels) values ('wsc-tables','invalid','low')",
         "insert into public.user_reports (spot_id,noise_level,crowd_levels,notes) values ('wsc-tables','low','low',repeat('x',241))"
       ])await assert.rejects(pg.query(statement),statement);
-    } finally {await pg.exec('reset role');}
+    // Always close fixture servers/database and remove only the checked temporary directory.
+} finally {await pg.exec('reset role');}
   }
   await pg.exec("insert into public.user_reports (spot_id,noise_level,crowd_levels,notes,time_reported) select 'wsc-tables','low','low','Older bulk sample','2026-01-02T12:00:00Z' from generate_series(1,1100)");
   await pg.exec('set role anon');
@@ -57,6 +59,7 @@ try {
   await pg.exec('reset role');
   console.log('PASS SQL: six seeded tables, repeatable seed, foreign keys, RLS/grants for both public roles, protected IDs/user/time, one latest row per spot after 1,100 extra reports.');
 
+  // 2. Mimic the REST routes so the real adapter can read and insert fixture reports.
   gateway=http.createServer(async(request,response)=>{
     response.setHeader('Content-Type','application/json');
     try {
@@ -85,10 +88,12 @@ try {
   app=createAppServer({configFile:path.join(directory,'.env')});
   await new Promise(resolve=>app.listen(0,'127.0.0.1',resolve));
   const base=`http://127.0.0.1:${app.address().port}`;
+  // 3. Load the actual page and scripts into a DOM with small browser API substitutes.
   const html=await readFile(path.join(root,'index.html'),'utf8');
   const names=['wsc-plans.js','hbll-plans.js','jkb-plans.js','database.js','app.js'];
   const scripts=await Promise.all(names.map(name=>readFile(path.join(root,name),'utf8')));
   async function until(predicate){for(let i=0;i<300;i++){if(predicate())return;await new Promise(resolve=>setTimeout(resolve,20));}throw new Error('Frontend fixture did not reach expected state.');}
+  // Each frontend gets its own window and optional shared storage for refresh tests.
   function frontend(storage=new Map()){
     const {window}=parseHTML(html);
     Object.assign(window,{location:{protocol:'http:',origin:base},fetch:(url,options)=>nativeFetch(new URL(url,base),{...options,headers:{...options?.headers,...(options?.method==='POST'&&String(url).startsWith('/api/')?{Origin:base}:{})}}),AbortController,URLSearchParams,ResizeObserver:class{observe(){}disconnect(){}},scrollTo(){},setTimeout,clearTimeout,Date,console,localStorage:{getItem:key=>storage.get(key)??null,setItem:(key,value)=>storage.set(key,value)}});
@@ -111,6 +116,7 @@ try {
     return {window,context,query,click,submit,storage,evaluate:expression=>vm.runInContext(expression,context)};
   }
 
+  // 4. Exercise campus actions, filters, all floor maps, forms, and saved lists.
   const first=frontend();await until(()=>first.evaluate('database.configLoaded&&!database.loading'));
   assert.equal(first.window.document.querySelectorAll('.campus-building').length,45);
   assert.equal(first.window.document.querySelectorAll('.campus-building.is-available').length,3);
@@ -234,11 +240,18 @@ try {
   first.click('#navSaved');assert.ok(first.query('#savedItems').textContent.includes('East hall tables'));first.click('#createList');
   first.submit('#newListForm',{name:'   '});assert.equal(first.query('#newListError').hidden,false);assert.equal(first.evaluate('data.lists.length'),1);
   first.submit('#newListForm',{name:'Class project'});assert.equal(first.evaluate('data.lists.length'),2);
-  first.click('#navReport');first.submit('#newSpotForm',{name:'x',type:'group',capacity:'4',building:'WSC',floor:'1E',noise:'low',private:false,outlets:true,detail:''});assert.equal(first.query('#newSpotError').hidden,false);
+  first.click('#navReport');
+  assert.equal(first.query('.app-shell').hasAttribute('inert'),true);
+  first.query('#newFloor').value='L5';first.query('#newType').value='group';first.query('#newType').dispatchEvent(new first.window.Event('change',{bubbles:true}));
+  assert.equal(first.query('#newFloor').value,'L5','Changing study type must preserve the chosen floor');
+  first.submit('#newSpotForm',{name:'x',type:'group',capacity:'4',building:'WSC',floor:'1E',noise:'low',private:false,outlets:true,detail:''});assert.equal(first.query('#newSpotError').hidden,false);
   first.submit('#newSpotForm',{name:'Local test tables',type:'group',capacity:'4',building:'WSC',floor:'1E',noise:'low',private:false,outlets:true,detail:'Fictional suggestion'});
   assert.equal(first.evaluate('data.customSpots.length'),1);
+  assert.equal(first.query('.app-shell').hasAttribute('inert'),false);
+  first.click(`[data-spot="${first.evaluate('data.customSpots[0].id')}"]`);assert.ok(first.query('#modal').textContent.includes('Fictional suggestion'));first.click('[data-modal-close]');
   console.log('PASS local UI handlers: type/noise/private/outlet/building filters, save/clear, matching navigation, all nine WSC views, zoom/fit/pan, label toggle, room search, favorites, custom list, and validated new-spot suggestion.');
 
+  // 5. Connect to the fixture only, then test saved rows, duplicate submits, and denied writes.
   await writeFile(path.join(directory,'.env'),'SUPABASE_URL='+gatewayUrl+'\nSUPABASE_PUBLISHABLE_KEY='+publicKey+'\nSUPABASE_REPORTS_TABLE=user_reports\n');await first.evaluate('database.initialize()');first.evaluate('renderDatabaseStatus();render()');
   assert.equal(first.query('#databaseWarning').hidden,true);
   first.click('[data-open-building="WSC"]');first.click('[data-spot="wsc-tables"]');first.click('[data-confirm-spot="wsc-tables"]');
@@ -249,6 +262,7 @@ try {
   const row=(await pg.query('select * from public.user_reports where notes=$1',[note])).rows[0];
   assert.ok(row);assert.equal((await pg.query('select count(*)::int as n from public.user_reports where notes=$1',[note])).rows[0].n,1);
   assert.ok(first.query('#databaseReceipt').textContent.includes(row.report_id));
+  assert.equal(first.query('#spotList [data-spot="wsc-tables"] .availability').classList.contains('high'),true,'Busy reports must use the high-crowding color');
   assert.ok(!first.storage.get('study-byu-prototype-v1').includes(row.report_id));
   first.click('[data-open-reported="wsc-tables"]');assert.ok(first.query('#latestReport').textContent.includes(note));assert.ok(first.query('#latestReport').textContent.includes(row.report_id));assert.equal(first.query('#latestReport').querySelector('script'),null);
   first.click('[data-confirm-spot="wsc-tables"]');rejectInserts=true;first.submit('#arrivalForm',{noise:'low',busy:'low',note:'Rejected fixture'});
@@ -268,6 +282,7 @@ try {
   first.click('[data-open-reported="jkb-tables"]');assert.ok(first.query('#latestReport').textContent.includes(jkbRow.report_id));first.click('[data-modal-close]');
   console.log('PASS report UI: read-only .env configuration -> one PostgreSQL INSERT despite duplicate submission -> returned row/Latest report -> escaped text; denied save stays visible; local suggestions are explicitly local.');
 
+  // 6. A fresh browser with empty storage must still retrieve reports from PostgreSQL.
   const second=frontend(new Map());await until(()=>second.evaluate('database.ready&&!database.loading'));assert.equal(second.query('#databaseWarning').hidden,true);
   second.click('[data-open-building="WSC"]');second.click('[data-spot="wsc-tables"]');
   assert.match(second.query('#latestReport').textContent,/Read from Supabase/);assert.ok(second.query('#latestReport').textContent.includes(row.report_id));assert.ok(second.query('#latestReport').textContent.includes(note));

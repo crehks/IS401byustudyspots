@@ -3,6 +3,7 @@
 -- Stable keys and DO NOTHING make repeats safe without resetting new reports.
 begin;
 
+-- 1. Sample catalogue; frontend IDs and these rows must stay aligned.
 insert into public.buildings (building_id, location, building_opens, building_closes) values
   ('HBLL', 'Sample: Harold B. Lee Library, BYU campus', '07:00', '23:00'),
   ('WSC', 'Sample: Wilkinson Student Center, BYU campus', '07:00', '22:00'),
@@ -17,6 +18,7 @@ insert into public.floors (floor_id, building_id, floor_number) values
   ('JKB-G', 'JKB', 0), ('JKB-L2', 'JKB', 2)
 on conflict do nothing;
 
+-- 2. Shared space categories referenced by the study-spot rows below.
 insert into public.spot_types (type_id, description) values
   ('solo', 'Individual study in an open area'),
   ('group', 'Group study for two to eight people'),
@@ -52,12 +54,14 @@ insert into public.study_spots (spot_id, spot_type_id, building_id, floor_id, sp
   ('jkb-group','group','JKB','JKB-L2','Group table area',true,8,'Sample: level 2 group area',false,'table')
 on conflict do nothing;
 
+-- 3. Fictional demo identities; the report default points to the first user.
 insert into public.users (user_id, first_name, last_name) values
   ('00000000-0000-4000-8000-000000000001','Demo','Student'),
   ('00000000-0000-4000-8000-000000000002','Sample','Student'),
   ('00000000-0000-4000-8000-000000000003','Example','Student')
 on conflict do nothing;
 
+-- 4. Fixed sample reports provide an initial state without duplicating rows on repeat.
 insert into public.user_reports (report_id, spot_id, user_id, noise_level, crowd_levels, notes, time_reported) values
   ('10000000-0000-4000-8000-000000000001','hbll-west','00000000-0000-4000-8000-000000000001','low','low','Sample report: quiet tables.','2026-01-01T12:00:00Z'),
   ('10000000-0000-4000-8000-000000000002','wsc-tables','00000000-0000-4000-8000-000000000002','medium','low','Sample report: available seats.','2026-01-01T12:00:00Z'),

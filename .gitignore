@@ -1,0 +1,12 @@
+# Keep local connection settings out of source control; share only the blank template.
+.env
+.env.*
+!.env.example
+# Dependencies, generated build output, and local test results.
+node_modules/
+dist/
+coverage/
+*.log
+# Operating-system metadata.
+.DS_Store
+Thumbs.db

@@ -1,3 +1,4 @@
+// Catalogue checks: map labels, stable IDs, all floor bundles, and bundled source files.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile,readdir} from 'node:fs/promises';
