@@ -52,7 +52,7 @@ GitHub stores the source; GitHub Pages cannot run `server.mjs` or read `.env`. F
 
 ### Test the report
 
-1. Select **WSC → Floor 1 → East → East hall tables (sample)**, then **Choose this spot**.
+1. Select **WSC → Floor 1 → East → East hall tables (sample)**, then click **Choose this spot**.
 2. Choose noise and crowding levels, enter a distinctive fictional note such as `Refresh proof 42`, and click **Confirm report**.
 3. The app inserts into `ReportSpotStatus` and displays the saved values and database-generated report ID. Reopen the spot to see **Latest report**.
 4. Refresh the entire page and reopen that same spot. The note and report ID should remain: the app reads them again from `latest_report_spot_status`, not browser storage.
