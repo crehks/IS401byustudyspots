@@ -7,12 +7,12 @@
   <meta name="description" content="Find a study space at BYU by building, floor, group size, noise, privacy, and outlets.">
   <title>Study BYU | Find your place</title>
   <!-- Load map bundles before the adapter and app. defer keeps the scripts in order. -->
-  <link rel="stylesheet" href="styles.css?v=20261027-polish">
+  <link rel="stylesheet" href="styles.css?v=20261029-mobile">
   <script defer src="wsc-plans.js?v=20261007"></script>
   <script defer src="hbll-plans.js?v=20261009"></script>
   <script defer src="jkb-plans.js?v=20261009"></script>
   <script defer src="database.js?v=20261014-package"></script>
-  <script defer src="app.js?v=20261027-polish"></script>
+  <script defer src="app.js?v=20261029-mobile"></script>
 </head>
 <body>
   <a class="skip-link" href="#mainContent">Skip to content</a>
@@ -51,6 +51,11 @@
         <div class="explore-layout">
           <!-- Keep these input IDs aligned with the shared event handlers in app.js. -->
           <aside class="filter-panel" aria-labelledby="filterHeading">
+            <div class="mobile-filter-bar">
+              <button id="toggleFilters" class="secondary-button" type="button" aria-expanded="false" aria-controls="filterFields">Filters <span id="activeFilterCount">0 active</span></button>
+              <button id="mobileShowMatches" class="primary-button" type="button">Show spaces <span id="mobileMatchCount">25</span></button>
+            </div>
+            <div id="filterFields" class="filter-fields">
             <div class="panel-topline">
               <div>
                 <h2 id="filterHeading">Your study setup</h2>
@@ -88,6 +93,7 @@
               <label class="switch-row"><span><strong>Outlets nearby</strong><small>Power for your devices</small></span><input id="outletFilter" type="checkbox"><span class="switch-ui" aria-hidden="true"></span></label>
             </div>
             <button id="showMatches" class="primary-button wide" type="button">Show matching spaces <span id="matchCount">0</span></button>
+            </div>
           </aside>
 
           <!-- The campus SVG comes from CAMPUS_BUILDINGS, not an external map API. -->
@@ -125,8 +131,12 @@
           </div>
           <div class="building-links"><a id="officialFloorLink" href="https://pf.byu.edu/space/floor-plans/master" target="_blank" rel="noopener noreferrer">Official floor plans ↗</a><a id="buildingMapLink" href="https://map.byu.edu/" target="_blank" rel="noopener noreferrer">BYU map ↗</a></div>
         </div>
-        <div class="building-layout">
-          <div class="floor-main">
+        <div class="mobile-view-switch" role="group" aria-label="Building view">
+          <button type="button" data-building-panel="map" aria-pressed="true" aria-controls="floorMain">Map</button>
+          <button type="button" data-building-panel="spots" aria-pressed="false" aria-controls="studyResults">Study spots <span id="mobileSpotCount">0</span></button>
+        </div>
+        <div class="building-layout" data-panel="map">
+          <div id="floorMain" class="floor-main">
             <div class="floor-toolbar"><div><h2 id="floorTitle">Entry level</h2><p id="floorSubtitle">Select a spot on the floor view.</p></div><div class="floor-control-stack"><div id="floorTabs" class="floor-tabs" role="group" aria-label="Choose floor"></div><div id="floorSideTabs" class="floor-tabs side-tabs" role="group" aria-label="Choose side" hidden></div></div></div>
             <!-- Search spans this building and may switch to another floor drawing. -->
             <div id="roomTools" class="room-tools" hidden>
@@ -134,6 +144,11 @@
               <button id="toggleRoomLabels" class="map-label-toggle" type="button" aria-pressed="true">Room numbers</button>
             </div>
             <div id="planAssetBar" class="plan-asset-bar" hidden><span>Digitized floor plan</span><div class="plan-asset-actions"><div class="plan-zoom" role="group" aria-label="Plan zoom"><button id="zoomOut" type="button" aria-label="Zoom out">−</button><output id="zoomValue">100%</output><button id="zoomIn" type="button" aria-label="Zoom in">+</button><button id="zoomFit" type="button">Fit</button></div><a id="sourcePdfLink" href="#" target="_blank" rel="noopener noreferrer">Source drawing ↗</a></div></div>
+            <div id="selectedRoomPanel" class="selected-room-panel" role="status" hidden></div>
+            <div class="map-interaction-bar">
+              <p id="mapTouchHint">Swipe to scroll the page. Activate the map to pan and pinch to zoom.</p>
+              <button id="interactMap" class="secondary-button" type="button" aria-pressed="false" aria-controls="floorPlan" aria-describedby="mapTouchHint">Interact with map</button>
+            </div>
             <!-- floorPlan receives the selected SVG and provisional study pins. -->
             <div class="floor-plan-shell">
               <div id="floorPlan" class="floor-plan" aria-label="Illustrative floor view of study spots"></div>
@@ -143,8 +158,7 @@
             <p id="floorDisclaimer" class="floor-disclaimer">This is a schematic guide, not an architectural floor plan. Check the <a href="https://pf.byu.edu/space/floor-plans/master" target="_blank" rel="noopener noreferrer">BYU master floor plans</a> for exact room locations (BYU sign-in may be required).</p>
           </div>
           <!-- Room selection and study-spot filtering are separate actions. -->
-          <aside class="results-panel">
-            <div id="selectedRoomPanel" class="selected-room-panel" hidden></div>
+          <aside id="studyResults" class="results-panel">
             <div class="results-head"><div><h2>Study spots</h2><p id="resultsSummary">Matching your filters</p></div><button id="editFilters" class="subtle-button" type="button">Edit filters</button></div>
             <div id="activeFilterBar" class="active-filters"></div>
             <div id="spotList" class="spot-list"></div>
