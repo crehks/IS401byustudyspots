@@ -339,6 +339,25 @@ async function submitArrival(form){
   finally{reportSubmissionPending=false;button.disabled=false;button.textContent='Confirm report';}
 }
 // 6. Views. Reuse building checkboxes so updates preserve keyboard focus.
+const COMPACT_LAYOUT_QUERY='(max-width:800px), (max-width:1100px) and (max-height:500px)';
+function isCompactLayout(){return window.matchMedia?.(COMPACT_LAYOUT_QUERY).matches??false}
+function setFilterDisclosure(open){
+  $('.filter-panel').classList.toggle('is-open',open);
+  $('#toggleFilters').setAttribute('aria-expanded',open);
+}
+function setBuildingPanel(panel){
+  $('.building-layout').dataset.panel=panel;
+  $$('[data-building-panel]').forEach(button=>button.setAttribute('aria-pressed',button.dataset.buildingPanel===panel));
+  if(panel==='map')resizeDigitalMap();
+}
+function setMapInteraction(active){
+  $('#floorPlan').classList.toggle('is-interactive',active);
+  $('#interactMap').setAttribute('aria-pressed',active);
+  $('#interactMap').textContent=active?'Done moving map':'Interact with map';
+  $('#mapTouchHint').textContent=active?'Drag to pan. Pinch to zoom. Choose Done to scroll the page.':'Swipe to scroll the page. Activate the map to pan and pinch to zoom.';
+  const instructions=$('#mapInstructions>span');
+  if(instructions)instructions.textContent=isCompactLayout()?(active?'Drag to pan · Pinch to zoom':'Select a room · Activate map to move'):'Drag to move · Select a room to locate it';
+}
 function renderFilters(){
   if(!$('#buildingFilters').children.length)$('#buildingFilters').innerHTML=Object.entries(BUILDINGS).map(([id,b])=>`<label class="building-check"><input type="checkbox" value="${id}"><span>${id}</span><small>${esc(b.short)}</small></label>`).join('');
   $$('#buildingFilters input').forEach(input=>input.checked=state.buildings.has(input.value));
@@ -346,7 +365,10 @@ function renderFilters(){
   $$('[data-noise]').forEach(b=>{const selected=b.dataset.noise===state.noise;b.classList.toggle('is-selected',selected);b.setAttribute('aria-pressed',selected)});
   $('#groupSizeWrap').hidden=state.study!=='group';$('#groupSize').value=state.groupSize;$('#groupSizeValue').textContent=`${state.groupSize} people`;
   $('#privateFilter').checked=state.private;$('#outletFilter').checked=state.outlets;
-  $('#matchCount').textContent=allSpots().filter(matches).length;
+  const count=allSpots().filter(matches).length;
+  $('#matchCount').textContent=count;$('#mobileMatchCount').textContent=count;
+  const active=Number(state.buildings.size!==Object.keys(BUILDINGS).length)+Number(state.study!=='any')+Number(state.noise!=='any')+Number(state.private)+Number(state.outlets);
+  $('#activeFilterCount').textContent=`${active} active`;
 }
 // Render the three best matches, or a way to clear restrictive filters.
 function renderRecommendations(){
@@ -384,12 +406,12 @@ function renderBuilding(){
     plan.className=`floor-plan native-plan ${state.building.toLowerCase()}-plan ${state.roomLabels?'':'hide-room-labels'}`;plan.setAttribute('aria-label',`Interactive ${building.short} ${floor.label} map`);
     // Translate page-based pin positions into percentages of the cropped SVG.
     const studyPoints={WSC:WILK_STUDY_POINTS,HBLL:HBLL_STUDY_POINTS,JKB:JKB_STUDY_POINTS}[state.building]||{};
-    plan.innerHTML=`<div class="plan-scroll"><div class="plan-canvas"><div id="planStage" class="plan-stage">${digital.svg}${spots.map((s,i)=>{const point=studyPoints[s.id]||[s.x/100*1224,s.y/100*792];const x=(point[0]-digital.crop[0])/digital.width*100;const y=(point[1]-digital.crop[1])/digital.height*100;return `<button type="button" class="plan-pin ${s.reserved?'reserved':''} ${matches(s)?'':'is-dimmed'} ${state.selectedSpot===s.id?'is-selected':''}" style="left:${x}%;top:${y}%" data-spot="${esc(s.id)}" title="${esc(s.name)}" aria-label="Sample spot ${i+1}: ${esc(s.name)}">S${i+1}</button>`}).join('')}</div></div></div>`;
+    plan.innerHTML=`<div class="plan-scroll"><div class="plan-canvas"><div id="planStage" class="plan-stage">${digital.svg}${spots.map((s,i)=>{const point=studyPoints[s.id]||[s.x/100*1224,s.y/100*792];const x=(point[0]-digital.crop[0])/digital.width*100;const y=(point[1]-digital.crop[1])/digital.height*100;return `<button type="button" class="plan-pin ${s.reserved?'reserved':''} ${matches(s)?'':'is-dimmed'} ${state.selectedSpot===s.id?'is-selected':''}" style="left:${x}%;top:${y}%" data-spot="${esc(s.id)}" title="${esc(s.name)}" aria-label="Sample spot ${i+1}: ${esc(s.name)}"><span aria-hidden="true">S${i+1}</span></button>`}).join('')}</div></div></div>`;
     $('#floorLegend').innerHTML='<span><i class="map-key-swatch room"></i>Rooms</span><span><i class="map-key-swatch open"></i>Open areas</span><span><i class="map-key-swatch service"></i>Service cores</span><span><i class="legend-dot open"></i>Sample study spots</span>';
     $('#floorDisclaimer').textContent='Walls and room numbers follow the supplied BYU drawings. Study spots are provisional ideas.';
     $('#mapNorth').innerHTML=`N <span style="display:inline-block;transform:rotate(${digital.north}deg)">↑</span>`;
     mapResizeObserver.disconnect();mapResizeObserver.observe(plan);
-    resizeDigitalMap();installMapPan();updateRoomHighlight();
+    setMapInteraction(!isCompactLayout());resizeDigitalMap();installMapPan();updateRoomHighlight();
   }else{
     const amenities=[{name:'Restroom',symbol:'WC',x:48,y:18},{name:'Vending',symbol:'V',x:20,y:53},{name:'Printer',symbol:'P',x:78,y:53}];
     plan.className='floor-plan';plan.setAttribute('aria-label','Illustrative floor view of study spots');
@@ -398,6 +420,7 @@ function renderBuilding(){
     $('#floorDisclaimer').innerHTML='This is a schematic guide, not an architectural floor plan. Check the <a href="https://pf.byu.edu/space/floor-plans/master" target="_blank" rel="noopener noreferrer">BYU master floor plans</a> for exact room locations (BYU sign-in may be required).';
   }
   const matched=spots.filter(matches).sort((a,b)=>rank(a)-rank(b));
+  $('#mobileSpotCount').textContent=matched.length;
   $('#resultsSummary').textContent=`${matched.length} matching ${matched.length===1?'spot':'spots'} on this floor`;
   const chips=[];if(state.study==='group')chips.push(`Group ${state.groupSize}+`);else if(state.study==='solo')chips.push('Solo');if(state.noise==='low')chips.push('Quiet');else if(state.noise==='medium')chips.push('Conversational');if(state.private)chips.push('Private');if(state.outlets)chips.push('Outlets');
   $('#activeFilterBar').innerHTML=chips.map(c=>`<span>${esc(c)}</span>`).join('')||'<span>All study types</span>';
@@ -434,12 +457,13 @@ function focusView(){const heading=$(`#${state.view}View h1`);heading?.setAttrib
 function setView(view){const changed=state.view!==view;if(changed)viewHistory.push(state.view);state.view=view;render();if(changed)focusView();window.scrollTo({top:0,behavior:'smooth'})}
 function goBack(){state.view=viewHistory.pop()||'explore';render();focusView();window.scrollTo({top:0,behavior:'smooth'})}
 // Changing drawings clears the previous room, spot selection, and search results.
-function openBuilding(id,floor){if(!BUILDINGS[id])return;$('#campusComingSoon').hidden=true;state.building=id;state.floor=floor||BUILDINGS[id].floors[0].id;state.zoom=1;state.selectedSpot=null;state.selectedRoom=null;$('#roomSearch').value='';$('#roomSearchResults').hidden=true;setView('building')}
+function openBuilding(id,floor){if(!BUILDINGS[id])return;$('#campusComingSoon').hidden=true;state.building=id;state.floor=floor||BUILDINGS[id].floors[0].id;state.zoom=1;state.selectedSpot=null;state.selectedRoom=null;$('#roomSearch').value='';$('#roomSearchResults').hidden=true;setBuildingPanel('map');setView('building')}
 // 7. Floor tools. Fit preserves aspect ratio; zoom multiplies the fitted size.
 function resizeDigitalMap(){
   const plan=buildingPlans()?.[state.floor];if(!plan||!$('#planStage'))return;
   const viewport=$('.plan-scroll'),stage=$('#planStage'),canvas=$('.plan-canvas');
-  const fit=Math.min(Math.max(240,viewport.clientWidth-48),Math.max(200,viewport.clientHeight-48)*plan.width/plan.height);
+  if(!viewport.clientWidth||!viewport.clientHeight)return;
+  const fit=Math.min(Math.max(1,viewport.clientWidth-48),Math.max(1,viewport.clientHeight-48)*plan.width/plan.height);
   const width=fit*state.zoom,height=width*plan.height/plan.width;
   stage.style.width=`${width}px`;stage.style.height=`${height}px`;
   canvas.style.width=`max(100%, ${width+48}px)`;canvas.style.height=`max(100%, ${height+48}px)`;
@@ -455,11 +479,45 @@ function changeZoom(delta){
 }
 // Start dragging after a movement threshold and suppress the click after a drag.
 function installMapPan(){
-  const viewport=$('.plan-scroll');let start=null,dragging=false,ignoreClick=false;
-  viewport.addEventListener('pointerdown',event=>{if(event.button!==0||event.target.closest('button'))return;start={x:event.clientX,y:event.clientY,left:viewport.scrollLeft,top:viewport.scrollTop};dragging=false});
-  viewport.addEventListener('pointermove',event=>{if(!start)return;const dx=event.clientX-start.x,dy=event.clientY-start.y;if(!dragging&&Math.hypot(dx,dy)>6){dragging=true;viewport.setPointerCapture(event.pointerId);viewport.classList.add('is-panning')}if(dragging){viewport.scrollLeft=start.left-dx;viewport.scrollTop=start.top-dy}});
-  const finish=()=>{if(dragging){ignoreClick=true;setTimeout(()=>ignoreClick=false,0)}start=null;dragging=false;viewport.classList.remove('is-panning')};
-  viewport.addEventListener('pointerup',finish);viewport.addEventListener('pointercancel',finish);
+  const viewport=$('.plan-scroll'),pointers=new Map();let start=null,pinch=null,dragging=false,ignoreClick=false;
+  const beginPan=point=>{start={x:point.x,y:point.y,left:viewport.scrollLeft,top:viewport.scrollTop}};
+  const beginPinch=()=>{
+    const [a,b]=[...pointers.values()],stage=$('#planStage').getBoundingClientRect();
+    pinch={distance:Math.max(1,Math.hypot(a.x-b.x,a.y-b.y)),zoom:state.zoom,x:((a.x+b.x)/2-stage.left)/stage.width,y:((a.y+b.y)/2-stage.top)/stage.height};
+    for(const id of pointers.keys())viewport.setPointerCapture?.(id);
+    dragging=true;ignoreClick=true;
+  };
+  viewport.addEventListener('pointerdown',event=>{
+    if(!$('#floorPlan').classList.contains('is-interactive')||event.button!==0)return;
+    if(event.pointerType!=='touch'&&event.target.closest('button'))return;
+    const point={x:event.clientX,y:event.clientY};pointers.set(event.pointerId,point);
+    if(pointers.size===1){beginPan(point);dragging=false;pinch=null}else if(pointers.size===2)beginPinch();
+  });
+  viewport.addEventListener('pointermove',event=>{
+    if(!pointers.has(event.pointerId))return;
+    pointers.set(event.pointerId,{x:event.clientX,y:event.clientY});
+    if(pointers.size>=2&&pinch){
+      const [a,b]=[...pointers.values()],rect=viewport.getBoundingClientRect();
+      changeZoom(pinch.zoom*Math.hypot(a.x-b.x,a.y-b.y)/pinch.distance-state.zoom);
+      const stage=$('#planStage');
+      viewport.scrollLeft=stage.offsetLeft+pinch.x*stage.offsetWidth-((a.x+b.x)/2-rect.left);
+      viewport.scrollTop=stage.offsetTop+pinch.y*stage.offsetHeight-((a.y+b.y)/2-rect.top);
+      return;
+    }
+    if(!start)return;
+    const dx=event.clientX-start.x,dy=event.clientY-start.y;
+    if(!dragging&&Math.hypot(dx,dy)>6){dragging=true;viewport.setPointerCapture?.(event.pointerId);viewport.classList.add('is-panning')}
+    if(dragging){viewport.scrollLeft=start.left-dx;viewport.scrollTop=start.top-dy}
+  });
+  const finish=event=>{
+    if(!pointers.delete(event.pointerId))return;
+    pinch=null;
+    if(pointers.size>=2){beginPinch();return}
+    if(pointers.size){beginPan([...pointers.values()][0]);return}
+    if(dragging){ignoreClick=true;setTimeout(()=>ignoreClick=false,0)}
+    start=null;dragging=false;viewport.classList.remove('is-panning');
+  };
+  viewport.addEventListener('pointerup',finish);viewport.addEventListener('pointercancel',finish);viewport.addEventListener('lostpointercapture',finish);
   viewport.addEventListener('click',event=>{if(ignoreClick){event.preventDefault();event.stopPropagation()}},true);
 }
 // Search every drawing in this building; exact room numbers rank first.
@@ -473,10 +531,13 @@ function renderRoomSearch(){
 // Search results can switch floors; locate also zooms and centers the room.
 function selectRoom(number,floor=state.floor,locate=false){
   const plan=buildingPlans()?.[floor],room=plan?.rooms.find(r=>r.number===number);if(!room)return;
+  setBuildingPanel('map');
   if(state.floor!==floor){state.floor=floor;state.zoom=1;state.selectedSpot=null;renderBuilding()}
   state.selectedRoom={number,floor};state.roomLabels=true;$('#floorPlan').classList.remove('hide-room-labels');$('#toggleRoomLabels').setAttribute('aria-pressed','true');
   $('#roomSearchResults').hidden=true;$('#roomSearch').value='';updateRoomHighlight();
-  if(locate){const viewport=$('.plan-scroll'),stage=$('#planStage');const fitWidth=stage.offsetWidth/state.zoom;const locateZoom=Math.min(8,Math.max(2.5,Math.ceil(plan.width*2/fitWidth*4)/4));if(state.zoom<locateZoom)changeZoom(locateZoom-state.zoom);viewport.scrollLeft=stage.offsetLeft+room.x/plan.width*stage.offsetWidth-viewport.clientWidth/2;viewport.scrollTop=stage.offsetTop+room.y/plan.height*stage.offsetHeight-viewport.clientHeight/2}
+  if(locate){const viewport=$('.plan-scroll'),stage=$('#planStage');const fitWidth=stage.offsetWidth/state.zoom;const locateZoom=Math.min(8,Math.max(2.5,Math.ceil(plan.width*2/fitWidth*4)/4));if(state.zoom<locateZoom)changeZoom(locateZoom-state.zoom);viewport.scrollLeft=stage.offsetLeft+room.x/plan.width*stage.offsetWidth-viewport.clientWidth/2;viewport.scrollTop=stage.offsetTop+room.y/plan.height*stage.offsetHeight-viewport.clientHeight/2;
+    if(isCompactLayout()){$('#roomSearch').blur();$('#selectedRoomPanel').scrollIntoView({behavior:'smooth',block:'start'})}
+  }
 }
 // Keep the SVG highlight and selected-room panel in sync.
 function updateRoomHighlight(){
@@ -523,6 +584,9 @@ function showMatches(){const match=allSpots().filter(matches).sort((a,b)=>rank(a
 // 9. Event routing. data-* attributes connect rebuilt controls to shared handlers.
 document.addEventListener('click',event=>{
   const t=event.target.closest('button,a,[data-room],[data-campus-building]');if(!t)return;
+  if(t.id==='toggleFilters'){setFilterDisclosure(t.getAttribute('aria-expanded')!=='true');return}
+  if(t.dataset.buildingPanel){setBuildingPanel(t.dataset.buildingPanel);return}
+  if(t.id==='interactMap'){setMapInteraction(t.getAttribute('aria-pressed')!=='true');return}
   if(t.dataset.campusBuilding){showCampusBuilding(t.dataset.campusBuilding);return}
   if(t.hasAttribute('data-dismiss-campus')){$('#campusComingSoon').hidden=true;$$('.campus-building').forEach(el=>el.classList.remove('is-selected'));return}
   if(t.id==='campusZoomIn'||t.id==='campusZoomOut'||t.id==='campusZoomFit'){changeCampusZoom(t.id==='campusZoomIn'?.25:t.id==='campusZoomOut'?-.25:0,t.id==='campusZoomFit');return}
@@ -541,7 +605,7 @@ document.addEventListener('click',event=>{
   if(t.dataset.openReported){const s=spotById(t.dataset.openReported);if(s){openBuilding(s.building,s.floor);openSpot(s.id)}return}
   if(t.id==='clearFilters'||t.dataset.action==='clear'){resetFilters();return}
   if(t.id==='saveFilters'){data.savedFilters={study:state.study,noise:state.noise,private:state.private,outlets:state.outlets,groupSize:state.groupSize,buildings:[...state.buildings]};if(save())showToast('Filters saved on this device.');return}
-  if(t.id==='showMatches'){showMatches();return}
+  if(t.id==='showMatches'||t.id==='mobileShowMatches'){showMatches();return}
   if(t.dataset.openBuilding){openBuilding(t.dataset.openBuilding);return}
   if(t.dataset.study){state.study=t.dataset.study;updateFilter();return}
   if(t.dataset.noise){state.noise=t.dataset.noise;updateFilter();return}
@@ -559,7 +623,7 @@ document.addEventListener('click',event=>{
   if(t.dataset.confirmSpot){openArrival(t.dataset.confirmSpot);return}
   if(t.dataset.saveSpot){openSave(t.dataset.saveSpot);return}
   if(t.dataset.saveConfirm){const id=t.dataset.saveConfirm;data.lists.forEach(l=>{const checked=!!$(`[data-save-list="${l.id}"]`)?.checked;l.spots=l.spots.filter(x=>x!==id);if(checked)l.spots.push(id)});const saved=save();renderSaved();closeModal();if(saved)showToast('Saved lists updated.');return}
-  if(t.id==='editFilters'||t.dataset.action==='edit'){setView('explore');$('#filterHeading').scrollIntoView({behavior:'smooth'});return}
+  if(t.id==='editFilters'||t.dataset.action==='edit'){setFilterDisclosure(true);setView('explore');$('#filterHeading').scrollIntoView({behavior:'smooth'});$('#clearFilters').focus({preventScroll:true});return}
   if(t.dataset.action==='explore'){setView('explore');return}
   if(t.id==='createList'){openCreateList();return}
   if(t.dataset.list){state.selectedList=t.dataset.list;renderSaved();return}
@@ -600,6 +664,15 @@ document.addEventListener('submit',e=>{
 // 10. Startup. Render local UI first, then refresh after the connection check.
 renderCampusMap();
 window.addEventListener('resize',()=>changeCampusZoom(0));
+window.matchMedia?.(COMPACT_LAYOUT_QUERY).addEventListener('change',()=>{
+  setMapInteraction(!isCompactLayout());
+  if(isCompactLayout()){
+    if($('#filterFields').contains(document.activeElement)&&!$('.filter-panel').classList.contains('is-open'))$('#toggleFilters').focus();
+    if($('#floorMain').contains(document.activeElement)&&$('.building-layout').dataset.panel==='spots')$('[data-building-panel="spots"]').focus();
+    if($('#studyResults').contains(document.activeElement)&&$('.building-layout').dataset.panel==='map')$('[data-building-panel="map"]').focus();
+  }
+  resizeDigitalMap();
+});
 render();
 renderDatabaseStatus();
 void database.initialize().then(()=>{renderDatabaseStatus();render()}).catch(()=>{database.error='The database connection could not initialize. Check .env and refresh to retry.';renderDatabaseStatus()});
