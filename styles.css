@@ -118,7 +118,7 @@ h3{color:#17344c}
 .section-heading h2{font-size:23px}
 .demo-pill{background:#eef2f3;color:#536c78;border-radius:7px;padding:7px 9px;font-size:11px;font-weight:800;white-space:nowrap}
 .recommendation-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}
-.recommendation-card{display:flex;flex-direction:column;gap:12px;min-height:170px;padding:18px;background:#fff;border:1px solid var(--line);border-radius:var(--radius);text-align:left;color:var(--ink)}
+.recommendation-card{display:flex;flex-direction:column;gap:12px;padding:18px;background:#fff;border:1px solid var(--line);border-radius:var(--radius);text-align:left;color:var(--ink)}
 .recommendation-card:hover,.spot-row:hover,.saved-card:hover{border-color:#85b4cc;box-shadow:0 7px 20px #0b315313}
 .rec-top{display:flex;justify-content:space-between;gap:10px}
 .rec-building{font-size:10px;color:var(--blue);font-weight:900;letter-spacing:.1em}
@@ -126,7 +126,7 @@ h3{color:#17344c}
 .availability.medium{background:var(--amber-bg);color:var(--amber)}
 .availability.reserved{background:#e9edf2;color:#526271}
 .recommendation-card h3{font-size:16px;line-height:1.25;margin:0}
-.rec-meta{margin-top:auto;color:var(--muted);font-size:12px}
+.rec-meta{color:var(--muted);font-size:12px}
 /* Building heading, floor controls, and the map/results split. */
 .back-button{border:0;background:none;color:var(--blue);font-size:13px;font-weight:800;padding:0;margin:0 0 18px}
 .back-button:hover{text-decoration:underline}
