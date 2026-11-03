@@ -1,4 +1,4 @@
-# Study BYU
+# Nook
 
 **Working on the code?** Start with the [team file guide](docs/FILE_GUIDE.md) for file roles, labeled code sections, map/ID conventions, storage boundaries, SQL variants, and commands.
 
@@ -14,7 +14,7 @@ The campus overview traces 45 labeled buildings from the supplied map. Blue JKB,
 
 ## ERD
 
-![Study BYU ERD](docs/erd.png)
+![Nook ERD](docs/erd.png)
 
 This slice uses six ERD tables: `Buildings`, `Floors`, `SpotType`, `Study Spot`, `User`, and `ReportSpotStatus`. Buildings contain floors; study spots reference a building, floor, and type; reports reference a spot and user. All six contain sample rows. Other ERD entities remain outside this slice.
 

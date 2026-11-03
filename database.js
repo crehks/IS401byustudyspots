@@ -19,7 +19,7 @@ const numericSpotIds=['hbll-commons','hbll-west','hbll-group','hbll-think','hbll
       const timer=setTimeout(()=>controller.abort(),12000);
       try {return await this.fetcher(url,{...options,signal:controller.signal,cache:'no-store'});}
       catch(error) {throw new Error(error.name==='AbortError'?'The database request timed out. Check your connection and retry.':'Could not reach the database. Check the project URL and internet connection.');}
-      finally {clearTimeout(timer);}
+      finally {clearTimeout(timer);}  
     }
     // Configured means settings exist; ready means reports also loaded successfully.
     async initialize() {

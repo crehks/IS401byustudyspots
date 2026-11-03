@@ -3,6 +3,17 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#F7F4EB">
+  <meta name="description" content="Find a study space at BYU by building, floor, group size, noise, privacy, and outlets.">
+  <title>Nook | Find your place</title>
+  <link rel="icon" type="image/png" href="assets/nook-logo.png">
+  <!-- Load map bundles before the adapter and app. defer keeps the scripts in order. -->
+  <link rel="stylesheet" href="styles.css?v=20261102-navigation-contrast">
+  <script defer src="wsc-plans.js?v=20261007"></script>
+  <script defer src="hbll-plans.js?v=20261009"></script>
+  <script defer src="jkb-plans.js?v=20261009"></script>
+  <script defer src="database.js?v=20261014-package"></script>
+  <script defer src="app.js?v=20261102-map-reset-fit"></script>
   <meta name="theme-color" content="#0b3153">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230b3153'/%3E%3C/svg%3E">
   <meta name="description" content="Find a study space at BYU by building, floor, group size, noise, privacy, and outlets.">
@@ -17,54 +28,55 @@
   <!-- Main content becomes inert while the shared dialog is open -->
   <div class="app-shell">
     <!-- Shared navigation for Explore, Saved, and local spot suggestions. -->
-    <header class="topbar">
-      <button class="brand" id="homeButton" type="button" aria-label="StudyBYU home">
-        <span class="brand-mark" aria-hidden="true"></span>
-        <span>Study<span class="brand-light">BYU</span></span>
-      </button>
-      <nav class="topnav" aria-label="Main navigation">
-        <button id="navExplore" class="nav-link is-active" type="button">Explore</button>
-        <button id="navSaved" class="nav-link" type="button">Saved <span id="savedCount" class="count-badge">0</span></button>
-        <button id="navReport" class="nav-link nav-report" type="button">Report a spot</button>
-      </nav>
-    </header>
-
-    <main id="mainContent" tabindex="-1">
-      <!-- JavaScript controls this warning and the returned database receipt below. -->
+    <div class="site-header">
+      <header class="topbar">
+        <button class="brand" id="homeButton" type="button" aria-label="Nook home">
+          <img class="brand-mark" src="assets/nook-logo.png" alt="">
+          <span>Nook</span>
+        </button>
+        <nav class="topnav" aria-label="Main navigation">
+          <button id="navExplore" class="nav-link is-active" type="button">Explore</button>
+          <button id="navSaved" class="nav-link" type="button">My Nooks</button>
+          <button id="navReport" class="nav-link nav-report" type="button">Report a spot</button>
+        </nav>
+      </header>
+      <!-- JavaScript controls the connection warning and report receipt. -->
       <section id="databaseWarning" class="database-banner" role="status" aria-live="polite" hidden>
         <p>Supabase is not connected.</p>
       </section>
       <section id="databaseReceipt" class="database-receipt" aria-live="polite" hidden></section>
+    </div>
+
+    <main id="mainContent" tabindex="-1">
       <!-- EXPLORE VIEW: filters, the campus map, and ranked recommendations. -->
       <section id="exploreView" class="view">
-        <div class="page-heading">
-          <div>
-            <p class="kicker">Campus study finder</p>
-            <h1>Find a place that works for you.</h1>
-            <p class="intro">Explore study areas in the library, the Wilk, and the JKB. Filter by what matters before you walk over.</p>
+        <section class="explore-hero" aria-labelledby="exploreTitle">
+          <div class="hero-content">
+            <div class="page-heading">
+              <div>
+                <p class="kicker">BYU study spots</p>
+                <h1 id="exploreTitle">Find a <span class="hero-accent">Nook</span> that works for you.</h1>
+                <p class="intro">Filter campus study spots by noise, group size, and outlets before you walk in the building.</p>
+              </div>
+            </div>
+            <button id="exploreMapButton" class="primary-button hero-map-cta" type="button">Explore campus map <span aria-hidden="true">↓</span></button>
           </div>
-          <a class="text-link official-link" href="https://map.byu.edu/" target="_blank" rel="noopener noreferrer">Open BYU campus map <span aria-hidden="true">↗</span></a>
-        </div>
-
-        <div class="explore-layout">
+        </section>
+        <section id="exploreMapSection" class="explore-map-section" aria-label="Explore campus map and study filters">
+          <div class="explore-layout">
           <!-- Keep these input IDs aligned with the shared event handlers in app.js. -->
           <aside class="filter-panel" aria-labelledby="filterHeading">
             <div class="mobile-filter-bar">
               <button id="toggleFilters" class="secondary-button" type="button" aria-expanded="false" aria-controls="filterFields">Filters <span id="activeFilterCount">0 active</span></button>
-              <button id="mobileShowMatches" class="primary-button" type="button">Show spaces <span id="mobileMatchCount">25</span></button>
+              <button id="mobileShowMatches" class="primary-button" type="button">View matches</button>
             </div>
             <div id="filterFields" class="filter-fields">
             <div class="panel-topline">
               <div>
-                <h2 id="filterHeading">Your study setup</h2>
-                <p>Choose any combination.</p>
+                <h2 id="filterHeading">Find your nook</h2>
               </div>
-              <div class="filter-actions"><button id="saveFilters" class="subtle-button" type="button">Save filters</button><button id="clearFilters" class="subtle-button" type="button">Clear</button></div>
+              <div class="filter-actions"><button id="clearFilters" class="secondary-button" type="button">Clear filters</button><button id="showMatches" class="primary-button" type="button">View matches</button></div>
             </div>
-            <fieldset class="filter-group">
-              <legend>Buildings</legend>
-              <div id="buildingFilters" class="building-checks"></div>
-            </fieldset>
             <fieldset class="filter-group">
               <legend>Studying with</legend>
               <div class="segmented" role="group" aria-label="Study type">
@@ -90,27 +102,24 @@
               <label class="switch-row"><span><strong>Private space</strong><small>Enclosed or separated</small></span><input id="privateFilter" type="checkbox"><span class="switch-ui" aria-hidden="true"></span></label>
               <label class="switch-row"><span><strong>Outlets nearby</strong><small>Power for your devices</small></span><input id="outletFilter" type="checkbox"><span class="switch-ui" aria-hidden="true"></span></label>
             </div>
-            <button id="showMatches" class="primary-button wide" type="button">Show matching spaces <span id="matchCount">0</span></button>
+            <fieldset class="filter-group">
+              <legend>Buildings</legend>
+              <div id="buildingFilters" class="building-checks"></div>
+            </fieldset>
             </div>
           </aside>
 
           <!-- The campus SVG comes from CAMPUS_BUILDINGS, not an external map API. -->
           <div class="campus-area">
             <div class="campus-map campus-map-digital" role="group" aria-label="Digitized BYU campus map. HBLL, WSC, and JKB have floor plans; other buildings are coming soon.">
-              <div class="campus-map-heading"><div><h2>Find your building</h2><p>Three buildings ready to explore.</p></div><div class="campus-map-controls" aria-label="Campus map zoom"><button id="campusZoomOut" type="button" aria-label="Zoom campus map out">−</button><output id="campusZoomValue">100%</output><button id="campusZoomIn" type="button" aria-label="Zoom campus map in">+</button><button id="campusZoomFit" type="button">Reset map</button><span class="campus-north" aria-label="North is up">N ↑</span></div></div>
+              <div class="campus-map-heading"><div class="campus-map-controls" aria-label="Campus map zoom"><button id="campusZoomIn" type="button" aria-label="Zoom campus map in">+</button><button id="campusZoomOut" type="button" aria-label="Zoom campus map out">−</button><button id="campusZoomFit" type="button">Reset</button></div><span class="campus-north" aria-label="North is up">N ↑</span></div>
               <div class="campus-map-viewport" id="campusMapViewport">
                 <div id="campusMapDrawing" class="campus-map-drawing"></div>
               </div>
               <div id="campusComingSoon" class="campus-coming-soon" role="status" hidden></div>
-              <div class="campus-map-key"><span><i class="campus-key-available" aria-hidden="true"></i>Floor plans available</span><span><i class="campus-key-soon" aria-hidden="true"></i>Coming soon</span><small>Drag or swipe to move.</small></div>
-              <div class="campus-quick-links" aria-label="Buildings with study maps"><button type="button" data-open-building="JKB"><strong>JKB</strong> <span>Jesse Knight Building</span></button><button type="button" data-open-building="HBLL"><strong>HBLL</strong> <span>Harold B. Lee Library</span></button><button type="button" data-open-building="WSC"><strong>WSC</strong> <span>Wilkinson Student Center</span></button></div>
-            </div>
-            <div class="map-footer">
-              <p>Select a blue building to explore. Select any other building for its status.</p>
-              <a href="https://map.byu.edu/" target="_blank" rel="noopener noreferrer">View the official map ↗</a>
             </div>
           </div>
-        </div>
+        </section>
 
         <!-- JavaScript inserts three matching spots or a clear empty state. -->
         <section class="recommendations" aria-labelledby="recommendHeading">
@@ -167,13 +176,13 @@
       <!-- SAVED VIEW: device-local Favorites and up to two custom lists. -->
       <section id="savedView" class="view saved-view" hidden>
         <button id="savedBack" class="back-button" type="button">← Back to explore</button>
-        <div class="saved-heading"><div><p class="kicker">Your spaces</p><h1>Saved places</h1><p class="intro">Keep your go-to study spots together on this device.</p></div><button id="createList" class="secondary-button" type="button">+ New list</button></div>
+        <div class="saved-heading"><div><p class="kicker">Your spaces</p><h1>My Nooks</h1><p class="intro">Keep your go-to study spots together on this device.</p></div><button id="createList" class="secondary-button" type="button">+ New list</button></div>
         <div id="savedTabs" class="saved-tabs" role="group" aria-label="Saved lists"></div>
         <div id="savedItems" class="saved-items"></div>
       </section>
     </main>
 
-    <footer class="site-footer"><span>Study BYU is a student project prototype. It is not an official BYU service.</span><span><a href="https://map.byu.edu/" target="_blank" rel="noopener noreferrer">Campus map</a><a href="https://pf.byu.edu/space/floor-plans/master" target="_blank" rel="noopener noreferrer">Floor plans</a></span></footer>
+    <footer class="site-footer"><span>Nook is a student project prototype. It is not an official BYU service.</span><span><a href="https://map.byu.edu/" target="_blank" rel="noopener noreferrer">Campus map</a><a href="https://pf.byu.edu/space/floor-plans/master" target="_blank" rel="noopener noreferrer">Floor plans</a></span></footer>
   </div>
 
   <!-- Shared dialog host. app.js manages content, focus, and guarded closing. -->
