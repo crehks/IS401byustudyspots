@@ -4,15 +4,13 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#0b3153">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230b3153'/%3E%3C/svg%3E">
   <meta name="description" content="Find a study space at BYU by building, floor, group size, noise, privacy, and outlets.">
   <title>Study BYU | Find your place</title>
-  <!-- Load map bundles before the adapter and app. defer keeps the scripts in order. -->
-  <link rel="stylesheet" href="styles.css?v=20261029-mobile">
-  <script defer src="wsc-plans.js?v=20261007"></script>
-  <script defer src="hbll-plans.js?v=20261009"></script>
-  <script defer src="jkb-plans.js?v=20261009"></script>
+  <!-- Floor-plan bundles (*-plans.js) load on demand from app.js when a building is opened. -->
+  <link rel="stylesheet" href="styles.css?v=20261102-tap">
   <script defer src="database.js?v=20261014-package"></script>
-  <script defer src="app.js?v=20261029-mobile"></script>
+  <script defer src="app.js?v=20261102-lazy"></script>
 </head>
 <body>
   <a class="skip-link" href="#mainContent">Skip to content</a>
