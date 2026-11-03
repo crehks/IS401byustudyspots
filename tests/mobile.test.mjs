@@ -23,7 +23,7 @@ function fixture(){
     offsetWidth:{get:()=>parseFloat(stage.style.width)||0},offsetHeight:{get:()=>parseFloat(stage.style.height)||0}
   });
   stage.getBoundingClientRect=()=>({left:24-viewport.scrollLeft,top:24-viewport.scrollTop,width:stage.offsetWidth,height:stage.offsetHeight});
-  const elements=Object.fromEntries(['#floorPlan','#interactMap','#mapTouchHint','.plan-canvas','#zoomValue','#zoomOut','#zoomIn','.filter-panel','#toggleFilters','.building-layout'].map(selector=>[selector,element()]));
+  const elements=Object.fromEntries(['#floorPlan','#interactMap','#mapTouchHint','.plan-canvas','#zoomValue','#zoomOut','#zoomIn','.filter-panel','.building-layout'].map(selector=>[selector,element()]));
   Object.assign(elements,{'.plan-scroll':viewport,'#planStage':stage});
   const buttons=['map','spots'].map(panel=>Object.assign(element(),{dataset:{buildingPanel:panel}}));
   const state={zoom:1,floor:'test'};
@@ -84,6 +84,4 @@ test('map/list switching preserves zoom and Fit fits the available narrow viewpo
   assert.equal(f.state.zoom,2);assert.ok(f.stage.offsetWidth>0,'Hiding the map must not destroy its dimensions');
   f.viewport.clientWidth=260;f.viewport.clientHeight=300;f.run('setBuildingPanel("map");changeZoom(1-state.zoom)');
   assert.equal(f.state.zoom,1);assert.ok(f.stage.offsetWidth+48<=260);
-  f.run('setFilterDisclosure(true)');assert.equal(f.elements['#toggleFilters'].attributes['aria-expanded'],'true');
-  f.run('setFilterDisclosure(false)');assert.equal(f.elements['.filter-panel'].classList.contains('is-open'),false);
 });

@@ -349,10 +349,6 @@ async function submitArrival(form){
 // 6. Views. Reuse building checkboxes so updates preserve keyboard focus.
 const COMPACT_LAYOUT_QUERY='(max-width:800px), (max-width:1100px) and (max-height:500px)';
 function isCompactLayout(){return window.matchMedia?.(COMPACT_LAYOUT_QUERY).matches??false}
-function setFilterDisclosure(open){
-  $('.filter-panel').classList.toggle('is-open',open);
-  $('#toggleFilters').setAttribute('aria-expanded',open);
-}
 function setBuildingPanel(panel){
   $('.building-layout').dataset.panel=panel;
   $$('[data-building-panel]').forEach(button=>button.setAttribute('aria-pressed',button.dataset.buildingPanel===panel));
@@ -373,8 +369,6 @@ function renderFilters(){
   $$('[data-noise]').forEach(b=>{const selected=b.dataset.noise===state.noise;b.classList.toggle('is-selected',selected);b.setAttribute('aria-pressed',selected)});
   $('#groupSizeWrap').hidden=state.study!=='group';$('#groupSize').value=state.groupSize;$('#groupSizeValue').textContent=`${state.groupSize} people`;
   $('#privateFilter').checked=state.private;$('#outletFilter').checked=state.outlets;
-  const active=Number(state.buildings.size!==Object.keys(BUILDINGS).length)+Number(state.study!=='any')+Number(state.noise!=='any')+Number(state.private)+Number(state.outlets);
-  $('#activeFilterCount').textContent=`${active} active`;
 }
 // Render the three best matches, or a way to clear restrictive filters.
 function renderRecommendations(){
@@ -591,7 +585,6 @@ function showMatches(){const match=allSpots().filter(matches).sort((a,b)=>rank(a
 document.addEventListener('click',event=>{
   const t=event.target.closest('button,a,[data-room],[data-campus-building]');if(!t)return;
   if(t.id==='exploreMapButton'){const reducedMotion=window.matchMedia('(prefers-reduced-motion: reduce)').matches;$('#exploreMapSection').scrollIntoView({behavior:reducedMotion?'auto':'smooth'});return}
-  if(t.id==='toggleFilters'){setFilterDisclosure(t.getAttribute('aria-expanded')!=='true');return}
   if(t.dataset.buildingPanel){setBuildingPanel(t.dataset.buildingPanel);return}
   if(t.id==='interactMap'){setMapInteraction(t.getAttribute('aria-pressed')!=='true');return}
   if(t.dataset.campusBuilding){showCampusBuilding(t.dataset.campusBuilding);return}
@@ -612,7 +605,7 @@ document.addEventListener('click',event=>{
   if(t.dataset.openReported){const s=spotById(t.dataset.openReported);if(s){openBuilding(s.building,s.floor);openSpot(s.id)}return}
   if(t.id==='clearFilters'||t.dataset.action==='clear'){resetFilters();return}
   if(t.id==='saveFilters'){data.savedFilters={study:state.study,noise:state.noise,private:state.private,outlets:state.outlets,groupSize:state.groupSize,buildings:[...state.buildings]};if(save())showToast('Filters saved on this device.');return}
-  if(t.id==='showMatches'||t.id==='mobileShowMatches'){showMatches();return}
+  if(t.id==='showMatches'){showMatches();return}
   if(t.dataset.openBuilding){openBuilding(t.dataset.openBuilding);return}
   if(t.dataset.study){state.study=t.dataset.study;updateFilter();return}
   if(t.dataset.noise){state.noise=t.dataset.noise;updateFilter();return}
@@ -630,7 +623,7 @@ document.addEventListener('click',event=>{
   if(t.dataset.confirmSpot){openArrival(t.dataset.confirmSpot);return}
   if(t.dataset.saveSpot){openSave(t.dataset.saveSpot);return}
   if(t.dataset.saveConfirm){const id=t.dataset.saveConfirm;data.lists.forEach(l=>{const checked=!!$(`[data-save-list="${l.id}"]`)?.checked;l.spots=l.spots.filter(x=>x!==id);if(checked)l.spots.push(id)});const saved=save();renderSaved();closeModal();if(saved)showToast('Saved lists updated.');return}
-  if(t.id==='editFilters'||t.dataset.action==='edit'){setFilterDisclosure(true);setView('explore');$('#filterHeading').scrollIntoView({behavior:'smooth'});$('#clearFilters').focus({preventScroll:true});return}
+  if(t.id==='editFilters'||t.dataset.action==='edit'){setView('explore');$('#filterHeading').scrollIntoView({behavior:'smooth'});$('#clearFilters').focus({preventScroll:true});return}
   if(t.dataset.action==='explore'){setView('explore');return}
   if(t.id==='createList'){openCreateList();return}
   if(t.dataset.list){state.selectedList=t.dataset.list;renderSaved();return}
@@ -676,7 +669,6 @@ window.addEventListener('resize',()=>changeCampusZoom(0));
 window.matchMedia?.(COMPACT_LAYOUT_QUERY).addEventListener('change',()=>{
   setMapInteraction(!isCompactLayout());
   if(isCompactLayout()){
-    if($('#filterFields').contains(document.activeElement)&&!$('.filter-panel').classList.contains('is-open'))$('#toggleFilters').focus();
     if($('#floorMain').contains(document.activeElement)&&$('.building-layout').dataset.panel==='spots')$('[data-building-panel="spots"]').focus();
     if($('#studyResults').contains(document.activeElement)&&$('.building-layout').dataset.panel==='map')$('[data-building-panel="map"]').focus();
   }

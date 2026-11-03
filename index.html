@@ -8,7 +8,7 @@
   <title>Nook | Find your place</title>
   <link rel="icon" type="image/png" href="assets/nook-logo.png">
   <!-- Load map bundles before the adapter and app. defer keeps the scripts in order. -->
-  <link rel="stylesheet" href="styles.css?v=20261102-navigation-contrast">
+  <link rel="stylesheet" href="styles.css?v=20261103-mobile-layout">
   <script defer src="wsc-plans.js?v=20261007"></script>
   <script defer src="hbll-plans.js?v=20261009"></script>
   <script defer src="jkb-plans.js?v=20261009"></script>
@@ -58,14 +58,10 @@
           <div class="explore-layout">
           <!-- Keep these input IDs aligned with the shared event handlers in app.js. -->
           <aside class="filter-panel" aria-labelledby="filterHeading">
-            <div class="mobile-filter-bar">
-              <button id="toggleFilters" class="secondary-button" type="button" aria-expanded="false" aria-controls="filterFields">Filters <span id="activeFilterCount">0 active</span></button>
-              <button id="mobileShowMatches" class="primary-button" type="button">View matches</button>
-            </div>
             <div id="filterFields" class="filter-fields">
             <div class="panel-topline">
               <div>
-                <h2 id="filterHeading">Find your nook</h2>
+                <h2 id="filterHeading">Find your Nook</h2>
               </div>
               <div class="filter-actions"><button id="clearFilters" class="secondary-button" type="button">Clear filters</button><button id="showMatches" class="primary-button" type="button">View matches</button></div>
             </div>

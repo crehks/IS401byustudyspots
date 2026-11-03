@@ -76,7 +76,8 @@ test('homepage presents a welcome screen and snaps to the full-height filter and
   assert.match(html,/<button id="clearFilters" class="secondary-button" type="button">Clear filters<\/button>/);
   assert.match(html,/<div class="filter-actions"><button id="clearFilters" class="secondary-button" type="button">Clear filters<\/button><button id="showMatches" class="primary-button" type="button">View matches<\/button><\/div>/);
   assert.match(html,/id="outletFilter"[\s\S]*?<legend>Buildings<\/legend>/);
-  assert.match(html,/id="mobileShowMatches" class="primary-button" type="button">View matches<\/button>/);
+  assert.match(html,/<h2 id="filterHeading">Find your Nook<\/h2>/);
+  assert.doesNotMatch(html,/mobile-filter-bar|toggleFilters|mobileShowMatches|activeFilterCount/);
   assert.doesNotMatch(html,/matchCount|mobileMatchCount|View Matches/);
   assert.match(css,/\.explore-map-section \.campus-map-viewport\{height:auto;min-height:0;flex:1;aspect-ratio:auto\}/);
   assert.match(css,/\.explore-map-section \.filter-panel\{height:100%;overflow:auto;scrollbar-width:none\}/);
@@ -87,6 +88,13 @@ test('homepage presents a welcome screen and snaps to the full-height filter and
   assert.match(html,/<h1 id="exploreTitle">Find a <span class="hero-accent">Nook<\/span> that works for you\.<\/h1>/);
   assert.match(css,/\.explore-hero h1 \.hero-accent\{color:var\(--terracotta\)\}/);
   assert.match(css,/#filterFields\{display:flex;flex-direction:column;gap:16px\}/);
+  assert.match(css,/\.explore-map-section\{height:auto;min-height:0;padding:14px\}/);
+  assert.match(css,/\.explore-map-section \.explore-layout\{display:flex;flex:0 0 auto;flex-direction:column;gap:14px\}/);
+  assert.match(css,/\.explore-map-section \.campus-map-viewport\{height:clamp\(320px,55dvh,520px\);min-height:320px;flex:none\}/);
+  assert.match(css,/\.topnav\{width:100%;margin:0;gap:6px\}/);
+  assert.match(css,/\.topbar\{height:auto;min-height:68px;flex-wrap:wrap;justify-content:center;gap:8px;padding:12px 15px\}/);
+  assert.match(css,/\.panel-topline h2\{padding-left:3px\}/);
+  assert.match(css,/\.filter-actions\{width:100%;justify-content:flex-start;gap:10px\}[\s\S]*?\.filter-actions>button\{flex:1;min-width:0\}/);
   assert.match(css,/\.topnav \.nav-link\.is-active\{background:var\(--terracotta\);border-color:var\(--terracotta\);color:#F7F4EB\}/);
   assert.match(html,/<p class="intro">Filter campus study spots by noise, group size, and outlets before you walk in the building\.<\/p>/);
   assert.match(html,/<button id="exploreMapButton" class="primary-button hero-map-cta" type="button">/);
