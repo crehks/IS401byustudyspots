@@ -6,6 +6,8 @@
 const numericSpotIds=['hbll-commons','hbll-west','hbll-group','hbll-think','hbll-reading','hbll-single','hbll-upper','wsc-tables','wsc-lounge','wsc-1w-atrium','wsc-1w-nook','wsc-upper','wsc-2e-seating','wsc-2w-open','wsc-2w-corner','wsc-3e-hall','wsc-3e-corner','wsc-3w-open','wsc-3w-south','wsc-4f','wsc-5f','wsc-6f','jkb-tables','jkb-nook','jkb-group'];
   // The UI uses words; the team schema stores levels 1, 2, and 3.
   const levelNumber={low:1,medium:2,high:3};
+  // Building IDs of the sample inventory in Supabase.
+  const buildingIds={HBLL:1001,WSC:1002,JKB:1003};
   class StudyDatabase {
     // Tests inject a fake fetcher; the browser uses its normal fetch function.
     constructor(fetcher=(...args)=>fetch(...args)) {
@@ -98,6 +100,25 @@ const numericSpotIds=['hbll-commons','hbll-west','hbll-group','hbll-think','hbll
       const report=this.rowToReport(rows[0]);
       if (report.spotId!==spotId || report.noise!==input.noise || report.busy!==input.busy || report.note!==note) throw new Error('The database response did not match the submitted report.');
       this.reports[spotId]=[report];this.ready=true;this.error='';return report;
+    }
+    // New-spot submissions go to the SpotSubmission table as 'pending'. They are write-only for
+    // public clients, so the page does not read them back or show them in the catalogue.
+    async submitSpot(input) {
+      if (!this.config.configured) throw new Error('Configure Supabase in .env before saving a spot to the database.');
+      if (this.loading) throw new Error('Wait for the connection check to finish.');
+      const buildingId=buildingIds[input.building];
+      if (!buildingId) throw new Error('Choose a building.');
+      const name=String(input.name||'').trim(),detail=String(input.detail||'').trim();
+      if (name.length<3||name.length>60) throw new Error('Enter a spot name from 3 to 60 characters.');
+      if (detail.length>160) throw new Error('Keep location details to 160 characters.');
+      if (!['low','medium','high'].includes(input.noise)) throw new Error('Choose the usual noise level.');
+      const group=input.type==='group',capacity=group?Math.round(Number(input.capacity)):1;
+      if (group&&!(capacity>=2&&capacity<=8)) throw new Error('Enter a group size from 2 to 8.');
+      const payload={building_id:buildingId,floor_number:Number.isInteger(input.floorNumber)?input.floorNumber:null,floor_label:String(input.floorLabel||'').trim().slice(0,60),spot_name:name,spot_type_id:group?1002:input.private?1003:1001,capacity,noise_level:levelNumber[input.noise],outlets:!!input.outlets,is_private:!!input.private,location_details:detail||null};
+      if (!payload.floor_label) throw new Error('Choose a floor.');
+      const response=await this.request(`${this.config.url}/rest/v1/SpotSubmission`,{method:'POST',headers:this.headers({'Content-Type':'application/json',Prefer:'return=minimal'}),body:JSON.stringify(payload)});
+      if (!response.ok) throw await this.apiError(response);
+      this.error='';
     }
   }
   // Expose the same adapter to browser code and Node-based tests.

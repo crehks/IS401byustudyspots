@@ -159,7 +159,7 @@ function loadData(){
 }
 let data=loadData();
 const database=new window.StudyDatabase();
-let reportSubmissionPending=false;
+let reportSubmissionPending=false,newSpotPending=false;
 // Temporary screen choices. Save filters copies a preset into device data.
 const state={view:'explore',building:'HBLL',floor:'L3',zoom:1,selectedSpot:null,selectedRoom:null,roomLabels:true,selectedList:'favorites',study:'any',noise:'any',private:false,outlets:false,groupSize:4,buildings:new Set(['HBLL','WSC','JKB'])};
 // Pin positions use the original PDF page; rendering subtracts the crop offset.
@@ -179,6 +179,12 @@ const HBLL_STUDY_POINTS={
 };
 const JKB_STUDY_POINTS={'jkb-tables':[520,177],'jkb-nook':[828,520],'jkb-group':[610,188]};
 function buildingPlans(building=state.building){return {WSC:window.WSC_PLANS,HBLL:window.HBLL_PLANS,JKB:window.JKB_PLANS}[building]||null}
+// Floor-plan bundles are several MB each, so each loads only when its building is first opened.
+const PLAN_FILES={WSC:'wsc-plans.js?v=20261007',HBLL:'hbll-plans.js?v=20261009',JKB:'jkb-plans.js?v=20261009'},planLoads={};
+function loadPlans(building){
+  if(buildingPlans(building))return Promise.resolve();
+  return planLoads[building]??=new Promise((resolve,reject)=>{const script=document.createElement('script');script.src=PLAN_FILES[building];script.onload=resolve;script.onerror=()=>{delete planLoads[building];script.remove();reject(new Error('Floor map could not load.'))};document.head.appendChild(script)});
+}
 // This history drives in-app Back buttons; it does not change the browser URL.
 const viewHistory=[];
 if(data.savedFilters){const f=data.savedFilters;state.study=f.study||'any';state.noise=f.noise||'any';state.private=!!f.private;state.outlets=!!f.outlets;state.groupSize=Math.min(8,Math.max(2,Number(f.groupSize)||4));state.buildings=new Set((f.buildings||[]).filter(id=>BUILDINGS[id]));}
@@ -324,8 +330,10 @@ function renderDatabaseStatus(){
 // The returned database row is the persistence proof shown after a remote save.
 function renderDatabaseReceipt(report){
   const spot=spotById(report.spotId);
-  $('#databaseReceipt').innerHTML=`<h2>Saved in Supabase</h2><p>${esc(spot?.name||report.spotId)} · Noise: ${esc(report.noise)} · Crowding: ${esc(report.busy)}</p>${report.note?`<p>${esc(report.note)}</p>`:''}<p>Database row: <code>${esc(report.id)}</code> · ${esc(new Date(report.time).toLocaleString())}</p><p>This is the row returned by the database, not a local-only save.</p><button type="button" class="subtle-button" data-open-reported="${esc(report.spotId)}">View this spot ↗</button>`;
+  $('#databaseReceipt').innerHTML=`<h2>Your report was submitted</h2><p>${esc(spot?.name||report.spotId)}</p><p>Noise: ${esc(report.noise)} · Crowding: ${esc(report.busy)}</p>${report.note?`<p>${esc(report.note)}</p>`:''}`;
   $('#databaseReceipt').hidden=false;
+  // Hide the confirmation banner after one minute.
+  clearTimeout(renderDatabaseReceipt.timer);renderDatabaseReceipt.timer=setTimeout(()=>{$('#databaseReceipt').hidden=true},60000);
 }
 // Block duplicate submissions and keep failed remote saves visible as errors.
 async function submitArrival(form){
@@ -337,11 +345,11 @@ async function submitArrival(form){
   if(database.loading||!database.configLoaded){error.textContent=database.loading?'Wait for the connection check to finish.':'Connection settings could not be checked. Start with npm start and fix setup before reporting.';error.hidden=false;return;}
   if(database.error&&!database.config.configured){error.textContent=database.error;error.hidden=false;return;}
   const remote=usesDatabase(spotById(id));
-  $('#databaseReceipt').hidden=true;
+  clearTimeout(renderDatabaseReceipt.timer);$('#databaseReceipt').hidden=true;
   reportSubmissionPending=true;button.disabled=true;button.textContent=remote?'Saving to Supabase…':'Saving locally…';error.hidden=true;
   try{
     // Show remote success only after the adapter validates the returned row.
-    if(remote){const report=await database.submitReport(id,input);closeModal(true);render();renderDatabaseStatus();renderDatabaseReceipt(report);showToast('Saved in Supabase. Click this spot to see its latest report.');}
+    if(remote){const report=await database.submitReport(id,input);closeModal(true);render();renderDatabaseStatus();renderDatabaseReceipt(report);showToast('Thanks! Your report was submitted.');}
     else{const report={...input,time:Date.now(),source:'local'};(data.reports[id]??=[]).unshift(report);data.reports[id]=data.reports[id].slice(0,10);const saved=save();closeModal(true);render();if(saved)showToast('Local preview: report saved only on this device.');}
   }catch(problem){error.textContent=problem.message;error.hidden=false;database.error=problem.message;renderDatabaseStatus();}
   finally{reportSubmissionPending=false;button.disabled=false;button.textContent='Confirm report';}
@@ -463,7 +471,7 @@ function focusView(){const heading=$(`#${state.view}View h1`);heading?.setAttrib
 function setView(view){const changed=state.view!==view;if(changed)viewHistory.push(state.view);state.view=view;render();if(changed)focusView();window.scrollTo({top:0,behavior:'smooth'})}
 function goBack(){state.view=viewHistory.pop()||'explore';render();focusView();window.scrollTo({top:0,behavior:'smooth'})}
 // Changing drawings clears the previous room, spot selection, and search results.
-function openBuilding(id,floor){if(!BUILDINGS[id])return;$('#campusComingSoon').hidden=true;state.building=id;state.floor=floor||BUILDINGS[id].floors[0].id;state.zoom=1;state.selectedSpot=null;state.selectedRoom=null;$('#roomSearch').value='';$('#roomSearchResults').hidden=true;setBuildingPanel('map');setView('building')}
+function openBuilding(id,floor){if(!BUILDINGS[id])return;$('#campusComingSoon').hidden=true;state.building=id;state.floor=floor||BUILDINGS[id].floors[0].id;state.zoom=1;state.selectedSpot=null;state.selectedRoom=null;$('#roomSearch').value='';$('#roomSearchResults').hidden=true;setBuildingPanel('map');setView('building');if(!buildingPlans(id))loadPlans(id).then(()=>{if(state.view==='building'&&state.building===id)renderBuilding()}).catch(()=>showToast('Floor map could not load. Check your connection and try again.'))}
 // 7. Floor tools. Fit preserves aspect ratio; zoom multiplies the fitted size.
 function resizeDigitalMap(){
   const plan=buildingPlans()?.[state.floor];if(!plan||!$('#planStage'))return;
@@ -565,7 +573,7 @@ function openSpot(id){
   if(state.view==='building'){if(buildingPlans()?.[state.floor])$$('.plan-pin,.spot-row').forEach(el=>el.classList.toggle('is-selected',el.dataset.spot===s.id));else renderBuilding()}
   const report=currentReport(s),isSaved=data.lists.some(l=>l.spots.includes(s.id));
   const trend=s.typical?.length?`<div class="trend" aria-label="Illustrative typical crowding across five periods">${s.typical.map(n=>`<span class="${n===2?'medium':n===3?'high':''}"></span>`).join('')}</div><div class="trend-labels"><span>Earlier</span><span>Later</span></div>`:'<p>Typical crowding is not available for this spot.</p>';
-  const reportDetails=s.reserved?'<p>Availability is managed by BYU. This prototype does not show room availability.</p>':report?`<p>Noise: ${esc(report.noise)} · Crowding: ${esc(report.busy)}</p><small>${report.source==='supabase'?'Read from Supabase':'Saved locally on this device'} · ${esc(new Date(report.time).toLocaleString())}</small>${report.source==='supabase'?`<p>Database row: <code>${esc(report.id)}</code></p>`:''}${report.note?`<p>${esc(report.note)}</p>`:''}`:usesDatabase(s)&&database.error?`<p class="form-error">Database reports could not be loaded: ${esc(database.error)}</p>`:`<p>No reports yet. Usually ${esc(s.noise||'unknown')} noise · ${esc(s.busy||'unknown')} crowding.</p>`;
+  const reportDetails=s.reserved?'<p>Availability is managed by BYU. This prototype does not show room availability.</p>':report?`<p>Noise: ${esc(report.noise)} · Crowding: ${esc(report.busy)}</p>${report.note?`<p>${esc(report.note)}</p>`:''}`:usesDatabase(s)&&database.error?`<p class="form-error">Database reports could not be loaded: ${esc(database.error)}</p>`:`<p>No reports yet. Usually ${esc(s.noise||'unknown')} noise · ${esc(s.busy||'unknown')} crowding.</p>`;
   openModal(`${modalHeader(s.name)}<p class="modal-description">${s.building} · ${esc(floorLabel(s))} · ${s.type==='group'?`Group up to ${s.capacity}`:'Individual study'}</p>${s.detail?`<div class="report-box"><h3>Location details</h3><p>${esc(s.detail)}</p></div>`:''}<div class="detail-tags"><span>${s.private?'Private':'Open space'}</span><span>${s.outlets?'Outlets nearby':'Outlets not listed'}</span><span>${s.reserved?'Reservation required':`Noise: ${esc(currentNoise(s)||'unknown')}`}</span></div><div id="latestReport" class="report-box"><h3>${s.reserved?'Reservation required':'Latest report'}</h3>${reportDetails}</div><div class="report-box"><h3>Typical crowding</h3>${trend}</div><div class="modal-actions"><button class="secondary-button" type="button" data-modal-close>Keep searching</button><button class="secondary-button" type="button" data-save-spot="${esc(s.id)}">${isSaved?'Saved / lists':'Save to a list'}</button>${s.reserved?`<a class="primary-button" href="https://lib.byu.edu/services/group-study-rooms/" target="_blank" rel="noopener noreferrer">Reserve with BYU ↗</a>`:`<button class="primary-button" type="button" data-confirm-spot="${esc(s.id)}" ${database.loading||!database.configLoaded?'disabled':''}>Choose this spot</button>`}</div>`);
 }
 // Collect arrival reports. Reserved spots use BYU's external booking link instead.
@@ -575,8 +583,18 @@ function openArrival(id){
 }
 // Apply all list checkbox choices together when Save changes is selected.
 function openSave(id){const s=spotById(id);if(!s)return;openModal(`${modalHeader('Save this spot')}<p class="modal-description">Add ${esc(s.name)} to any of your lists.</p><div class="building-checks">${data.lists.map(l=>`<label class="building-check"><input type="checkbox" data-save-list="${esc(l.id)}" ${l.spots.includes(id)?'checked':''}><span>${esc(l.name)}</span></label>`).join('')}</div><div class="modal-actions"><button class="secondary-button" type="button" data-modal-close>Cancel</button><button class="primary-button" type="button" data-save-confirm="${esc(id)}">Save changes</button></div>`)}
+// With Supabase connected, a reported spot is stored as a pending submission for the team to
+// review. It is deliberately not added to the on-page catalogue.
+async function submitNewSpot(form,input){
+  if(newSpotPending)return;
+  const button=form.querySelector('[type="submit"]'),error=$('#newSpotError');
+  newSpotPending=true;button.disabled=true;button.textContent='Sending…';error.hidden=true;
+  try{await database.submitSpot(input);closeModal(true);showToast('Thanks! Your spot was sent to the team for review.');}
+  catch(problem){error.textContent=problem.message;error.hidden=false;}
+  finally{newSpotPending=false;button.disabled=false;button.textContent='Report spot';}
+}
 // Suggestions stay on this device; their map pins are provisional placements.
-function openNewSpot(){openModal(`${modalHeader('Report a new spot')}<p class="modal-description">Suggest a study area missing from this prototype. It will appear on this device for now.</p><form id="newSpotForm"><div class="form-field"><label for="newName">Spot name</label><input id="newName" name="name" required maxlength="60" placeholder="Example: east wing tables"></div><div class="form-field"><label for="newBuilding">Building</label><select id="newBuilding" name="building">${Object.entries(BUILDINGS).map(([id,b])=>`<option value="${id}">${esc(b.name)}</option>`).join('')}</select></div><div class="form-field"><label for="newFloor">Floor</label><select id="newFloor" name="floor"></select></div><div class="form-field"><label for="newType">Space type</label><select id="newType" name="type"><option value="solo">Individual</option><option value="group">Group</option></select></div><div class="form-field" id="newCapacityWrap" hidden><label for="newCapacity">Maximum group size (2-8)</label><input id="newCapacity" name="capacity" type="number" min="2" max="8" value="4"></div><div class="form-field"><label for="newNoise">Usual noise</label><select id="newNoise" name="noise"><option value="low">Quiet</option><option value="medium">Conversational</option><option value="high">Lively</option></select></div><div class="building-checks"><label class="building-check"><input type="checkbox" name="private"><span>Private or separated</span></label><label class="building-check"><input type="checkbox" name="outlets"><span>Outlets nearby</span></label></div><div class="form-field"><label for="newDetail">Location details (optional)</label><textarea id="newDetail" name="detail" maxlength="160" placeholder="Nearby landmark or entrance"></textarea></div><p class="form-error" id="newSpotError" hidden></p><div class="modal-actions"><button type="button" class="secondary-button" data-modal-close>Cancel</button><button type="submit" class="primary-button">Add spot</button></div></form>`);updateNewSpotFloors()}
+function openNewSpot(){openModal(`${modalHeader('Report a new spot')}<p class="modal-description">Suggest a study area missing from this prototype. ${database.config.configured&&database.ready?'It will be sent to the team for review and will not appear on the map right away. Do not include personal information.':'It will appear on this device for now.'}</p><form id="newSpotForm"><div class="form-field"><label for="newName">Spot name</label><input id="newName" name="name" required maxlength="60" placeholder="Example: east wing tables"></div><div class="form-field"><label for="newBuilding">Building</label><select id="newBuilding" name="building">${Object.entries(BUILDINGS).map(([id,b])=>`<option value="${id}">${esc(b.name)}</option>`).join('')}</select></div><div class="form-field"><label for="newFloor">Floor</label><select id="newFloor" name="floor"></select></div><div class="form-field"><label for="newType">Space type</label><select id="newType" name="type"><option value="solo">Individual</option><option value="group">Group</option></select></div><div class="form-field" id="newCapacityWrap" hidden><label for="newCapacity">Maximum group size (2-8)</label><input id="newCapacity" name="capacity" type="number" min="2" max="8" value="4"></div><div class="form-field"><label for="newNoise">Usual noise</label><select id="newNoise" name="noise"><option value="low">Quiet</option><option value="medium">Conversational</option><option value="high">Lively</option></select></div><div class="building-checks"><label class="building-check"><input type="checkbox" name="private"><span>Private or separated</span></label><label class="building-check"><input type="checkbox" name="outlets"><span>Outlets nearby</span></label></div><div class="form-field"><label for="newDetail">Location details (optional)</label><textarea id="newDetail" name="detail" maxlength="160" placeholder="Nearby landmark or entrance"></textarea></div><p class="form-error" id="newSpotError" hidden></p><div class="modal-actions"><button type="button" class="secondary-button" data-modal-close>Cancel</button><button type="submit" class="primary-button">${database.config.configured&&database.ready?'Report spot':'Add spot'}</button></div></form>`);updateNewSpotFloors()}
 // Keep a valid floor selection when the suggested space type changes.
 function updateNewSpotFloors(){const form=$('#newSpotForm');if(!form)return;const b=form.elements.building.value,previous=form.elements.floor.value;form.elements.floor.innerHTML=BUILDINGS[b].floors.map(f=>`<option value="${f.id}" ${f.id===previous?'selected':''}>${esc(f.label)}</option>`).join('');$('#newCapacityWrap').hidden=form.elements.type.value!=='group';$('#newCapacity').disabled=form.elements.type.value!=='group'}
 // Favorites is permanent; the prototype supports two additional lists.
@@ -665,7 +683,7 @@ document.addEventListener('keydown',e=>{
 // Validate trimmed form values before saving local data or sending a report.
 document.addEventListener('submit',e=>{
   if(e.target.id==='arrivalForm'){e.preventDefault();void submitArrival(e.target);return}
-  if(e.target.id==='newSpotForm'){e.preventDefault();const f=e.target.elements;const name=f.name.value.trim();const type=f.type.value;const capacity=type==='group'?Number(f.capacity.value):1;if(name.length<3||(type==='group'&&(capacity<2||capacity>8))){$('#newSpotError').textContent='Enter a spot name and a group size from 2 to 8.';$('#newSpotError').hidden=false;return}const chosenFloor=BUILDINGS[f.building.value].floors.find(fl=>fl.id===f.floor.value);const spot={id:`custom-${Date.now()}`,building:f.building.value,floor:f.floor.value,name,type,capacity,private:f.private.checked,outlets:f.outlets.checked,noise:f.noise.value,busy:null,reserved:false,x:chosenFloor?.defaultX??29,y:chosenFloor?.defaultY??72,typical:[],detail:f.detail.value.trim()};data.customSpots.push(spot);const saved=save();closeModal();openBuilding(spot.building,spot.floor);render();if(saved)showToast('New spot added on this device.');return}
+  if(e.target.id==='newSpotForm'){e.preventDefault();const f=e.target.elements;const name=f.name.value.trim();const type=f.type.value;const capacity=type==='group'?Number(f.capacity.value):1;if(name.length<3||(type==='group'&&(capacity<2||capacity>8))){$('#newSpotError').textContent='Enter a spot name and a group size from 2 to 8.';$('#newSpotError').hidden=false;return}const chosenFloor=BUILDINGS[f.building.value].floors.find(fl=>fl.id===f.floor.value);const spot={id:`custom-${Date.now()}`,building:f.building.value,floor:f.floor.value,name,type,capacity,private:f.private.checked,outlets:f.outlets.checked,noise:f.noise.value,busy:null,reserved:false,x:chosenFloor?.defaultX??29,y:chosenFloor?.defaultY??72,typical:[],detail:f.detail.value.trim()};if(database.config.configured&&database.ready){submitNewSpot(e.target,{building:f.building.value,floorNumber:chosenFloor?.level,floorLabel:chosenFloor?.label,name,type,capacity,private:f.private.checked,outlets:f.outlets.checked,noise:f.noise.value,detail:f.detail.value.trim()});return}data.customSpots.push(spot);const saved=save();closeModal();openBuilding(spot.building,spot.floor);render();if(saved)showToast('New spot added on this device.');return}
   if(e.target.id==='newListForm'){e.preventDefault();const name=e.target.elements.name.value.trim();if(!name||name.length>28){$('#newListError').textContent='Enter a list name from 1 to 28 characters, not just spaces.';$('#newListError').hidden=false;return}const id=`list-${Date.now()}`;data.lists.push({id,name,spots:[]});state.selectedList=id;const saved=save();closeModal();setView('saved');if(saved)showToast('List created.');return}
 });
 // 10. Startup. Render local UI first, then refresh after the connection check.
