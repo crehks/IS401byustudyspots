@@ -128,8 +128,11 @@ try {
     else{assert.equal(first.evaluate('state.view'),'explore');assert.equal(first.query('#campusComingSoon').hidden,false);assert.match(first.query('#campusComingSoon').textContent,/not yet supported.*coming soon/);assert.ok(first.query('#campusComingSoon').textContent.includes(building.id));first.click('[data-dismiss-campus]');assert.equal(first.query('#campusComingSoon').hidden,true);}
   }
   const campusEnter=new first.window.Event('keydown',{bubbles:true,cancelable:true});Object.assign(campusEnter,{key:'Enter'});first.query('[data-campus-building="TNRB"]').dispatchEvent(campusEnter);assert.equal(first.query('#campusComingSoon').hidden,false);first.click('[data-dismiss-campus]');
-  for(let i=0;i<10;i++)first.click('#campusZoomIn');assert.equal(first.query('#campusZoomValue').textContent,'300%');assert.equal(first.query('#campusZoomIn').disabled,true);
-  first.click('#campusZoomFit');assert.equal(first.query('#campusZoomValue').textContent,'100%');assert.equal(first.query('#campusZoomOut').disabled,true);
+  const initialMapWidth=parseFloat(first.query('#campusMapDrawing').style.width);
+  const zoomedMapWidth=initialMapWidth;
+  for(let i=0;i<10;i++)first.click('#campusZoomIn');assert.ok(parseFloat(first.query('#campusMapDrawing').style.width)>zoomedMapWidth);assert.equal(first.query('#campusZoomIn').disabled,true);
+  const maxMapWidth=parseFloat(first.query('#campusMapDrawing').style.width);
+  first.click('#campusZoomFit');assert.ok(parseFloat(first.query('#campusMapDrawing').style.width)<maxMapWidth);assert.equal(parseFloat(first.query('#campusMapDrawing').style.width),initialMapWidth);
   console.log('PASS campus: all 45 building actions, exactly three floor-plan routes, 42 coming-soon popovers, dismiss/keyboard controls, and independent zoom/reset.');
   assert.equal(first.query('#databaseWarning').hidden,false);assert.equal(first.window.document.querySelector('#connectDatabase'),null);
   first.click('[data-study="group"]');assert.equal(first.evaluate('state.study'),'group');
@@ -137,7 +140,7 @@ try {
   first.click('[data-noise="low"]');first.query('#outletFilter').checked=true;first.query('#outletFilter').dispatchEvent(new first.window.Event('change',{bubbles:true}));
   first.query('#privateFilter').checked=true;first.query('#privateFilter').dispatchEvent(new first.window.Event('change',{bubbles:true}));assert.equal(first.evaluate('state.private'),true);
   first.query('#buildingFilters input[value="JKB"]').checked=false;first.query('#buildingFilters input[value="JKB"]').removeAttribute('checked');first.query('#buildingFilters input[value="JKB"]').dispatchEvent(new first.window.Event('change',{bubbles:true}));assert.equal(first.evaluate('state.buildings.has("JKB")'),false);
-  first.click('#saveFilters');assert.ok(first.storage.get('study-byu-prototype-v1').includes('savedFilters'));
+  assert.equal(first.window.document.querySelector('#saveFilters'),null);
   first.click('#clearFilters');assert.equal(first.evaluate('state.noise'),'any');
   first.click('#showMatches');assert.equal(first.evaluate('state.view'),'building');
   for(const spot of first.evaluate('DEMO_SPOTS')){

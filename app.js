@@ -187,7 +187,7 @@ const $$=selector=>[...document.querySelectorAll(selector)];
 // Escape user text before inserting it into an HTML template.
 function esc(text){return String(text).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 // 3. Campus map. Its zoom and drag state are separate from the floor map.
-let campusZoom=1,campusSuppressClick=false;
+let campusZoom=1,campusZoomInitialized=false,campusSuppressClick=false;
 // Ray casting checks whether a label anchor sits inside a building footprint.
 function campusPointInside(points,x,y){
   let inside=false;
@@ -263,22 +263,31 @@ function renderCampusMap(){
   viewport.onpointermove=event=>{if(!drag)return;const dx=event.clientX-drag.x,dy=event.clientY-drag.y;if(Math.hypot(dx,dy)>6){drag.moved=true;viewport.classList.add('is-panning');viewport.setPointerCapture?.(event.pointerId);viewport.scrollLeft=drag.left-dx;viewport.scrollTop=drag.top-dy;}};
   const endDrag=()=>{if(drag?.moved){campusSuppressClick=true;setTimeout(()=>campusSuppressClick=false,0);}drag=null;viewport.classList.remove('is-panning');};
   viewport.onpointerup=endDrag;viewport.onpointercancel=endDrag;
-  changeCampusZoom(0,true);
 }
 // Preserve the map center on zoom; Reset centers the supported buildings.
-function changeCampusZoom(delta,reset=false){
+function changeCampusZoom(delta,initial=false){
   const viewport=$('#campusMapViewport'),drawing=$('#campusMapDrawing');
   if(!viewport.clientWidth)return;
-  const oldWidth=parseFloat(drawing.style.width)||Math.max(viewport.clientWidth,760);
-  const centerX=(viewport.scrollLeft+viewport.clientWidth/2)/oldWidth;
-  const centerY=(viewport.scrollTop+viewport.clientHeight/2)/oldWidth;
-  campusZoom=reset?1:Math.max(1,Math.min(3,campusZoom+delta));
-  const width=Math.max(viewport.clientWidth,760)*campusZoom;
+  const baseWidth=Math.max(viewport.clientWidth,760),oldWidth=parseFloat(drawing.style.width)||baseWidth;
+  const oldHeight=oldWidth*845/1238;
+  let centerX=(viewport.scrollLeft+viewport.clientWidth/2)/oldWidth;
+  let centerY=(viewport.scrollTop+viewport.clientHeight/2)/oldHeight;
+  if(initial){
+    const mapped=CAMPUS_BUILDINGS.filter(building=>BUILDINGS[building.id]);
+    const points=mapped.flatMap(building=>building.points.split(' ').map(point=>point.split(',').map(Number)));
+    const xs=points.map(point=>point[0]),ys=points.map(point=>point[1]);
+    const left=Math.min(...xs),right=Math.max(...xs),top=Math.min(...ys),bottom=Math.max(...ys);
+    centerX=(left+right)/(2*1238);
+    centerY=(top+bottom+36)/(2*845);
+    const baseHeight=baseWidth*845/1238;
+    const fitWidth=viewport.clientWidth/(baseWidth*(right-left)/1238*1.12);
+    const fitHeight=viewport.clientHeight/(baseHeight*(bottom-top)/845*1.12);
+    campusZoom=Math.max(1,Math.min(1.75,fitWidth,fitHeight));
+  }else campusZoom=Math.max(1,Math.min(3,campusZoom+delta));
+  const width=baseWidth*campusZoom,height=width*845/1238;
   drawing.style.width=`${width}px`;
-  $('#campusZoomValue').textContent=`${Math.round(campusZoom*100)}%`;
   $('#campusZoomOut').disabled=campusZoom===1;$('#campusZoomIn').disabled=campusZoom===3;
-  if(reset){viewport.scrollLeft=Math.max(0,(parseFloat(drawing.style.width)*700/1238)-(viewport.clientWidth||800)/2);viewport.scrollTop=0;}
-  else{viewport.scrollLeft=centerX*width-viewport.clientWidth/2;viewport.scrollTop=centerY*width-viewport.clientHeight/2;}
+  viewport.scrollLeft=centerX*width-viewport.clientWidth/2;viewport.scrollTop=centerY*height-viewport.clientHeight/2;
 }
 // Open supported maps or explain why another building is not yet available.
 function showCampusBuilding(id){
@@ -364,8 +373,6 @@ function renderFilters(){
   $$('[data-noise]').forEach(b=>{const selected=b.dataset.noise===state.noise;b.classList.toggle('is-selected',selected);b.setAttribute('aria-pressed',selected)});
   $('#groupSizeWrap').hidden=state.study!=='group';$('#groupSize').value=state.groupSize;$('#groupSizeValue').textContent=`${state.groupSize} people`;
   $('#privateFilter').checked=state.private;$('#outletFilter').checked=state.outlets;
-  const count=allSpots().filter(matches).length;
-  $('#matchCount').textContent=count;$('#mobileMatchCount').textContent=count;
   const active=Number(state.buildings.size!==Object.keys(BUILDINGS).length)+Number(state.study!=='any')+Number(state.noise!=='any')+Number(state.private)+Number(state.outlets);
   $('#activeFilterCount').textContent=`${active} active`;
 }
@@ -441,7 +448,6 @@ function retainControlFocus(root){
 }
 // Lists store spot IDs, not copies, so details use the current catalogue and reports.
 function renderSaved(){
-  $('#savedCount').textContent=new Set(data.lists.flatMap(l=>l.spots)).size;
   $('#createList').disabled=data.lists.length>=3;$('#createList').title=data.lists.length>=3?'Two custom lists maximum':'';
   if(!data.lists.some(l=>l.id===state.selectedList))state.selectedList='favorites';
   const restoreFocus=retainControlFocus($('#savedView'));
@@ -451,7 +457,7 @@ function renderSaved(){
   restoreFocus();
 }
 // Refresh shared UI; rebuild the floor drawing only when that view is visible.
-function render(){renderFilters();renderRecommendations();if(state.view==='building')renderBuilding();renderSaved();$$('.view').forEach(v=>v.hidden=v.id!==`${state.view}View`);$('#navExplore').classList.toggle('is-active',state.view!=='saved');$('#navSaved').classList.toggle('is-active',state.view==='saved');$('#navExplore').setAttribute('aria-current',state.view!=='saved'?'page':'false');$('#navSaved').setAttribute('aria-current',state.view==='saved'?'page':'false');$$('#savedTabs button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.list===state.selectedList));$('#backToExplore').textContent=viewHistory.at(-1)==='saved'?'← Back to saved':'← Back to campus';$('#savedBack').textContent=viewHistory.at(-1)==='building'?'← Back to floor map':'← Back to explore';if(state.view==='explore')changeCampusZoom(0)}
+function render(){renderFilters();renderRecommendations();if(state.view==='building')renderBuilding();renderSaved();$$('.view').forEach(v=>v.hidden=v.id!==`${state.view}View`);document.documentElement.classList.toggle('explore-snap',state.view==='explore');$('#navExplore').classList.toggle('is-active',state.view!=='saved');$('#navSaved').classList.toggle('is-active',state.view==='saved');$('#navExplore').setAttribute('aria-current',state.view!=='saved'?'page':'false');$('#navSaved').setAttribute('aria-current',state.view==='saved'?'page':'false');$$('#savedTabs button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.list===state.selectedList));$('#backToExplore').textContent=viewHistory.at(-1)==='saved'?'← Back to saved':'← Back to campus';$('#savedBack').textContent=viewHistory.at(-1)==='building'?'← Back to floor map':'← Back to explore';if(state.view==='explore'){document.documentElement.style.setProperty('--header-height',`${$('.site-header').offsetHeight}px`);if(!campusZoomInitialized&&$('#campusMapViewport').clientWidth){changeCampusZoom(0,true);campusZoomInitialized=true}else if(campusZoomInitialized)changeCampusZoom(0)}}
 // Announce view changes through the heading without extra scrolling.
 function focusView(){const heading=$(`#${state.view}View h1`);heading?.setAttribute('tabindex','-1');heading?.focus({preventScroll:true})}
 function setView(view){const changed=state.view!==view;if(changed)viewHistory.push(state.view);state.view=view;render();if(changed)focusView();window.scrollTo({top:0,behavior:'smooth'})}
@@ -584,12 +590,13 @@ function showMatches(){const match=allSpots().filter(matches).sort((a,b)=>rank(a
 // 9. Event routing. data-* attributes connect rebuilt controls to shared handlers.
 document.addEventListener('click',event=>{
   const t=event.target.closest('button,a,[data-room],[data-campus-building]');if(!t)return;
+  if(t.id==='exploreMapButton'){const reducedMotion=window.matchMedia('(prefers-reduced-motion: reduce)').matches;$('#exploreMapSection').scrollIntoView({behavior:reducedMotion?'auto':'smooth'});return}
   if(t.id==='toggleFilters'){setFilterDisclosure(t.getAttribute('aria-expanded')!=='true');return}
   if(t.dataset.buildingPanel){setBuildingPanel(t.dataset.buildingPanel);return}
   if(t.id==='interactMap'){setMapInteraction(t.getAttribute('aria-pressed')!=='true');return}
   if(t.dataset.campusBuilding){showCampusBuilding(t.dataset.campusBuilding);return}
   if(t.hasAttribute('data-dismiss-campus')){$('#campusComingSoon').hidden=true;$$('.campus-building').forEach(el=>el.classList.remove('is-selected'));return}
-  if(t.id==='campusZoomIn'||t.id==='campusZoomOut'||t.id==='campusZoomFit'){changeCampusZoom(t.id==='campusZoomIn'?.25:t.id==='campusZoomOut'?-.25:0,t.id==='campusZoomFit');return}
+  if(t.id==='campusZoomIn'||t.id==='campusZoomOut'||t.id==='campusZoomFit'){if(t.id==='campusZoomFit')changeCampusZoom(0,true);else changeCampusZoom(t.id==='campusZoomIn'?.25:-.25);return}
   // Room selection, map labels, and zoom controls.
   if(t.dataset.findRoom){selectRoom(t.dataset.findRoom,t.dataset.roomFloor,true);return}
   if(t.dataset.room){selectRoom(t.dataset.room);return}
@@ -662,6 +669,8 @@ document.addEventListener('submit',e=>{
   if(e.target.id==='newListForm'){e.preventDefault();const name=e.target.elements.name.value.trim();if(!name||name.length>28){$('#newListError').textContent='Enter a list name from 1 to 28 characters, not just spaces.';$('#newListError').hidden=false;return}const id=`list-${Date.now()}`;data.lists.push({id,name,spots:[]});state.selectedList=id;const saved=save();closeModal();setView('saved');if(saved)showToast('List created.');return}
 });
 // 10. Startup. Render local UI first, then refresh after the connection check.
+const headerResizeObserver=new ResizeObserver(([entry])=>{document.documentElement.style.setProperty('--header-height',`${entry.target.offsetHeight}px`);if(campusZoomInitialized&&state.view==='explore')changeCampusZoom(0)});
+headerResizeObserver.observe($('.site-header'));
 renderCampusMap();
 window.addEventListener('resize',()=>changeCampusZoom(0));
 window.matchMedia?.(COMPACT_LAYOUT_QUERY).addEventListener('change',()=>{
