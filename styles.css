@@ -883,3 +883,6 @@ html.explore-snap .site-footer{scroll-snap-align:end}
 @media(max-width:560px){
   .topnav .nav-link,.topnav .nav-report{font-size:12px;padding:9px 7px}
 }
+/* Touch targets: keep links and the brand button at least 44px tall on phones. */
+@media (max-width:800px){.brand,.text-link,.building-links a,.map-footer a,.site-footer a{display:inline-flex;align-items:center;min-height:44px}.official-link{padding-bottom:0}}
+@media (max-width:800px){.saved-tab{min-height:44px}}

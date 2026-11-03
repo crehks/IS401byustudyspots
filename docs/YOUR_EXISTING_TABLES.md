@@ -19,3 +19,12 @@ Confirm report POSTs to ReportSpotStatus with numeric spot_id, noise_level, crow
 On refresh the app reads latest_report_spot_status, a security-invoker view returning the newest row per spot. Public reports are readable; only the report action can insert, with no update/delete or public reading of User. This is a public classroom demonstration, not authentication or a production deployment. Never submit personal information.
 
 Do NOT run SETUP_EXISTING_TABLES.sql, SETUP_REPORT_SLICE.sql, or the older migration/seed files for this schema. Those describe earlier schemas and remain only for compatibility/testing. Reserved, resources, and favorites tables are untouched and outside this vertical slice.
+
+## Report a new spot (SpotSubmission)
+
+The **Report a spot** nav button now saves to the `SpotSubmission` table (migration `supabase/migrations/20261102_001_spot_submission.sql`, already applied to the Study Spot Website project) when Supabase is connected.
+
+- Each submission is a `pending` row with `building_id` → `Buildings`, `spot_type_id` → `SpotType` (Solo 1001, Group 1002, Solo private 1003), `user_id` → `User` (demo user 1001), plus floor, name, capacity, noise (1-3), outlets, private flag, and location details. `approved_spot_id` is empty until the team decides to promote a submission into `Study Spot`.
+- Submissions are **not** shown on the website. The public key can only INSERT limited columns; it cannot read, update, or delete submissions. Review them in Supabase Table Editor.
+- Without a Supabase connection, the form keeps its old behavior (a device-local suggestion).
+- ERD addition: `SpotSubmission` (many-to-one to Buildings, SpotType, User; optional link to Study Spot).

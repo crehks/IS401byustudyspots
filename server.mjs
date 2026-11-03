@@ -2,6 +2,7 @@
 import http from 'node:http';
 import { readFile, realpath, stat } from 'node:fs/promises';
 import path from 'node:path';
+import { gzipSync } from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 
 export const APP_ROOT = path.dirname(fileURLToPath(import.meta.url));
@@ -83,8 +84,15 @@ export function createAppServer({root=APP_ROOT, configFile=path.join(root,'.env'
       const rootPath = await realpath(root);
       const filename = await realpath(path.join(rootPath,relative));
       if (!filename.startsWith(rootPath + path.sep) || !(await stat(filename)).isFile()) return json(response,404,{error:'Not found.'});
-      const contents = await readFile(filename);
-      response.writeHead(200,{'Content-Type':TYPES[path.extname(filename).toLowerCase()] || 'application/octet-stream','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});
+      let contents = await readFile(filename);
+      const type = TYPES[path.extname(filename).toLowerCase()] || 'application/octet-stream';
+      const headers = {'Content-Type':type,'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'};
+      // Compress text assets (the floor-plan bundles are several MB each) for browsers that accept gzip.
+      if (/^(text\/|application\/json|image\/svg)/.test(type) && /\bgzip\b/.test(request.headers['accept-encoding'] || '')) {
+        contents = gzipSync(contents); headers['Content-Encoding'] = 'gzip'; headers.Vary = 'Accept-Encoding';
+      }
+      headers['Content-Length'] = contents.length;
+      response.writeHead(200,headers);
       // HEAD sends the same headers as GET with no file body.
       response.end(request.method === 'HEAD' ? undefined : contents);
     } catch (error) {
