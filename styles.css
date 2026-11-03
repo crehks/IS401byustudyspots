@@ -656,3 +656,5 @@ button{transition:background-color .16s,border-color .16s,box-shadow .16s}
   .building-check:hover,.secondary-button:hover{background:#315466}
   .count-badge{background:#31566c;color:#edf7fc}
 }
+.building-hours{margin:8px 0 0;font-weight:600;color:#6b7280}
+.building-hours.is-open{color:#2f6b4f}

@@ -77,6 +77,18 @@ const numericSpotIds=['hbll-commons','hbll-west','hbll-group','hbll-think','hbll
       for (const row of rows) {const report=this.rowToReport(row);(reports[report.spotId]??=[]).push(report);}
       this.reports=reports;return reports;
     }
+        // Building hours live in their own table and do not affect reports.
+    // Buildings IDs map to the codes the UI uses: 1001 HBLL, 1002 WSC, 1003 JKB.
+    async loadHours() {
+      if (!this.config.configured) return [];
+      const codes={1001:'HBLL',1002:'WSC',1003:'JKB'};
+      const query=new URLSearchParams({select:'building_id,day_of_week,special_date,open_time,close_time,is_closed,note'});
+      const response=await this.request(`${this.config.url}/rest/v1/BuildingHours?${query}`,{headers:this.headers()});
+      if (!response.ok) throw await this.apiError(response);
+      const rows=await response.json();
+      if (!Array.isArray(rows)) throw new Error('Supabase returned an unexpected hours response.');
+      return rows.map(row=>({...row,building_code:codes[row.building_id]}));
+    }
     // Send only report inputs. The database supplies user, report ID, and timestamp.
     async submitReport(spotId,input) {
       if (!this.config.configured) throw new Error('Configure Supabase in .env before saving a database report.');

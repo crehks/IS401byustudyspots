@@ -159,6 +159,40 @@ function loadData(){
 }
 let data=loadData();
 const database=new window.StudyDatabase();
+// BUILDING HOURS: computed in Utah time from the building_hours table.
+let buildingHours=[];
+function utahNow(){
+  const parts=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:'America/Denver',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23',weekday:'short'}).formatToParts(new Date()).map(p=>[p.type,p.value]));
+  return {date:`${parts.year}-${parts.month}-${parts.day}`,day:['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].indexOf(parts.weekday),minutes:Number(parts.hour)*60+Number(parts.minute)};
+}
+function addDays(date,n){const d=new Date(`${date}T12:00:00Z`);d.setUTCDate(d.getUTCDate()+n);return {date:d.toISOString().slice(0,10),day:d.getUTCDay()};}
+function hoursFor(code,date,day){const rows=buildingHours.filter(r=>r.building_code===code);return rows.find(r=>r.special_date===date)||rows.find(r=>r.special_date===null&&r.day_of_week===day)||null;}
+const toMinutes=t=>{const [h,m]=t.split(':').map(Number);return h*60+m;};
+function formatTime(t){const [h,m]=t.split(':').map(Number);if(h===0&&m===0)return 'midnight';return `${h%12||12}${m?':'+String(m).padStart(2,'0'):''} ${h<12?'AM':'PM'}`;}
+function hoursStatus(code){
+  if(!buildingHours.some(r=>r.building_code===code))return null;
+  const now=utahNow();
+  const prev=addDays(now.date,-1),late=hoursFor(code,prev.date,prev.day);
+  if(late&&!late.is_closed&&toMinutes(late.close_time)<=toMinutes(late.open_time)&&now.minutes<toMinutes(late.close_time))return {open:true,text:`Open now · Closes at ${formatTime(late.close_time)}`};
+  const today=hoursFor(code,now.date,now.day);
+  if(today&&!today.is_closed){const open=toMinutes(today.open_time),close=toMinutes(today.close_time),end=close<=open?close+1440:close;
+    if(now.minutes>=open&&now.minutes<end)return {open:true,text:`Open now · Closes at ${formatTime(today.close_time)}`};
+    if(now.minutes<open)return {open:false,text:`Closed · Opens today at ${formatTime(today.open_time)}`};}
+  for(let i=1;i<=7;i++){const next=addDays(now.date,i),row=hoursFor(code,next.date,next.day);
+    if(row&&!row.is_closed)return {open:false,text:`Closed · Opens ${i===1?'tomorrow':['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][next.day]} at ${formatTime(row.open_time)}`};}
+  return {open:false,text:'Closed'};
+}
+function renderHours(){
+  const el=document.getElementById('buildingHours');if(!el)return;
+  const status=hoursStatus(state.building);
+  el.hidden=!status;if(!status)return;
+  el.textContent=status.text;el.classList.toggle('is-open',status.open);
+}
+async function loadBuildingHours(){
+  try{buildingHours=await database.loadHours();renderHours();}
+  catch(error){console.warn('Building hours unavailable:',error.message);}
+}
+setInterval(renderHours,60000);
 let reportSubmissionPending=false;
 // Temporary screen choices. Save filters copies a preset into device data.
 const state={view:'explore',building:'HBLL',floor:'L3',zoom:1,selectedSpot:null,selectedRoom:null,roomLabels:true,selectedList:'favorites',study:'any',noise:'any',private:false,outlets:false,groupSize:4,buildings:new Set(['HBLL','WSC','JKB'])};
@@ -356,7 +390,7 @@ function renderRecommendations(){
 function renderBuilding(){
   const restoreFocus=retainControlFocus($('#buildingView'));
   const building=BUILDINGS[state.building];if(!building)return;
-  $('#buildingTitle').textContent=building.name;$('#buildingSummary').textContent=building.description;
+  $('#buildingTitle').textContent=building.name;$('#buildingSummary').textContent=building.description;renderHours();
   $('#buildingSelect').innerHTML=Object.entries(BUILDINGS).map(([id,b])=>`<option value="${id}" ${id===state.building?'selected':''}>${id}</option>`).join('');
   $('#officialFloorLink').href=building.floorsUrl;$('#buildingMapLink').href=building.map;
   const floor=building.floors.find(f=>f.id===state.floor)||building.floors[0];state.floor=floor.id;
@@ -601,4 +635,4 @@ renderCampusMap();
 window.addEventListener('resize',()=>changeCampusZoom(0));
 render();
 renderDatabaseStatus();
-void database.initialize().then(()=>{renderDatabaseStatus();render()}).catch(()=>{database.error='The database connection could not initialize. Check .env and refresh to retry.';renderDatabaseStatus()});
+void database.initialize().then(()=>{renderDatabaseStatus();render();loadBuildingHours()}).catch(()=>{database.error='The database connection could not initialize. Check .env and refresh to retry.';renderDatabaseStatus()});
