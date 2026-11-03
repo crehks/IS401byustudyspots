@@ -718,3 +718,7 @@ button{transition:background-color .16s,border-color .16s,box-shadow .16s}
   .campus-map-viewport{height:60dvh}
   .floor-plan.native-plan{height:60dvh;min-height:180px}
 }
+
+/* Touch targets: keep links and the brand button at least 44px tall on phones. */
+@media (max-width:800px){.brand,.text-link,.building-links a,.map-footer a,.site-footer a{display:inline-flex;align-items:center;min-height:44px}.official-link{padding-bottom:0}}
+@media (max-width:800px){.saved-tab{min-height:44px}}

@@ -96,7 +96,8 @@ test('all ten HBLL drawings are native, searchable maps with correct floor sides
   assert.ok(plans.L4.rooms.some(room=>room.number==='4732'));
   assert.equal(catalogue.DEMO_SPOTS.filter(spot=>spot.building==='HBLL').length,7,'Keep the original database catalogue');
   const html=await readFile(new URL('index.html',root),'utf8');
-  assert.ok(html.indexOf('hbll-plans.js')<html.indexOf('src="app.js'));
+  assert.ok(!html.includes('hbll-plans.js'),'plan bundles load lazily');
+  assert.ok((await readFile(new URL('app.js',root),'utf8')).includes('hbll-plans.js'));
   const css=await readFile(new URL('styles.css',root),'utf8');
   assert.match(css,/\.floor-plan\.native-plan/);
 });
@@ -131,5 +132,6 @@ test('all four JKB drawings are native searchable maps with legacy spot IDs pres
   assert.equal(spots.length,3);
   assert.deepEqual(Array.from(spots,spot=>`${spot.id}:${spot.floor}`),['jkb-tables:G','jkb-nook:G','jkb-group:L2']);
   const html=await readFile(new URL('index.html',root),'utf8');
-  assert.ok(html.indexOf('jkb-plans.js')<html.indexOf('src="app.js'));
+  assert.ok(!html.includes('jkb-plans.js'),'plan bundles load lazily');
+  assert.ok((await readFile(new URL('app.js',root),'utf8')).includes('jkb-plans.js'));
 });
