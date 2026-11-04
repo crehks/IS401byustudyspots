@@ -108,10 +108,14 @@
           </div>
         </div>
 
-        <!-- JavaScript inserts three matching spots or a clear empty state. -->
-        <section class="recommendations" aria-labelledby="recommendHeading">
-          <div class="section-heading"><div><h2 id="recommendHeading">Good places to start</h2><p>Suggestions use sample crowding data until campus reports are connected.</p></div><span class="demo-pill">Demo data</span></div>
-          <div id="recommendationsList" class="recommendation-grid"></div>
+        <section class="study-presets" aria-labelledby="presetHeading">
+          <div class="section-heading"><div><h2 id="presetHeading">What are you working on?</h2><p>Pick a study setup to see matching spaces on the floor map.</p></div></div>
+          <div class="study-preset-grid">
+            <button class="study-preset-card" type="button" data-preset="quiet-solo"><span class="preset-icon" aria-hidden="true">◌</span><span><strong>Quiet solo work</strong><small>Low-noise spots for studying alone</small></span><span class="preset-arrow" aria-hidden="true">→</span></button>
+            <button class="study-preset-card" type="button" data-preset="group"><span class="preset-icon" aria-hidden="true">◎</span><span><strong>Study with a group</strong><small>Tables and spaces for working together</small></span><span class="preset-arrow" aria-hidden="true">→</span></button>
+            <button class="study-preset-card" type="button" data-preset="private"><span class="preset-icon" aria-hidden="true">▣</span><span><strong>Find a private space</strong><small>Enclosed or separated study areas</small></span><span class="preset-arrow" aria-hidden="true">→</span></button>
+            <button class="study-preset-card" type="button" data-preset="outlets"><span class="preset-icon" aria-hidden="true">ϟ</span><span><strong>Get near an outlet</strong><small>Spots with power listed nearby</small></span><span class="preset-arrow" aria-hidden="true">→</span></button>
+          </div>
         </section>
       </section>
 
