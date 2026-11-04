@@ -897,3 +897,6 @@ html.explore-snap .site-footer{scroll-snap-align:end}
   .explore-hero{min-height:calc(100svh - var(--header-height))}
   html{overscroll-behavior-y:auto;-webkit-text-size-adjust:100%}
 }
+
+/* Neutral placeholder while a floor-plan bundle downloads. */
+.plan-loading{display:grid;place-items:center;height:100%;margin:0;color:var(--muted);font-size:14px}

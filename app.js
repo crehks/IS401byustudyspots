@@ -428,13 +428,15 @@ function renderBuilding(){
   const floor=building.floors.find(f=>f.id===state.floor)||building.floors[0];state.floor=floor.id;
   const isWsc=state.building==='WSC',isHbll=state.building==='HBLL';
   const digital=buildingPlans()?.[state.floor],isDigital=!!digital;
+  // The floor-plan bundle loads on demand; until it arrives show a neutral loading state, never the old schematic stand-in.
+  const loadingPlans=!digital&&!buildingPlans();
   // WSC and HBLL have split drawings; JKB has one drawing per floor.
   const sides=isWsc?['East','West']:['North','South'];
   const hasSides=isDigital&&building.floors.filter(f=>f.level===floor.level).length>1;
   const levels=[...new Set(building.floors.map(f=>f.level))].sort((a,b)=>a-b);
   $('#floorTitle').textContent=floor.label;
-  $('#floorSubtitle').textContent=isDigital?'Choose a room on the map, or search for its number.':`${building.short} · schematic study area guide`;
-  $('#floorTabs').innerHTML=isDigital?levels.map(level=>`<button class="floor-tab ${floor.level===level?'is-selected':''}" data-${state.building.toLowerCase()}-level="${level}" type="button" aria-label="${level===0?'Basement':`Floor ${level}`}">${level===0?'B':level}</button>`).join(''):building.floors.map(f=>`<button class="floor-tab ${f.id===state.floor?'is-selected':''}" data-floor="${f.id}" type="button">${esc(f.label)}</button>`).join('');
+  $('#floorSubtitle').textContent=isDigital?'Choose a room on the map, or search for its number.':loadingPlans?'Loading floor map…':`${building.short} · schematic study area guide`;
+  $('#floorTabs').innerHTML=loadingPlans?'':isDigital?levels.map(level=>`<button class="floor-tab ${floor.level===level?'is-selected':''}" data-${state.building.toLowerCase()}-level="${level}" type="button" aria-label="${level===0?'Basement':`Floor ${level}`}">${level===0?'B':level}</button>`).join(''):building.floors.map(f=>`<button class="floor-tab ${f.id===state.floor?'is-selected':''}" data-floor="${f.id}" type="button">${esc(f.label)}</button>`).join('');
   $('#floorSideTabs').hidden=!hasSides;
   $('#floorSideTabs').innerHTML=hasSides?sides.map(side=>`<button class="floor-tab ${floor.side===side?'is-selected':''}" data-${isHbll?'hbll':'wsc'}-side="${side}" type="button">${side}</button>`).join(''):'';
   $('#planAssetBar').hidden=!isDigital;
@@ -456,6 +458,10 @@ function renderBuilding(){
     $('#mapNorth').innerHTML=`N <span style="display:inline-block;transform:rotate(${digital.north}deg)">↑</span>`;
     mapResizeObserver.disconnect();mapResizeObserver.observe(plan);
     setMapInteraction(!isCompactLayout());resizeDigitalMap();installMapPan();updateRoomHighlight();
+  }else if(loadingPlans){
+    plan.className='floor-plan';plan.setAttribute('aria-label','Loading floor map');
+    plan.innerHTML='<p class="plan-loading" role="status">Loading floor map…</p>';
+    $('#floorLegend').innerHTML='';$('#floorDisclaimer').textContent='';
   }else{
     const amenities=[{name:'Restroom',symbol:'WC',x:48,y:18},{name:'Vending',symbol:'V',x:20,y:53},{name:'Printer',symbol:'P',x:78,y:53}];
     plan.className='floor-plan';plan.setAttribute('aria-label','Illustrative floor view of study spots');
