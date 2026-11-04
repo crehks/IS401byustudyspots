@@ -413,17 +413,10 @@ function renderFilters(){
   $('#groupSizeWrap').hidden=state.study!=='group';$('#groupSize').value=state.groupSize;$('#groupSizeValue').textContent=`${state.groupSize} people`;
   $('#privateFilter').checked=state.private;$('#outletFilter').checked=state.outlets;
 }
-// Apply a homepage study setup, then take the student to its best matching floor.
-function applyStudyPreset(preset){
-  const choices={
-    'quiet-solo':{study:'solo',noise:'low',private:false,outlets:false},
-    group:{study:'group',noise:'any',private:false,outlets:false},
-    private:{study:'any',noise:'any',private:true,outlets:false},
-    outlets:{study:'any',noise:'any',private:false,outlets:true}
-  };
-  const choice=choices[preset];if(!choice)return;
-  Object.assign(state,choice,{buildings:new Set(Object.keys(BUILDINGS)),groupSize:4});
-  updateFilter();showMatches();
+// Render the three best matches, or a way to clear restrictive filters.
+function renderRecommendations(){
+  const spots=allSpots().filter(matches).sort((a,b)=>rank(a)-rank(b)).slice(0,3);
+  $('#recommendationsList').innerHTML=spots.length?spots.map(s=>`<button type="button" class="recommendation-card" data-spot="${esc(s.id)}"><div class="rec-top"><span class="rec-building">${s.building} / ${esc(floorLabel(s))}</span><span class="availability ${badgeClass(s)}">${labelBusy(s)}</span></div><h3>${esc(s.name)}</h3><span class="rec-meta">${s.type==='group'?`Group up to ${s.capacity}`:'Individual'} · ${s.outlets?'Outlets':'No outlet listed'} ${s.reserved?'· Reservation required':''}</span></button>`).join(''):`<div class="empty-state"><h3>No spaces match these filters</h3><p>Try another building, a different noise level, or fewer requirements.</p><button class="secondary-button" type="button" data-action="clear">Clear filters</button></div>`;
 }
 // Select the drawing and controls for the active building, floor, and side.
 function renderBuilding(){
@@ -501,7 +494,7 @@ function renderSaved(){
   restoreFocus();
 }
 // Refresh shared UI; rebuild the floor drawing only when that view is visible.
-function render(){renderFilters();if(state.view==='building')renderBuilding();renderSaved();$$('.view').forEach(v=>v.hidden=v.id!==`${state.view}View`);document.documentElement.classList.toggle('explore-snap',state.view==='explore');$('#navExplore').classList.toggle('is-active',state.view!=='saved');$('#navSaved').classList.toggle('is-active',state.view==='saved');$('#navExplore').setAttribute('aria-current',state.view!=='saved'?'page':'false');$('#navSaved').setAttribute('aria-current',state.view==='saved'?'page':'false');$$('#savedTabs button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.list===state.selectedList));$('#backToExplore').textContent=viewHistory.at(-1)==='saved'?'← Back to saved':'← Back to campus';$('#savedBack').textContent=viewHistory.at(-1)==='building'?'← Back to floor map':'← Back to explore';if(state.view==='explore'){document.documentElement.style.setProperty('--header-height',`${$('.site-header').offsetHeight}px`);if(!campusZoomInitialized&&$('#campusMapViewport').clientWidth){changeCampusZoom(0,true);campusZoomInitialized=true}else if(campusZoomInitialized)changeCampusZoom(0)}}
+function render(){renderFilters();renderRecommendations();if(state.view==='building')renderBuilding();renderSaved();$$('.view').forEach(v=>v.hidden=v.id!==`${state.view}View`);document.documentElement.classList.toggle('explore-snap',state.view==='explore');$('#navExplore').classList.toggle('is-active',state.view!=='saved');$('#navSaved').classList.toggle('is-active',state.view==='saved');$('#navExplore').setAttribute('aria-current',state.view!=='saved'?'page':'false');$('#navSaved').setAttribute('aria-current',state.view==='saved'?'page':'false');$$('#savedTabs button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.list===state.selectedList));$('#backToExplore').textContent=viewHistory.at(-1)==='saved'?'← Back to saved':'← Back to campus';$('#savedBack').textContent=viewHistory.at(-1)==='building'?'← Back to floor map':'← Back to explore';if(state.view==='explore'){document.documentElement.style.setProperty('--header-height',`${$('.site-header').offsetHeight}px`);if(!campusZoomInitialized&&$('#campusMapViewport').clientWidth){changeCampusZoom(0,true);campusZoomInitialized=true}else if(campusZoomInitialized)changeCampusZoom(0)}}
 // Announce view changes through the heading without extra scrolling.
 function focusView(){const heading=$(`#${state.view}View h1`);heading?.setAttribute('tabindex','-1');heading?.focus({preventScroll:true})}
 function setView(view){const changed=state.view!==view;if(changed)viewHistory.push(state.view);state.view=view;render();if(changed)focusView();window.scrollTo({top:0,behavior:'smooth'})}
@@ -637,7 +630,7 @@ function updateNewSpotFloors(){const form=$('#newSpotForm');if(!form)return;cons
 function openCreateList(){if(data.lists.length>=3){showToast('You can have Favorites and two custom lists.');return}openModal(`${modalHeader('New saved list')}<p class="modal-description">Create a list for a class, group, or favorite study routine.</p><form id="newListForm"><div class="form-field"><label for="newListName">List name</label><input id="newListName" name="name" required maxlength="28" placeholder="Example: Group project"></div><p class="form-error" id="newListError" role="alert" hidden></p><div class="modal-actions"><button type="button" class="secondary-button" data-modal-close>Cancel</button><button type="submit" class="primary-button">Create list</button></div></form>`)}
 // Clear also removes the saved filter preset for the next page load.
 function resetFilters(){state.buildings=new Set(['HBLL','WSC','JKB']);state.study='any';state.groupSize=4;state.noise='any';state.private=false;state.outlets=false;data.savedFilters=null;save();render()}
-function updateFilter(){renderFilters();if(state.view==='building')renderBuilding()}
+function updateFilter(){renderFilters();renderRecommendations();if(state.view==='building')renderBuilding()}
 // Open the best matching floor while retaining the current filters.
 function showMatches(){const match=allSpots().filter(matches).sort((a,b)=>rank(a)-rank(b));if(!state.buildings.size){showToast('Choose at least one building.');return}if(!match.length){openBuilding([...state.buildings][0]);showToast('No spaces match. Try changing a filter.');return}openBuilding(match[0].building,match[0].floor)}
 
@@ -666,7 +659,6 @@ document.addEventListener('click',event=>{
   if(t.id==='clearFilters'||t.dataset.action==='clear'){resetFilters();return}
   if(t.id==='saveFilters'){data.savedFilters={study:state.study,noise:state.noise,private:state.private,outlets:state.outlets,groupSize:state.groupSize,buildings:[...state.buildings]};if(save())showToast('Filters saved on this device.');return}
   if(t.id==='showMatches'){showMatches();return}
-  if(t.dataset.preset){applyStudyPreset(t.dataset.preset);return}
   if(t.dataset.openBuilding){openBuilding(t.dataset.openBuilding);return}
   if(t.dataset.study){state.study=t.dataset.study;updateFilter();return}
   if(t.dataset.noise){state.noise=t.dataset.noise;updateFilter();return}

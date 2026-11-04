@@ -109,23 +109,6 @@ h3{color:#17344c}
 .map-compass{position:absolute;top:20px;right:22px;color:#3e6570;font-weight:900;font-size:12px}
 .map-caption{position:absolute;left:20px;bottom:18px;display:flex;align-items:center;gap:11px;padding:10px 13px;background:#fffffff0;border:1px solid #d4e0e5;border-radius:9px;font-weight:800;font-size:12px;color:#214257}
 .map-caption span{padding-left:11px;border-left:1px solid var(--line);font-weight:500;color:var(--muted)}
-.map-footer{display:flex;align-items:center;justify-content:space-between;gap:15px;padding:15px 20px;border-top:1px solid var(--line)}
-.map-footer p{margin:0;color:var(--muted);font-size:12px}
-/* Homepage shortcuts help students apply a useful filter combination in one step. */
-.study-presets{margin-top:34px}
-.section-heading{align-items:center;margin-bottom:16px}
-.section-heading h2{font-size:23px}
-.study-preset-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
-.study-preset-card{display:grid;grid-template-columns:42px minmax(0,1fr) 16px;align-items:center;gap:12px;min-height:104px;padding:16px;text-align:left;color:var(--ink);background:#fff;border:1px solid var(--line);border-radius:var(--radius)}
-.study-preset-card:hover,.spot-row:hover,.saved-card:hover{border-color:#85b4cc;box-shadow:0 7px 20px #0b315313}
-.study-preset-card>span:nth-child(2){display:grid;gap:6px}
-.study-preset-card strong{font-size:13px;color:var(--navy)}
-.study-preset-card small{font-size:11px;line-height:1.4;color:var(--muted)}
-.preset-icon{display:grid;place-items:center;width:40px;height:40px;border-radius:12px;background:#eaf3f8;color:var(--blue);font-size:21px;font-weight:800}
-.preset-arrow{color:var(--blue);font-size:18px}
-.availability{font-size:10px;font-weight:900;border-radius:6px;padding:5px 7px;background:var(--green-bg);color:var(--green)}
-.availability.medium{background:var(--amber-bg);color:var(--amber)}
-.availability.reserved{background:#e9edf2;color:#526271}
 /* Recommendations: metadata, crowding badges, and card layout. */
 .recommendations{margin-top:34px}
 .section-heading{align-items:center;margin-bottom:16px}
@@ -252,7 +235,7 @@ h3{color:#17344c}
 .filter-panel{order:0}
 .campus-area{order:0}
 .campus-map{min-height:470px}
-.study-preset-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.recommendation-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 .results-panel{max-height:none}
 .building-title-row{align-items:flex-start;flex-wrap:wrap}
 .building-links{padding-bottom:0}
@@ -278,8 +261,6 @@ h1{font-size:31px}
 .ctx-center{left:25%}
 .map-caption{left:11px;bottom:10px;padding:7px;font-size:10px}
 .map-caption span{font-size:9px}
-.map-footer{align-items:flex-start;flex-direction:column;gap:5px}
-.study-preset-grid,.saved-items{grid-template-columns:1fr}
 .recommendation-grid,.saved-items{grid-template-columns:1fr}
 .floor-toolbar{align-items:flex-start;flex-direction:column}
 .floor-tabs{justify-content:flex-start}
@@ -293,9 +274,6 @@ h1{font-size:31px}
 }
 /* Dark theme tokens and shared component colors follow the system preference. */
 @media(prefers-color-scheme:dark){:root{color:#e5eef2;background:#122633;--navy:#16466a;--blue:#8bc8e7;--blue-soft:#213d4d;--ink:#e5eef2;--muted:#b0c1ca;--line:#365362;--surface:#1a3443;--canvas:#274450;--green:#a7e3c8;--green-bg:#294c40;--amber:#ffd29b;--amber-bg:#4b3d2c}
-.topbar,.site-footer,.filter-panel,.campus-area,.floor-plan-shell,.results-panel,.study-preset-card,.spot-row,.saved-card,.modal{background:#1b3544}
-.brand,.nav-link.is-active,.nav-link:hover,.nav-report,.subtle-button,.text-link,.building-links a,.map-footer a,.site-footer a,.back-button,.saved-card button{color:#b5def1}
-.brand-mark,.primary-button,.floor-tab.is-selected,.toast{background:#0d5a84}
 .topbar,.site-footer,.filter-panel,.campus-area,.floor-plan-shell,.results-panel,.recommendation-card,.spot-row,.saved-card,.modal{background:#1b3544}
 .brand,.nav-link.is-active,.nav-link:hover,.nav-report,.subtle-button,.text-link,.building-links a,.site-footer a,.back-button,.saved-card button{color:#b5def1}
 .primary-button,.floor-tab.is-selected,.toast{background:#0d5a84}
@@ -611,7 +589,7 @@ button,a,input,select,textarea{touch-action:manipulation}
 button{transition:background-color .16s,border-color .16s,box-shadow .16s}
 .saved-tabs{flex-wrap:wrap}
 .saved-tab{max-width:100%;text-align:left}
-.saved-items>.empty-state{grid-column:1/-1}
+.saved-items>.empty-state,.recommendation-grid>.empty-state{grid-column:1/-1}
 .modal-close{flex-shrink:0;min-width:40px;min-height:40px}
 .toast{max-width:calc(100vw - 32px);line-height:1.5;overflow-wrap:anywhere}
 /* Compact laptop widths need stacked floor controls before the mobile breakpoint. */

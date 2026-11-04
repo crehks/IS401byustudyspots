@@ -8,10 +8,10 @@
   <title>Nook | Find your place</title>
   <link rel="icon" type="image/png" href="assets/nook-logo.png">
   <!-- Load map bundles before the adapter and app. defer keeps the scripts in order. -->
-  <link rel="stylesheet" href="styles.css?v=20261104-renderfix">
-  <script defer src="supabase-config.js?v=20261104-renderfix"></script>
-  <script defer src="database.js?v=20261104-renderfix"></script>
-  <script defer src="app.js?v=20261104-renderfix"></script>
+  <link rel="stylesheet" href="styles.css?v=20261104-restore">
+  <script defer src="supabase-config.js?v=20261104-restore"></script>
+  <script defer src="database.js?v=20261104-restore"></script>
+  <script defer src="app.js?v=20261104-restore"></script>
 </head>
 <body>
   <a class="skip-link" href="#mainContent">Skip to content</a>
@@ -107,14 +107,6 @@
           </div>
         </section>
 
-        <section class="study-presets" aria-labelledby="presetHeading">
-          <div class="section-heading"><div><h2 id="presetHeading">What are you working on?</h2><p>Pick a study setup to see matching spaces on the floor map.</p></div></div>
-          <div class="study-preset-grid">
-            <button class="study-preset-card" type="button" data-preset="quiet-solo"><span class="preset-icon" aria-hidden="true">◌</span><span><strong>Quiet solo work</strong><small>Low-noise spots for studying alone</small></span><span class="preset-arrow" aria-hidden="true">→</span></button>
-            <button class="study-preset-card" type="button" data-preset="group"><span class="preset-icon" aria-hidden="true">◎</span><span><strong>Study with a group</strong><small>Tables and spaces for working together</small></span><span class="preset-arrow" aria-hidden="true">→</span></button>
-            <button class="study-preset-card" type="button" data-preset="private"><span class="preset-icon" aria-hidden="true">▣</span><span><strong>Find a private space</strong><small>Enclosed or separated study areas</small></span><span class="preset-arrow" aria-hidden="true">→</span></button>
-            <button class="study-preset-card" type="button" data-preset="outlets"><span class="preset-icon" aria-hidden="true">ϟ</span><span><strong>Get near an outlet</strong><small>Spots with power listed nearby</small></span><span class="preset-arrow" aria-hidden="true">→</span></button>
-          </div>
         <!-- JavaScript inserts three matching spots or a clear empty state. -->
         <section class="recommendations" aria-labelledby="recommendHeading">
           <div class="section-heading"><div><h2 id="recommendHeading">Good places to start</h2></div></div>
