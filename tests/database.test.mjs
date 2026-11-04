@@ -6,7 +6,7 @@ import '../database.js';
 test('existing numeric schema posts 1/2/3 and reloads the returned identity report',async()=>{
   const rows=[];let posted;
   const fetcher=async(url,options={})=>{
-    if(url==='/api/config')return Response.json({...config,table:'ReportSpotStatus'});
+    if(url==='api/config')return Response.json({...config,table:'ReportSpotStatus'});
     if(options.method==='POST'){
       assert.ok(url.endsWith('/ReportSpotStatus'));
       posted=JSON.parse(options.body);
@@ -29,7 +29,7 @@ test('report insert uses returned row and a fresh client reloads it from the bac
   const rows=[],requests=[];
   const fetcher=async(url,options={})=>{
     requests.push({url,options});
-    if(url==='/api/config')return Response.json(config);
+    if(url==='api/config')return Response.json(config);
     if(options.method==='POST'){
       const body=JSON.parse(options.body);
       const row=savedRow(body);
@@ -56,13 +56,13 @@ test('anonymous 401 permission errors are not mislabeled as invalid keys',async(
   assert.match(error.message,/row-level security/);assert.doesNotMatch(error.message,/rejected.*key/);
 });
 test('denied insert reports an error and never creates a successful local fallback',async()=>{
-  const client=new globalThis.StudyDatabase(async(url,options)=>url==='/api/config'?Response.json(config):options?.method==='POST'?Response.json({code:'42501'},{status:403}):Response.json([]));
+  const client=new globalThis.StudyDatabase(async(url,options)=>url==='api/config'?Response.json(config):options?.method==='POST'?Response.json({code:'42501'},{status:403}):Response.json([]));
   await client.initialize();
   await assert.rejects(client.submitReport('wsc-tables',{noise:'low',busy:'low',note:''}),/row-level security/);
   assert.deepEqual(client.reports,{});
 });
 test('missing or mismatched tables and unexpected insert responses are explicit errors',async()=>{
-  const client=new globalThis.StudyDatabase(async url=>url==='/api/config'?Response.json(config):Response.json({code:'PGRST205'},{status:404}));
+  const client=new globalThis.StudyDatabase(async url=>url==='api/config'?Response.json(config):Response.json({code:'PGRST205'},{status:404}));
   await client.initialize();assert.equal(client.ready,false);assert.match(client.error,/missing/);
   client.fetcher=async()=>Response.json([],{status:201});
   await assert.rejects(client.submitReport('wsc-tables',{noise:'low',busy:'low',note:''}),/did not return/);
@@ -86,7 +86,23 @@ test('a static host missing the config endpoint finishes checking without claimi
   await client.initialize();
   assert.equal(client.configLoaded,true);assert.equal(client.loading,false);
   assert.equal(client.ready,false);assert.equal(client.config.configured,false);
-  assert.match(client.error,/GitHub Pages/);
+  assert.match(client.error,/supabase-config.js/);
   await assert.rejects(client.submitReport('wsc-tables',{noise:'low',busy:'low',note:''}),/Configure Supabase/);
   assert.deepEqual(client.reports,{});
+});
+
+test('a static host without /api/config falls back to the public supabase-config.js settings',async()=>{
+  const seen=[];
+  globalThis.STUDY_BYU_CONFIG={url:'https://example.supabase.co',key:'sb_publishable_abcdefgh12345678',table:'ReportSpotStatus'};
+  try {
+    const client=new globalThis.StudyDatabase(async url=>{seen.push(url);return url==='api/config'?new Response('Not found',{status:404}):Response.json([])});
+    await client.initialize();
+    assert.equal(client.error,'');assert.equal(client.ready,true);
+    assert.equal(client.config.url,'https://example.supabase.co');assert.equal(client.config.table,'ReportSpotStatus');
+    assert.ok(seen.some(url=>url.startsWith('https://example.supabase.co/rest/v1/latest_report_spot_status')));
+    globalThis.STUDY_BYU_CONFIG={url:'https://example.supabase.co',key:'sb_secret_abcdefgh12345678',table:'ReportSpotStatus'};
+    const rejected=new globalThis.StudyDatabase(async()=>new Response('Not found',{status:404}));
+    await rejected.initialize();
+    assert.equal(rejected.ready,false);assert.match(rejected.error,/sb_publishable_/);
+  } finally {delete globalThis.STUDY_BYU_CONFIG;}
 });

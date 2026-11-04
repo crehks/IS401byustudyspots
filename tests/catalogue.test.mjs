@@ -90,7 +90,7 @@ test('homepage presents a welcome screen and snaps to the full-height filter and
   assert.match(css,/#filterFields\{display:flex;flex-direction:column;gap:16px\}/);
   assert.match(css,/\.explore-map-section\{height:auto;min-height:0;padding:14px\}/);
   assert.match(css,/\.explore-map-section \.explore-layout\{display:flex;flex:0 0 auto;flex-direction:column;gap:14px\}/);
-  assert.match(css,/\.explore-map-section \.campus-map-viewport\{height:clamp\(320px,55dvh,520px\);min-height:320px;flex:none\}/);
+  assert.match(css,/\.explore-map-section \.campus-map-viewport\{height:clamp\(320px,55svh,520px\);min-height:320px;flex:none\}/);
   assert.match(css,/\.topnav\{width:100%;margin:0;gap:6px\}/);
   assert.match(css,/\.topbar\{height:auto;min-height:68px;flex-wrap:wrap;justify-content:center;gap:8px;padding:12px 15px\}/);
   assert.match(css,/\.panel-topline h2\{padding-left:3px\}/);

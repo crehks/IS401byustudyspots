@@ -26,13 +26,28 @@ const numericSpotIds=['hbll-commons','hbll-west','hbll-group','hbll-think','hbll
       this.ready=false;this.error='';this.reports={};this.loading=true;this.configLoaded=false;
       try {
         if (scope.location?.protocol==='file:') {this.configLoaded=true;return this;}
-        const response=await this.request('/api/config');
-        if (!response.ok) throw new Error('Supabase is not connected. This host cannot load .env settings. Open the project with npm start; GitHub Pages does not run the Node backend.');
-        this.config=await response.json();this.configLoaded=true;
+        this.config=await this.loadConfig();this.configLoaded=true;
         if (this.config.configured) {await this.loadReports();this.ready=true;}
       } catch(error) {this.error=error.message;}
       finally {this.loading=false;this.configLoaded=true;}
       return this;
+    }
+    // Local runs read .env through the Node server. Static hosts (GitHub Pages) have no /api/config,
+    // so fall back to the public settings in supabase-config.js. The path is relative so it also
+    // works from a project subpath such as /repo-name/.
+    async loadConfig() {
+      try {
+        const response=await this.request('api/config');
+        if (response.ok) {const served=await response.json();if (served?.configured) return served;}
+      } catch {}
+      const shipped=scope.STUDY_BYU_CONFIG;
+      if (shipped?.url&&shipped?.key) {
+        // Same rule as the local server: https project URL and a browser-safe publishable key only.
+        let origin='';try {const parsed=new URL(String(shipped.url));if (parsed.protocol==='https:'&&!parsed.search&&!parsed.hash&&['','/'].includes(parsed.pathname)) origin=parsed.origin;} catch {}
+        if (!origin||!/^sb_publishable_[A-Za-z0-9_-]{8,}$/.test(String(shipped.key))) throw new Error('Supabase is not connected. supabase-config.js needs the project URL and an sb_publishable_ key.');
+        return {configured:true,url:origin,key:String(shipped.key),table:shipped.table||'ReportSpotStatus'};
+      }
+      throw new Error('Supabase is not connected. Start with npm start and fill in .env, or add supabase-config.js when hosting statically.');
     }
     // Only the browser-safe publishable key is sent; server validation rejects secrets.
     headers(extra={}) {return {apikey:this.config.key,...extra};}

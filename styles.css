@@ -669,7 +669,7 @@ button{transition:background-color .16s,border-color .16s,box-shadow .16s}
   .filter-fields{display:flex;flex-direction:column;gap:16px}
   .filter-actions{gap:10px}
   .filter-actions>button{flex:1;min-width:0;padding:10px 8px;white-space:normal}
-  .campus-map-viewport{height:clamp(240px,43dvh,400px);min-height:0;aspect-ratio:auto;overscroll-behavior:auto}
+  .campus-map-viewport{height:clamp(240px,43svh,400px);min-height:0;aspect-ratio:auto;overscroll-behavior:auto}
   .campus-map-controls button{min-width:44px;min-height:44px}
   .campus-coming-soon button{min-width:44px;min-height:44px}
   .building-heading{margin-bottom:18px;gap:10px}
@@ -705,20 +705,20 @@ button{transition:background-color .16s,border-color .16s,box-shadow .16s}
   .map-interaction-bar{display:flex;align-items:center;gap:12px;margin:10px 0}
   .map-interaction-bar p{flex:1;min-width:0;margin:0;font-size:12px;line-height:1.4;color:var(--muted)}
   .map-interaction-bar button{min-height:44px;font-size:12px;padding:10px;white-space:normal;max-width:145px}
-  .floor-plan.native-plan{height:clamp(220px,50dvh,460px);min-height:0}
+  .floor-plan.native-plan{height:clamp(220px,50svh,460px);min-height:0}
   .plan-pin,.plan-pin:hover,.plan-pin.is-selected{width:44px;height:44px;border:0;background:transparent;box-shadow:none}
   .plan-pin>span{display:grid;place-items:center;width:25px;height:25px;border:2px solid #fff;border-radius:50%;background:#247e68;color:#fff;font-size:9px;box-shadow:0 2px 8px #102b3c66}
   .plan-pin:hover>span,.plan-pin.is-selected>span{background:#185d4c;box-shadow:0 0 0 4px #95cdbd,0 3px 10px #102b3c66}
   .modal-backdrop{padding:max(12px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left))}
-  .modal{max-height:calc(100dvh - 32px);padding:18px}
+  .modal{max-height:calc(100svh - 32px);padding:18px}
   .modal-close{min-width:44px;min-height:44px}
   .toast{bottom:max(16px,env(safe-area-inset-bottom))}
 }
 @media(max-width:1100px) and (max-height:500px){
   main{padding-top:18px}
   .building-heading .intro{display:none}
-  .campus-map-viewport{height:60dvh}
-  .floor-plan.native-plan{height:60dvh;min-height:180px}
+  .campus-map-viewport{height:60svh}
+  .floor-plan.native-plan{height:60svh;min-height:180px}
 }
 
 /* Warm cream, beige, sage, terracotta, and espresso theme. */
@@ -886,8 +886,8 @@ html.explore-snap .site-footer{scroll-snap-align:end}
   .explore-map-section .filter-panel{height:auto;overflow:visible}
   .explore-map-section .campus-area{height:auto;min-height:0;overflow:visible}
   .explore-map-section .campus-map{height:auto;min-height:0;flex:0 0 auto}
-  .explore-map-section .campus-map-viewport{height:clamp(320px,55dvh,520px);min-height:320px;flex:none}
-  .recommendations{min-height:calc(100dvh - var(--header-height));padding:36px 20px}
+  .explore-map-section .campus-map-viewport{height:clamp(320px,55svh,520px);min-height:320px;flex:none}
+  .recommendations{min-height:calc(100svh - var(--header-height));padding:36px 20px}
 }
 
 @media(prefers-reduced-motion:reduce){
@@ -910,3 +910,12 @@ html.explore-snap .site-footer{scroll-snap-align:end}
 /* Touch targets: keep links and the brand button at least 44px tall on phones. */
 @media (max-width:800px){.brand,.text-link,.building-links a,.map-footer a,.site-footer a{display:inline-flex;align-items:center;min-height:44px}.official-link{padding-bottom:0}}
 @media (max-width:800px){.saved-tab{min-height:44px}}
+
+/* Phones: no forced scroll-snapping, and sizes use the stable small viewport (svh) so the page does not
+   resize or jump when the browser toolbar collapses. Desktop keeps the welcome-screen snap. */
+@media (max-width:800px), (max-width:1100px) and (max-height:500px), (pointer:coarse) and (max-width:1100px){
+  html.explore-snap{scroll-snap-type:none}
+  html.explore-snap .explore-hero,html.explore-snap .explore-map-section,html.explore-snap .recommendations,html.explore-snap .site-footer{scroll-snap-align:none;scroll-snap-stop:normal}
+  .explore-hero{min-height:calc(100svh - var(--header-height))}
+  html{overscroll-behavior-y:auto;-webkit-text-size-adjust:100%}
+}

@@ -113,3 +113,13 @@ The failure stays visible in the form; built-in spot saves never fall back silen
 Commit the app, supplied ERD image, migration, seed, and README to one shared main version. Never commit `.env`. Teammates start from that version rather than independently creating tables. The included offline integration test validates PostgreSQL SQL/RLS and frontend handler behavior, but your own hosted project, browser presentation, and final refresh/video test must still be checked.
 
 References: [Data REST API](https://supabase.com/docs/guides/api), [RLS](https://supabase.com/docs/guides/database/postgres/row-level-security), [API keys](https://supabase.com/docs/guides/getting-started/api-keys).
+
+## 8. Hosting on GitHub Pages (static)
+
+GitHub Pages cannot run `server.mjs`, so `/api/config` does not exist there. The app therefore falls back to **`supabase-config.js`**, which holds only the public project URL, the `sb_publishable_` key, and the table name (`ReportSpotStatus`). `.env` is still the source for local `npm start` runs and is tried first.
+
+- Never put a secret/service-role key or database password in `supabase-config.js`. The adapter rejects anything that is not an `sb_publishable_` key and an https project URL.
+- All asset and fetch paths are relative, so the site works from a project subpath such as `https://<user>.github.io/IS401byustudyspots/`.
+- Supabase accepts browser requests from any origin, so github.io does not need allow-listing. Auth redirect URLs only matter if sign-in is added.
+- The publishable key is visible to anyone, so **row-level security is the only protection**. RLS is enabled on every table; anonymous users can only INSERT into `ReportSpotStatus` and `SpotSubmission` (column-limited, policy-checked) and SELECT catalogue/report data. Check constraints enforce levels 1-3 and note lengths. Public inserts can still be spammed; this is acceptable for a class demo.
+- After deploying, submit a report from the github.io URL and confirm a `201` on the POST to `/rest/v1/ReportSpotStatus` in the browser network tab.
