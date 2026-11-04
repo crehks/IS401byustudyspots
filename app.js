@@ -6,7 +6,7 @@
 // 1. Building catalogue. Floor IDs select drawings; level is the physical floor.
 // JKB's G key displays Floor 1 but must keep matching existing spot references.
 const BUILDINGS = {
-  HBLL: { name: 'Harold B. Lee Library', short: 'Lee Library', description: 'Explore the library’s digitized North and South drawings, or find a room by number.', floors: [
+  HBLL: { name: 'Harold B. Lee Library', short: 'Lee Library', description: 'Explore the library floor by floor, or find a room by number.', floors: [
     {id:'L3',label:'Floor 3 South / Entry',file:'hbll-3s',level:3,side:'South',defaultX:43,defaultY:52},
     {id:'L3N',label:'Floor 3 North',file:'hbll-3ns',level:3,side:'North',defaultX:64,defaultY:49},
     {id:'L2',label:'Floor 2 South',file:'hbll-2s',level:2,side:'South',defaultX:25,defaultY:73},
@@ -47,21 +47,21 @@ const DEMO_SPOTS = [
   {id:'hbll-reading',building:'HBLL',floor:'L2',name:'Reading Room area',type:'solo',capacity:1,private:false,outlets:false,noise:'low',busy:'medium',reserved:false,x:73,y:25,typical:[1,2,2,2,1]},
   {id:'hbll-single',building:'HBLL',floor:'L2',name:'Single-user study room',type:'solo',capacity:1,private:true,outlets:true,noise:'low',busy:null,reserved:true,x:73,y:72,typical:[]},
   {id:'hbll-upper',building:'HBLL',floor:'L4',name:'Upper level tables',type:'solo',capacity:1,private:false,outlets:true,noise:'low',busy:'low',reserved:false,x:28,y:27,typical:[1,2,1,1,2]},
-  {id:'wsc-tables',building:'WSC',floor:'1E',name:'East hall tables (sample)',type:'group',capacity:4,private:false,outlets:true,noise:'medium',busy:'medium',reserved:false,x:23,y:42,typical:[2,2,3,2,2]},
-  {id:'wsc-lounge',building:'WSC',floor:'1E',name:'East open seating (sample)',type:'solo',capacity:1,private:false,outlets:false,noise:'medium',busy:'low',reserved:false,x:62,y:29,typical:[1,2,3,2,1]},
-  {id:'wsc-1w-atrium',building:'WSC',floor:'1W',name:'West atrium seating (sample)',type:'group',capacity:6,private:false,outlets:false,noise:'medium',busy:'low',reserved:false,x:26,y:52,typical:[1,2,2,1,2]},
-  {id:'wsc-1w-nook',building:'WSC',floor:'1W',name:'West side nook (sample)',type:'solo',capacity:1,private:false,outlets:true,noise:'low',busy:'medium',reserved:false,x:50,y:44,typical:[1,1,2,2,1]},
-  {id:'wsc-upper',building:'WSC',floor:'2E',name:'Second-floor tables (sample)',type:'group',capacity:6,private:false,outlets:true,noise:'medium',busy:'low',reserved:false,x:20,y:43,typical:[1,2,2,1,1]},
-  {id:'wsc-2e-seating',building:'WSC',floor:'2E',name:'East seating area (sample)',type:'solo',capacity:1,private:false,outlets:false,noise:'medium',busy:'medium',reserved:false,x:20,y:67,typical:[2,2,3,2,1]},
-  {id:'wsc-2w-open',building:'WSC',floor:'2W',name:'West open area (sample)',type:'group',capacity:6,private:false,outlets:true,noise:'medium',busy:'low',reserved:false,x:39,y:34,typical:[1,2,2,1,2]},
-  {id:'wsc-2w-corner',building:'WSC',floor:'2W',name:'Southwest corner (sample)',type:'solo',capacity:1,private:false,outlets:false,noise:'low',busy:'medium',reserved:false,x:28,y:76,typical:[1,2,2,1,1]},
-  {id:'wsc-3e-hall',building:'WSC',floor:'3E',name:'Third-floor hall (sample)',type:'group',capacity:4,private:false,outlets:true,noise:'medium',busy:'medium',reserved:false,x:23,y:31,typical:[1,2,3,2,1]},
-  {id:'wsc-3e-corner',building:'WSC',floor:'3E',name:'East quiet corner (sample)',type:'solo',capacity:1,private:false,outlets:false,noise:'low',busy:'low',reserved:false,x:51,y:65,typical:[1,1,2,1,1]},
-  {id:'wsc-3w-open',building:'WSC',floor:'3W',name:'West open area (sample)',type:'group',capacity:8,private:false,outlets:true,noise:'medium',busy:'low',reserved:false,x:35,y:43,typical:[1,2,2,1,1]},
-  {id:'wsc-3w-south',building:'WSC',floor:'3W',name:'West corridor nook (sample)',type:'solo',capacity:1,private:false,outlets:false,noise:'low',busy:'low',reserved:false,x:48,y:73,typical:[1,1,2,1,1]},
-  {id:'wsc-4f',building:'WSC',floor:'4E',name:'Fourth-floor alcove (sample)',type:'solo',capacity:1,private:false,outlets:false,noise:'low',busy:'low',reserved:false,x:68,y:33,typical:[1,2,1,1,1]},
-  {id:'wsc-5f',building:'WSC',floor:'5E',name:'Fifth-floor seating (sample)',type:'solo',capacity:1,private:false,outlets:true,noise:'low',busy:'medium',reserved:false,x:34,y:43,typical:[1,2,2,1,1]},
-  {id:'wsc-6f',building:'WSC',floor:'6E',name:'Sixth-floor open area (sample)',type:'group',capacity:4,private:false,outlets:false,noise:'medium',busy:'low',reserved:false,x:34,y:54,typical:[1,2,2,1,2]},
+  {id:'wsc-tables',building:'WSC',floor:'1E',name:'East hall tables',type:'group',capacity:4,private:false,outlets:true,noise:'medium',busy:'medium',reserved:false,x:23,y:42,typical:[2,2,3,2,2]},
+  {id:'wsc-lounge',building:'WSC',floor:'1E',name:'East open seating',type:'solo',capacity:1,private:false,outlets:false,noise:'medium',busy:'low',reserved:false,x:62,y:29,typical:[1,2,3,2,1]},
+  {id:'wsc-1w-atrium',building:'WSC',floor:'1W',name:'West atrium seating',type:'group',capacity:6,private:false,outlets:false,noise:'medium',busy:'low',reserved:false,x:26,y:52,typical:[1,2,2,1,2]},
+  {id:'wsc-1w-nook',building:'WSC',floor:'1W',name:'West side nook',type:'solo',capacity:1,private:false,outlets:true,noise:'low',busy:'medium',reserved:false,x:50,y:44,typical:[1,1,2,2,1]},
+  {id:'wsc-upper',building:'WSC',floor:'2E',name:'Second-floor tables',type:'group',capacity:6,private:false,outlets:true,noise:'medium',busy:'low',reserved:false,x:20,y:43,typical:[1,2,2,1,1]},
+  {id:'wsc-2e-seating',building:'WSC',floor:'2E',name:'East seating area',type:'solo',capacity:1,private:false,outlets:false,noise:'medium',busy:'medium',reserved:false,x:20,y:67,typical:[2,2,3,2,1]},
+  {id:'wsc-2w-open',building:'WSC',floor:'2W',name:'West open area',type:'group',capacity:6,private:false,outlets:true,noise:'medium',busy:'low',reserved:false,x:39,y:34,typical:[1,2,2,1,2]},
+  {id:'wsc-2w-corner',building:'WSC',floor:'2W',name:'Southwest corner',type:'solo',capacity:1,private:false,outlets:false,noise:'low',busy:'medium',reserved:false,x:28,y:76,typical:[1,2,2,1,1]},
+  {id:'wsc-3e-hall',building:'WSC',floor:'3E',name:'Third-floor hall',type:'group',capacity:4,private:false,outlets:true,noise:'medium',busy:'medium',reserved:false,x:23,y:31,typical:[1,2,3,2,1]},
+  {id:'wsc-3e-corner',building:'WSC',floor:'3E',name:'East quiet corner',type:'solo',capacity:1,private:false,outlets:false,noise:'low',busy:'low',reserved:false,x:51,y:65,typical:[1,1,2,1,1]},
+  {id:'wsc-3w-open',building:'WSC',floor:'3W',name:'West open area',type:'group',capacity:8,private:false,outlets:true,noise:'medium',busy:'low',reserved:false,x:35,y:43,typical:[1,2,2,1,1]},
+  {id:'wsc-3w-south',building:'WSC',floor:'3W',name:'West corridor nook',type:'solo',capacity:1,private:false,outlets:false,noise:'low',busy:'low',reserved:false,x:48,y:73,typical:[1,1,2,1,1]},
+  {id:'wsc-4f',building:'WSC',floor:'4E',name:'Fourth-floor alcove',type:'solo',capacity:1,private:false,outlets:false,noise:'low',busy:'low',reserved:false,x:68,y:33,typical:[1,2,1,1,1]},
+  {id:'wsc-5f',building:'WSC',floor:'5E',name:'Fifth-floor seating',type:'solo',capacity:1,private:false,outlets:true,noise:'low',busy:'medium',reserved:false,x:34,y:43,typical:[1,2,2,1,1]},
+  {id:'wsc-6f',building:'WSC',floor:'6E',name:'Sixth-floor open area',type:'group',capacity:4,private:false,outlets:false,noise:'medium',busy:'low',reserved:false,x:34,y:54,typical:[1,2,2,1,2]},
   {id:'jkb-tables',building:'JKB',floor:'G',name:'Ground level tables',type:'solo',capacity:1,private:false,outlets:true,noise:'low',busy:'low',reserved:false,x:28,y:27,typical:[1,1,2,1,2]},
   {id:'jkb-nook',building:'JKB',floor:'G',name:'Quiet study nook',type:'solo',capacity:1,private:true,outlets:false,noise:'low',busy:'medium',reserved:false,x:73,y:73,typical:[1,2,2,1,1]},
   {id:'jkb-group',building:'JKB',floor:'L2',name:'Group table area',type:'group',capacity:8,private:false,outlets:true,noise:'medium',busy:'low',reserved:false,x:28,y:28,typical:[2,2,1,2,1]}
@@ -159,7 +159,42 @@ function loadData(){
 }
 let data=loadData();
 const database=new window.StudyDatabase();
-let reportSubmissionPending=false;
+// BUILDING HOURS: computed in Utah time from the building_hours table.
+let buildingHours=[];
+function utahNow(){
+  const parts=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:'America/Denver',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23',weekday:'short'}).formatToParts(new Date()).map(p=>[p.type,p.value]));
+  return {date:`${parts.year}-${parts.month}-${parts.day}`,day:['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].indexOf(parts.weekday),minutes:Number(parts.hour)*60+Number(parts.minute)};
+}
+function addDays(date,n){const d=new Date(`${date}T12:00:00Z`);d.setUTCDate(d.getUTCDate()+n);return {date:d.toISOString().slice(0,10),day:d.getUTCDay()};}
+function hoursFor(code,date,day){const rows=buildingHours.filter(r=>r.building_code===code);return rows.find(r=>r.special_date===date)||rows.find(r=>r.special_date===null&&r.day_of_week===day)||null;}
+const toMinutes=t=>{const [h,m]=t.split(':').map(Number);return h*60+m;};
+function formatTime(t){const [h,m]=t.split(':').map(Number);if(h===0&&m===0)return 'midnight';return `${h%12||12}${m?':'+String(m).padStart(2,'0'):''} ${h<12?'AM':'PM'}`;}
+function hoursStatus(code){
+  if(!buildingHours.some(r=>r.building_code===code))return null;
+  const now=utahNow();
+  const prev=addDays(now.date,-1),late=hoursFor(code,prev.date,prev.day);
+  if(late&&!late.is_closed&&toMinutes(late.close_time)<=toMinutes(late.open_time)&&now.minutes<toMinutes(late.close_time))return {open:true,text:`Open now · Closes at ${formatTime(late.close_time)}`};
+  const today=hoursFor(code,now.date,now.day);
+  if(today&&!today.is_closed){const open=toMinutes(today.open_time),close=toMinutes(today.close_time),end=close<=open?close+1440:close;
+    if(now.minutes>=open&&now.minutes<end)return {open:true,text:`Open now · Closes at ${formatTime(today.close_time)}`};
+    if(now.minutes<open)return {open:false,text:`Closed · Opens today at ${formatTime(today.open_time)}`};}
+  for(let i=1;i<=7;i++){const next=addDays(now.date,i),row=hoursFor(code,next.date,next.day);
+    if(row&&!row.is_closed)return {open:false,text:`Closed · Opens ${i===1?'tomorrow':['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][next.day]} at ${formatTime(row.open_time)}`};}
+  return {open:false,text:'Closed'};
+}
+function renderHours(){
+  const el=document.getElementById('buildingHours');if(!el)return;
+  const status=hoursStatus(state.building);
+  el.hidden=!status;if(!status)return;
+  el.textContent=status.text;el.classList.toggle('is-open',status.open);
+}
+async function loadBuildingHours(){
+  try{buildingHours=await database.loadHours();renderHours();}
+  catch(error){console.warn('Building hours unavailable:',error.message);}
+}
+setInterval(renderHours,60000);
+
+let reportSubmissionPending=false,newSpotPending=false;
 // Temporary screen choices. Save filters copies a preset into device data.
 const state={view:'explore',building:'HBLL',floor:'L3',zoom:1,selectedSpot:null,selectedRoom:null,roomLabels:true,selectedList:'favorites',study:'any',noise:'any',private:false,outlets:false,groupSize:4,buildings:new Set(['HBLL','WSC','JKB'])};
 // Pin positions use the original PDF page; rendering subtracts the crop offset.
@@ -179,6 +214,12 @@ const HBLL_STUDY_POINTS={
 };
 const JKB_STUDY_POINTS={'jkb-tables':[520,177],'jkb-nook':[828,520],'jkb-group':[610,188]};
 function buildingPlans(building=state.building){return {WSC:window.WSC_PLANS,HBLL:window.HBLL_PLANS,JKB:window.JKB_PLANS}[building]||null}
+// Floor-plan bundles are several MB each, so each loads only when its building is first opened.
+const PLAN_FILES={WSC:'wsc-plans.js?v=20261007',HBLL:'hbll-plans.js?v=20261009',JKB:'jkb-plans.js?v=20261009'},planLoads={};
+function loadPlans(building){
+  if(buildingPlans(building))return Promise.resolve();
+  return planLoads[building]??=new Promise((resolve,reject)=>{const script=document.createElement('script');script.src=PLAN_FILES[building];script.onload=resolve;script.onerror=()=>{delete planLoads[building];script.remove();reject(new Error('Floor map could not load.'))};document.head.appendChild(script)});
+}
 // This history drives in-app Back buttons; it does not change the browser URL.
 const viewHistory=[];
 if(data.savedFilters){const f=data.savedFilters;state.study=f.study||'any';state.noise=f.noise||'any';state.private=!!f.private;state.outlets=!!f.outlets;state.groupSize=Math.min(8,Math.max(2,Number(f.groupSize)||4));state.buildings=new Set((f.buildings||[]).filter(id=>BUILDINGS[id]));}
@@ -187,7 +228,7 @@ const $$=selector=>[...document.querySelectorAll(selector)];
 // Escape user text before inserting it into an HTML template.
 function esc(text){return String(text).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 // 3. Campus map. Its zoom and drag state are separate from the floor map.
-let campusZoom=1,campusSuppressClick=false;
+let campusZoom=1,campusZoomInitialized=false,campusSuppressClick=false;
 // Ray casting checks whether a label anchor sits inside a building footprint.
 function campusPointInside(points,x,y){
   let inside=false;
@@ -245,7 +286,7 @@ function renderCampusMap(){
     const label=campusLabelLayout(b,available);
     return `<g class="campus-building ${available?'is-available':'is-coming-soon'}" data-campus-building="${b.id}" ${available?`data-open-building="${b.id}"`:''} role="button" tabindex="0" aria-label="${esc(available?`${b.id} floor plans`:`${b.id}${b.name?' '+b.name:''}, coming soon`)}" ${available?'':'aria-controls="campusComingSoon"'}><title>${esc(b.name||b.id)}: ${available?'floor plans available':'not yet supported, coming soon'}</title><polygon class="campus-building-shadow" points="${b.points}" transform="translate(6 ${depth+5})"/><g class="campus-building-walls" aria-hidden="true">${walls}</g><polygon class="campus-building-roof" points="${b.points}"/>${courtyard}<text class="campus-building-label" x="${label.x}" y="${label.y}" style="font-size:${label.size}px;stroke-width:${label.size<8?.6:2}px" transform="rotate(${label.angle} ${label.x} ${label.y})" text-anchor="middle" dominant-baseline="central">${b.id}</text></g>`;
   }).join('');
-  const trees=[[185,81],[399,25],[569,213],[563,281],[558,299],[586,286],[563,193],[550,214],[577,345],[873,556],[417,689],[966,161],[932,381],[695,499],[685,190],[280,619],[372,691],[510,715],[734,198],[767,380],[623,560],[587,531],[487,364],[222,573]].map(([x,y],i)=>`<g transform="translate(${x} ${y})"><ellipse class="campus-tree-shadow" cx="3" cy="5" rx="7" ry="5"/><circle class="campus-tree" r="${i%3+6}"/><circle class="campus-tree-light" cx="-2" cy="-2" r="3"/></g>`).join('');
+  const trees=[[185,81],[399,25],[569,213],[563,281],[558,299],[586,286],[563,193],[550,214],[577,345],[873,556],[417,689],[966,161],[932,381],[695,499],[280,619],[372,691],[510,715],[623,560],[587,531],[487,364],[222,573]].map(([x,y],i)=>`<g transform="translate(${x} ${y})"><ellipse class="campus-tree-shadow" cx="3" cy="5" rx="7" ry="5"/><circle class="campus-tree" r="${i%3+6}"/><circle class="campus-tree-light" cx="-2" cy="-2" r="3"/></g>`).join('');
   const parking=[[173,58,139,287],[436,21,45,80],[848,24,86,137],[998,259,214,49],[948,357,44,167],[845,479,115,55],[1105,304,101,245],[958,626,250,84]].map(([x,y,w,h])=>`<g class="campus-parking"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="8"/>${Array.from({length:Math.floor(w/18)},(_,i)=>`<path d="M${x+10+i*18} ${y+8}v11 M${x+10+i*18} ${y+h-8}v-11"/>`).join('')}</g>`).join('');
   const walkways=['M408 0L383 328L205 676','M567 157L575 207L585 244L585 347L605 456L602 560','M343 346L926 344','M603 85L705 84','M612 88L665 138L626 172 M669 87L623 139L663 173','M690 200L721 200L732 226','M454 341L606 344','M439 489L433 542','M584 496L621 496','M611 458L626 458','M715 346L715 520','M687 345L687 561','M854 336L858 411','M748 580L855 581','M462 475L461 642','M476 464L489 489L499 519','M323 657L439 649','M354 580L402 580','M794 165L925 165','M975 281L1065 281','M440 18L506 19','M949 310L986 329','M690 641L697 695'];
   $('#campusMapDrawing').innerHTML=`<svg class="campus-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 -18 1238 845" role="group" aria-label="BYU central campus, digitized from the supplied map"><g aria-hidden="true"><rect class="campus-ground" x="0" y="-18" width="1238" height="845"/><path class="campus-lawn" d="M16 29H158V278H19Z M14 455H166V773H55Z M212 349L397 326L373 524L222 719L87 772L100 708L198 567Z M415 7L698 1L925 88L947 331L899 574L693 633L594 645L369 690L420 349Z M949 92L982 88L982 254L949 254Z M922 729L1214 729L1214 776L928 776Z"/><path class="campus-stream-bank" d="M310 86Q323 251 293 353Q276 456 220 535Q182 593 126 676Q78 725 103 762Q170 782 286 737L528 664Q536 702 482 747Q399 787 277 798L52 798Q26 748 60 691Q97 607 166 527Q232 418 247 341L278 153Z"/><path class="campus-stream" d="M304 91Q313 262 281 372Q247 477 195 555Q136 639 94 717Q71 757 113 763Q173 771 299 726L500 675"/>
@@ -254,31 +295,40 @@ function renderCampusMap(){
   <g class="campus-road-lines"><path d="M431 -30Q411 160 382 285Q365 438 293 583"/><path d="M13 793L866 793Q905 793 905 748V659Q898 605 947 604H1256"/><path d="M206 652Q186 679 218 692Q287 663 414 650Q546 638 647 611Q697 579 754 589L899 612"/><path d="M1218 -20V804 M15 19V800"/></g>
   <g class="campus-roundabout"><circle cx="969" cy="280" r="26"/><circle class="campus-lawn" cx="969" cy="280" r="14"/></g>
   <g class="campus-fields"><rect x="23" y="45" width="129" height="77"/><rect x="23" y="144" width="129" height="128"/><rect x="31" y="464" width="130" height="78"/><path d="M23 84H152 M23 169H152 M23 195H152 M23 221H152 M23 247H152 M86 45V122 M31 503H161 M95 464V542"/><rect x="31" y="53" width="113" height="61"/><rect x="31" y="152" width="113" height="111"/><rect x="39" y="472" width="114" height="62"/></g>
-  <g class="campus-tennis">${Array.from({length:8},(_,i)=>{const x=25+(i%4)*34,y=568+Math.floor(i/4)*57;return `<rect x="${x}" y="${y}" width="25" height="43"/><path d="M${x} ${y+21}h25 M${x+5} ${y+5}h15v33h-15Z"/>`;}).join('')}</g>
+  <g class="campus-tennis">${Array.from({length:6},(_,i)=>{const x=25+(i%3)*34,y=568+Math.floor(i/3)*57;return `<rect x="${x}" y="${y}" width="25" height="43"/><path d="M${x} ${y+21}h25 M${x+5} ${y+5}h15v33h-15Z"/>`;}).join('')}</g>
   <g class="campus-plaza"><path d="M627 94L657 94L656 159L625 159Z M672 171L739 170L739 197L672 197Z M786 173L851 171L852 190L786 191Z M842 540L889 540L889 568L842 568Z"/></g>
-  <g class="campus-context-labels"><text x="88" y="138">RB Fields</text><text x="80" y="513">South Field</text><text x="86" y="636">Tennis courts</text><text x="721" y="187">Brigham Square</text><text x="899" y="183">Lee Lane</text><text x="970" y="241">Cougar Quad</text><text x="750" y="388">Cougar Crossing</text><text x="637" y="554">South Campus Quad</text><text x="344" y="603">Maeser Quad</text><text x="449" y="494">Kimball Quad</text><text x="188" y="355">Richards Quad</text><text x="501" y="753">Arboretum &amp; Botany Pond</text><text x="122" y="721">South Campus Trail</text></g>
-  <g class="campus-road-labels"><text x="366" y="367" transform="rotate(-78 366 367)">Campus Drive</text><text x="809" y="355">1060 N</text><text x="455" y="672" transform="rotate(-12 455 672)">Campus Drive</text><text x="1069" y="610">900 N</text><text x="450" y="799">800 N</text><text x="1089" y="738">820 North Street</text><text x="980" y="467" transform="rotate(90 980 467)">750 East</text></g>${trees}</g>${blocks}</svg>`;
+  <g class="campus-context-labels"><text x="88" y="138">RB Fields</text><text x="80" y="513">South Field</text><text x="71" y="688">Tennis courts</text><text x="721" y="187">Brigham Square</text><text x="899" y="183">Lee Lane</text><text x="970" y="241">Cougar Quad</text><text x="750" y="388">Cougar Crossing</text><text x="660" y="540">South Campus Quad</text><text x="344" y="603">Maeser Quad</text><text x="470" y="494">Kimball Quad</text><text x="188" y="355">Richards Quad</text><text x="501" y="753">Arboretum &amp; Botany Pond</text><text x="122" y="721">South Campus Trail</text></g>
+  <g class="campus-road-labels"><text x="366" y="367" transform="rotate(-78 366 367)">Campus Drive</text><text x="820" y="366">1060 N</text><text x="455" y="672" transform="rotate(-12 455 672)">Campus Drive</text><text x="1069" y="610">900 N</text><text x="450" y="799">800 N</text><text x="1089" y="738">820 North Street</text><text x="980" y="467" transform="rotate(90 980 467)">750 East</text></g>${trees}</g>${blocks}</svg>`;
   const viewport=$('#campusMapViewport');let drag=null;
   viewport.onpointerdown=event=>{if(event.pointerType==='touch'||event.button!==0||event.target.closest('button'))return;drag={x:event.clientX,y:event.clientY,left:viewport.scrollLeft,top:viewport.scrollTop,moved:false};};
   viewport.onpointermove=event=>{if(!drag)return;const dx=event.clientX-drag.x,dy=event.clientY-drag.y;if(Math.hypot(dx,dy)>6){drag.moved=true;viewport.classList.add('is-panning');viewport.setPointerCapture?.(event.pointerId);viewport.scrollLeft=drag.left-dx;viewport.scrollTop=drag.top-dy;}};
   const endDrag=()=>{if(drag?.moved){campusSuppressClick=true;setTimeout(()=>campusSuppressClick=false,0);}drag=null;viewport.classList.remove('is-panning');};
   viewport.onpointerup=endDrag;viewport.onpointercancel=endDrag;
-  changeCampusZoom(0,true);
 }
 // Preserve the map center on zoom; Reset centers the supported buildings.
-function changeCampusZoom(delta,reset=false){
+function changeCampusZoom(delta,initial=false){
   const viewport=$('#campusMapViewport'),drawing=$('#campusMapDrawing');
   if(!viewport.clientWidth)return;
-  const oldWidth=parseFloat(drawing.style.width)||Math.max(viewport.clientWidth,760);
-  const centerX=(viewport.scrollLeft+viewport.clientWidth/2)/oldWidth;
-  const centerY=(viewport.scrollTop+viewport.clientHeight/2)/oldWidth;
-  campusZoom=reset?1:Math.max(1,Math.min(3,campusZoom+delta));
-  const width=Math.max(viewport.clientWidth,760)*campusZoom;
+  const baseWidth=Math.max(viewport.clientWidth,760),oldWidth=parseFloat(drawing.style.width)||baseWidth;
+  const oldHeight=oldWidth*845/1238;
+  let centerX=(viewport.scrollLeft+viewport.clientWidth/2)/oldWidth;
+  let centerY=(viewport.scrollTop+viewport.clientHeight/2)/oldHeight;
+  if(initial){
+    const mapped=CAMPUS_BUILDINGS.filter(building=>BUILDINGS[building.id]);
+    const points=mapped.flatMap(building=>building.points.split(' ').map(point=>point.split(',').map(Number)));
+    const xs=points.map(point=>point[0]),ys=points.map(point=>point[1]);
+    const left=Math.min(...xs),right=Math.max(...xs),top=Math.min(...ys),bottom=Math.max(...ys);
+    centerX=(left+right)/(2*1238);
+    centerY=(top+bottom+36)/(2*845);
+    const baseHeight=baseWidth*845/1238;
+    const fitWidth=viewport.clientWidth/(baseWidth*(right-left)/1238*1.12);
+    const fitHeight=viewport.clientHeight/(baseHeight*(bottom-top)/845*1.12);
+    campusZoom=Math.max(1,Math.min(1.75,fitWidth,fitHeight));
+  }else campusZoom=Math.max(1,Math.min(3,campusZoom+delta));
+  const width=baseWidth*campusZoom,height=width*845/1238;
   drawing.style.width=`${width}px`;
-  $('#campusZoomValue').textContent=`${Math.round(campusZoom*100)}%`;
   $('#campusZoomOut').disabled=campusZoom===1;$('#campusZoomIn').disabled=campusZoom===3;
-  if(reset){viewport.scrollLeft=Math.max(0,(parseFloat(drawing.style.width)*700/1238)-(viewport.clientWidth||800)/2);viewport.scrollTop=0;}
-  else{viewport.scrollLeft=centerX*width-viewport.clientWidth/2;viewport.scrollTop=centerY*width-viewport.clientHeight/2;}
+  viewport.scrollLeft=centerX*width-viewport.clientWidth/2;viewport.scrollTop=centerY*height-viewport.clientHeight/2;
 }
 // Open supported maps or explain why another building is not yet available.
 function showCampusBuilding(id){
@@ -315,8 +365,10 @@ function renderDatabaseStatus(){
 // The returned database row is the persistence proof shown after a remote save.
 function renderDatabaseReceipt(report){
   const spot=spotById(report.spotId);
-  $('#databaseReceipt').innerHTML=`<h2>Saved in Supabase</h2><p>${esc(spot?.name||report.spotId)} · Noise: ${esc(report.noise)} · Crowding: ${esc(report.busy)}</p>${report.note?`<p>${esc(report.note)}</p>`:''}<p>Database row: <code>${esc(report.id)}</code> · ${esc(new Date(report.time).toLocaleString())}</p><p>This is the row returned by the database, not a local-only save.</p><button type="button" class="subtle-button" data-open-reported="${esc(report.spotId)}">View this spot ↗</button>`;
+  $('#databaseReceipt').innerHTML=`<h2>Your report was submitted</h2><p>${esc(spot?.name||report.spotId)}</p><p>Noise: ${esc(report.noise)} · Crowding: ${esc(report.busy)}</p>${report.note?`<p>${esc(report.note)}</p>`:''}`;
   $('#databaseReceipt').hidden=false;
+  // Hide the confirmation banner after one minute.
+  clearTimeout(renderDatabaseReceipt.timer);renderDatabaseReceipt.timer=setTimeout(()=>{$('#databaseReceipt').hidden=true},60000);
 }
 // Block duplicate submissions and keep failed remote saves visible as errors.
 async function submitArrival(form){
@@ -328,16 +380,31 @@ async function submitArrival(form){
   if(database.loading||!database.configLoaded){error.textContent=database.loading?'Wait for the connection check to finish.':'Connection settings could not be checked. Start with npm start and fix setup before reporting.';error.hidden=false;return;}
   if(database.error&&!database.config.configured){error.textContent=database.error;error.hidden=false;return;}
   const remote=usesDatabase(spotById(id));
-  $('#databaseReceipt').hidden=true;
+  clearTimeout(renderDatabaseReceipt.timer);$('#databaseReceipt').hidden=true;
   reportSubmissionPending=true;button.disabled=true;button.textContent=remote?'Saving to Supabase…':'Saving locally…';error.hidden=true;
   try{
     // Show remote success only after the adapter validates the returned row.
-    if(remote){const report=await database.submitReport(id,input);closeModal(true);render();renderDatabaseStatus();renderDatabaseReceipt(report);showToast('Saved in Supabase. Click this spot to see its latest report.');}
+    if(remote){const report=await database.submitReport(id,input);closeModal(true);render();renderDatabaseStatus();renderDatabaseReceipt(report);showToast('Thanks! Your report was submitted.');}
     else{const report={...input,time:Date.now(),source:'local'};(data.reports[id]??=[]).unshift(report);data.reports[id]=data.reports[id].slice(0,10);const saved=save();closeModal(true);render();if(saved)showToast('Local preview: report saved only on this device.');}
   }catch(problem){error.textContent=problem.message;error.hidden=false;database.error=problem.message;renderDatabaseStatus();}
   finally{reportSubmissionPending=false;button.disabled=false;button.textContent='Confirm report';}
 }
 // 6. Views. Reuse building checkboxes so updates preserve keyboard focus.
+const COMPACT_LAYOUT_QUERY='(max-width:800px), (max-width:1100px) and (max-height:500px)';
+function isCompactLayout(){return window.matchMedia?.(COMPACT_LAYOUT_QUERY).matches??false}
+function setBuildingPanel(panel){
+  $('.building-layout').dataset.panel=panel;
+  $$('[data-building-panel]').forEach(button=>button.setAttribute('aria-pressed',button.dataset.buildingPanel===panel));
+  if(panel==='map')resizeDigitalMap();
+}
+function setMapInteraction(active){
+  $('#floorPlan').classList.toggle('is-interactive',active);
+  $('#interactMap').setAttribute('aria-pressed',active);
+  $('#interactMap').textContent=active?'Done moving map':'Interact with map';
+  $('#mapTouchHint').textContent=active?'Drag to pan. Pinch to zoom. Choose Done to scroll the page.':'Swipe to scroll the page. Activate the map to pan and pinch to zoom.';
+  const instructions=$('#mapInstructions>span');
+  if(instructions)instructions.textContent=isCompactLayout()?(active?'Drag to pan · Pinch to zoom':'Select a room · Activate map to move'):'Drag to move · Select a room to locate it';
+}
 function renderFilters(){
   if(!$('#buildingFilters').children.length)$('#buildingFilters').innerHTML=Object.entries(BUILDINGS).map(([id,b])=>`<label class="building-check"><input type="checkbox" value="${id}"><span>${id}</span><small>${esc(b.short)}</small></label>`).join('');
   $$('#buildingFilters input').forEach(input=>input.checked=state.buildings.has(input.value));
@@ -345,7 +412,6 @@ function renderFilters(){
   $$('[data-noise]').forEach(b=>{const selected=b.dataset.noise===state.noise;b.classList.toggle('is-selected',selected);b.setAttribute('aria-pressed',selected)});
   $('#groupSizeWrap').hidden=state.study!=='group';$('#groupSize').value=state.groupSize;$('#groupSizeValue').textContent=`${state.groupSize} people`;
   $('#privateFilter').checked=state.private;$('#outletFilter').checked=state.outlets;
-  $('#matchCount').textContent=allSpots().filter(matches).length;
 }
 // Apply a homepage study setup, then take the student to its best matching floor.
 function applyStudyPreset(preset){
@@ -363,7 +429,7 @@ function applyStudyPreset(preset){
 function renderBuilding(){
   const restoreFocus=retainControlFocus($('#buildingView'));
   const building=BUILDINGS[state.building];if(!building)return;
-  $('#buildingTitle').textContent=building.name;$('#buildingSummary').textContent=building.description;
+  $('#buildingTitle').textContent=building.name;$('#buildingSummary').textContent=building.description;renderHours();
   $('#buildingSelect').innerHTML=Object.entries(BUILDINGS).map(([id,b])=>`<option value="${id}" ${id===state.building?'selected':''}>${id}</option>`).join('');
   $('#officialFloorLink').href=building.floorsUrl;$('#buildingMapLink').href=building.map;
   const floor=building.floors.find(f=>f.id===state.floor)||building.floors[0];state.floor=floor.id;
@@ -391,11 +457,12 @@ function renderBuilding(){
     // Translate page-based pin positions into percentages of the cropped SVG.
     const studyPoints={WSC:WILK_STUDY_POINTS,HBLL:HBLL_STUDY_POINTS,JKB:JKB_STUDY_POINTS}[state.building]||{};
     plan.innerHTML=`<div class="plan-scroll"><div class="plan-canvas"><div id="planStage" class="plan-stage">${digital.svg}${spots.map((s,i)=>{const point=studyPoints[s.id]||[s.x/100*1224,s.y/100*792];const x=(point[0]-digital.crop[0])/digital.width*100;const y=(point[1]-digital.crop[1])/digital.height*100;return `<button type="button" class="plan-pin ${s.reserved?'reserved':''} ${matches(s)?'':'is-dimmed'} ${state.selectedSpot===s.id?'is-selected':''}" style="left:${x}%;top:${y}%" data-spot="${esc(s.id)}" title="${esc(s.name)}" aria-label="Sample spot ${i+1}: ${esc(s.name)}">S${i+1}</button>`}).join('')}</div></div></div>`;
-    $('#floorLegend').innerHTML='<span><i class="map-key-swatch room"></i>Rooms</span><span><i class="map-key-swatch open"></i>Open areas</span><span><i class="map-key-swatch service"></i>Service cores</span><span><i class="legend-dot open"></i>Sample study spots</span>';
-    $('#floorDisclaimer').textContent='Walls and room numbers follow the supplied BYU drawings. Study spots are provisional ideas.';
+    $('#floorLegend').innerHTML='<span><i class="map-key-swatch room"></i>Rooms</span><span><i class="map-key-swatch open"></i>Open areas</span><span><i class="map-key-swatch service"></i>Service cores</span><span><i class="legend-dot open"></i>Study spots</span>';
+    $('#floorDisclaimer').textContent='Study spot locations are approximate.';
+
     $('#mapNorth').innerHTML=`N <span style="display:inline-block;transform:rotate(${digital.north}deg)">↑</span>`;
     mapResizeObserver.disconnect();mapResizeObserver.observe(plan);
-    resizeDigitalMap();installMapPan();updateRoomHighlight();
+    setMapInteraction(!isCompactLayout());resizeDigitalMap();installMapPan();updateRoomHighlight();
   }else{
     const amenities=[{name:'Restroom',symbol:'WC',x:48,y:18},{name:'Vending',symbol:'V',x:20,y:53},{name:'Printer',symbol:'P',x:78,y:53}];
     plan.className='floor-plan';plan.setAttribute('aria-label','Illustrative floor view of study spots');
@@ -404,10 +471,11 @@ function renderBuilding(){
     $('#floorDisclaimer').innerHTML='This is a schematic guide, not an architectural floor plan. Check the <a href="https://pf.byu.edu/space/floor-plans/master" target="_blank" rel="noopener noreferrer">BYU master floor plans</a> for exact room locations (BYU sign-in may be required).';
   }
   const matched=spots.filter(matches).sort((a,b)=>rank(a)-rank(b));
+  $('#mobileSpotCount').textContent=matched.length;
   $('#resultsSummary').textContent=`${matched.length} matching ${matched.length===1?'spot':'spots'} on this floor`;
   const chips=[];if(state.study==='group')chips.push(`Group ${state.groupSize}+`);else if(state.study==='solo')chips.push('Solo');if(state.noise==='low')chips.push('Quiet');else if(state.noise==='medium')chips.push('Conversational');if(state.private)chips.push('Private');if(state.outlets)chips.push('Outlets');
   $('#activeFilterBar').innerHTML=chips.map(c=>`<span>${esc(c)}</span>`).join('')||'<span>All study types</span>';
-  $('#spotList').innerHTML=matched.length?matched.map(s=>`<button type="button" class="spot-row ${state.selectedSpot===s.id?'is-selected':''}" data-spot="${esc(s.id)}"><div class="spot-row-top"><h3>${isDigital?`${spots.indexOf(s)+1}. `:''}${esc(s.name)}</h3><span class="availability ${badgeClass(s)}">${labelBusy(s)}</span></div><p>${s.type==='group'?`Group up to ${s.capacity}`:'Individual'} · ${s.private?'Private':'Open'} · ${s.outlets?'Outlets':'Outlets not listed'}</p></button>`).join(''):`<div class="empty-state"><h3>No matching spots on this floor</h3><p>${isDigital?'Room search and the floor drawing remain available. ':''}Try another floor or update your filters.</p><button type="button" class="secondary-button" data-action="edit">Edit filters</button></div>`;
+  $('#spotList').innerHTML=matched.length?matched.map(s=>`<button type="button" class="spot-row ${state.selectedSpot===s.id?'is-selected':''}" data-spot="${esc(s.id)}"><div class="spot-row-top"><h3>${esc(s.name)}</h3><span class="availability ${badgeClass(s)}">${labelBusy(s)}</span></div><p>${s.type==='group'?`Group up to ${s.capacity}`:'Individual'} · ${s.private?'Private':'Open'} · ${s.outlets?'Outlets':'Outlets not listed'}</p></button>`).join(''):`<div class="empty-state"><h3>No matching spots on this floor</h3><p>Try another floor or update your filters.</p><button type="button" class="secondary-button" data-action="edit">Edit filters</button></div>`;
   $$('#floorTabs button,#floorSideTabs button').forEach(button=>button.setAttribute('aria-pressed',button.classList.contains('is-selected')));
   restoreFocus();
 }
@@ -424,7 +492,6 @@ function retainControlFocus(root){
 }
 // Lists store spot IDs, not copies, so details use the current catalogue and reports.
 function renderSaved(){
-  $('#savedCount').textContent=new Set(data.lists.flatMap(l=>l.spots)).size;
   $('#createList').disabled=data.lists.length>=3;$('#createList').title=data.lists.length>=3?'Two custom lists maximum':'';
   if(!data.lists.some(l=>l.id===state.selectedList))state.selectedList='favorites';
   const restoreFocus=retainControlFocus($('#savedView'));
@@ -435,17 +502,19 @@ function renderSaved(){
 }
 // Refresh shared UI; rebuild the floor drawing only when that view is visible.
 function render(){renderFilters();if(state.view==='building')renderBuilding();renderSaved();$$('.view').forEach(v=>v.hidden=v.id!==`${state.view}View`);$('#navExplore').classList.toggle('is-active',state.view!=='saved');$('#navSaved').classList.toggle('is-active',state.view==='saved');$('#navExplore').setAttribute('aria-current',state.view!=='saved'?'page':'false');$('#navSaved').setAttribute('aria-current',state.view==='saved'?'page':'false');$$('#savedTabs button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.list===state.selectedList));$('#backToExplore').textContent=viewHistory.at(-1)==='saved'?'← Back to saved':'← Back to campus';$('#savedBack').textContent=viewHistory.at(-1)==='building'?'← Back to floor map':'← Back to explore';if(state.view==='explore')changeCampusZoom(0)}
+function render(){renderFilters();renderRecommendations();if(state.view==='building')renderBuilding();renderSaved();$$('.view').forEach(v=>v.hidden=v.id!==`${state.view}View`);document.documentElement.classList.toggle('explore-snap',state.view==='explore');$('#navExplore').classList.toggle('is-active',state.view!=='saved');$('#navSaved').classList.toggle('is-active',state.view==='saved');$('#navExplore').setAttribute('aria-current',state.view!=='saved'?'page':'false');$('#navSaved').setAttribute('aria-current',state.view==='saved'?'page':'false');$$('#savedTabs button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.list===state.selectedList));$('#backToExplore').textContent=viewHistory.at(-1)==='saved'?'← Back to saved':'← Back to campus';$('#savedBack').textContent=viewHistory.at(-1)==='building'?'← Back to floor map':'← Back to explore';if(state.view==='explore'){document.documentElement.style.setProperty('--header-height',`${$('.site-header').offsetHeight}px`);if(!campusZoomInitialized&&$('#campusMapViewport').clientWidth){changeCampusZoom(0,true);campusZoomInitialized=true}else if(campusZoomInitialized)changeCampusZoom(0)}}
 // Announce view changes through the heading without extra scrolling.
 function focusView(){const heading=$(`#${state.view}View h1`);heading?.setAttribute('tabindex','-1');heading?.focus({preventScroll:true})}
 function setView(view){const changed=state.view!==view;if(changed)viewHistory.push(state.view);state.view=view;render();if(changed)focusView();window.scrollTo({top:0,behavior:'smooth'})}
 function goBack(){state.view=viewHistory.pop()||'explore';render();focusView();window.scrollTo({top:0,behavior:'smooth'})}
 // Changing drawings clears the previous room, spot selection, and search results.
-function openBuilding(id,floor){if(!BUILDINGS[id])return;$('#campusComingSoon').hidden=true;state.building=id;state.floor=floor||BUILDINGS[id].floors[0].id;state.zoom=1;state.selectedSpot=null;state.selectedRoom=null;$('#roomSearch').value='';$('#roomSearchResults').hidden=true;setView('building')}
+function openBuilding(id,floor){if(!BUILDINGS[id])return;$('#campusComingSoon').hidden=true;state.building=id;state.floor=floor||BUILDINGS[id].floors[0].id;state.zoom=1;state.selectedSpot=null;state.selectedRoom=null;$('#roomSearch').value='';$('#roomSearchResults').hidden=true;setBuildingPanel('map');setView('building');if(!buildingPlans(id))loadPlans(id).then(()=>{if(state.view==='building'&&state.building===id)renderBuilding()}).catch(()=>showToast('Floor map could not load. Check your connection and try again.'))}
 // 7. Floor tools. Fit preserves aspect ratio; zoom multiplies the fitted size.
 function resizeDigitalMap(){
   const plan=buildingPlans()?.[state.floor];if(!plan||!$('#planStage'))return;
   const viewport=$('.plan-scroll'),stage=$('#planStage'),canvas=$('.plan-canvas');
-  const fit=Math.min(Math.max(240,viewport.clientWidth-48),Math.max(200,viewport.clientHeight-48)*plan.width/plan.height);
+  if(!viewport.clientWidth||!viewport.clientHeight)return;
+  const fit=Math.min(Math.max(1,viewport.clientWidth-48),Math.max(1,viewport.clientHeight-48)*plan.width/plan.height);
   const width=fit*state.zoom,height=width*plan.height/plan.width;
   stage.style.width=`${width}px`;stage.style.height=`${height}px`;
   canvas.style.width=`max(100%, ${width+48}px)`;canvas.style.height=`max(100%, ${height+48}px)`;
@@ -461,11 +530,45 @@ function changeZoom(delta){
 }
 // Start dragging after a movement threshold and suppress the click after a drag.
 function installMapPan(){
-  const viewport=$('.plan-scroll');let start=null,dragging=false,ignoreClick=false;
-  viewport.addEventListener('pointerdown',event=>{if(event.button!==0||event.target.closest('button'))return;start={x:event.clientX,y:event.clientY,left:viewport.scrollLeft,top:viewport.scrollTop};dragging=false});
-  viewport.addEventListener('pointermove',event=>{if(!start)return;const dx=event.clientX-start.x,dy=event.clientY-start.y;if(!dragging&&Math.hypot(dx,dy)>6){dragging=true;viewport.setPointerCapture(event.pointerId);viewport.classList.add('is-panning')}if(dragging){viewport.scrollLeft=start.left-dx;viewport.scrollTop=start.top-dy}});
-  const finish=()=>{if(dragging){ignoreClick=true;setTimeout(()=>ignoreClick=false,0)}start=null;dragging=false;viewport.classList.remove('is-panning')};
-  viewport.addEventListener('pointerup',finish);viewport.addEventListener('pointercancel',finish);
+  const viewport=$('.plan-scroll'),pointers=new Map();let start=null,pinch=null,dragging=false,ignoreClick=false;
+  const beginPan=point=>{start={x:point.x,y:point.y,left:viewport.scrollLeft,top:viewport.scrollTop}};
+  const beginPinch=()=>{
+    const [a,b]=[...pointers.values()],stage=$('#planStage').getBoundingClientRect();
+    pinch={distance:Math.max(1,Math.hypot(a.x-b.x,a.y-b.y)),zoom:state.zoom,x:((a.x+b.x)/2-stage.left)/stage.width,y:((a.y+b.y)/2-stage.top)/stage.height};
+    for(const id of pointers.keys())viewport.setPointerCapture?.(id);
+    dragging=true;ignoreClick=true;
+  };
+  viewport.addEventListener('pointerdown',event=>{
+    if(!$('#floorPlan').classList.contains('is-interactive')||event.button!==0)return;
+    if(event.pointerType!=='touch'&&event.target.closest('button'))return;
+    const point={x:event.clientX,y:event.clientY};pointers.set(event.pointerId,point);
+    if(pointers.size===1){beginPan(point);dragging=false;pinch=null}else if(pointers.size===2)beginPinch();
+  });
+  viewport.addEventListener('pointermove',event=>{
+    if(!pointers.has(event.pointerId))return;
+    pointers.set(event.pointerId,{x:event.clientX,y:event.clientY});
+    if(pointers.size>=2&&pinch){
+      const [a,b]=[...pointers.values()],rect=viewport.getBoundingClientRect();
+      changeZoom(pinch.zoom*Math.hypot(a.x-b.x,a.y-b.y)/pinch.distance-state.zoom);
+      const stage=$('#planStage');
+      viewport.scrollLeft=stage.offsetLeft+pinch.x*stage.offsetWidth-((a.x+b.x)/2-rect.left);
+      viewport.scrollTop=stage.offsetTop+pinch.y*stage.offsetHeight-((a.y+b.y)/2-rect.top);
+      return;
+    }
+    if(!start)return;
+    const dx=event.clientX-start.x,dy=event.clientY-start.y;
+    if(!dragging&&Math.hypot(dx,dy)>6){dragging=true;viewport.setPointerCapture?.(event.pointerId);viewport.classList.add('is-panning')}
+    if(dragging){viewport.scrollLeft=start.left-dx;viewport.scrollTop=start.top-dy}
+  });
+  const finish=event=>{
+    if(!pointers.delete(event.pointerId))return;
+    pinch=null;
+    if(pointers.size>=2){beginPinch();return}
+    if(pointers.size){beginPan([...pointers.values()][0]);return}
+    if(dragging){ignoreClick=true;setTimeout(()=>ignoreClick=false,0)}
+    start=null;dragging=false;viewport.classList.remove('is-panning');
+  };
+  viewport.addEventListener('pointerup',finish);viewport.addEventListener('pointercancel',finish);viewport.addEventListener('lostpointercapture',finish);
   viewport.addEventListener('click',event=>{if(ignoreClick){event.preventDefault();event.stopPropagation()}},true);
 }
 // Search every drawing in this building; exact room numbers rank first.
@@ -479,16 +582,19 @@ function renderRoomSearch(){
 // Search results can switch floors; locate also zooms and centers the room.
 function selectRoom(number,floor=state.floor,locate=false){
   const plan=buildingPlans()?.[floor],room=plan?.rooms.find(r=>r.number===number);if(!room)return;
+  setBuildingPanel('map');
   if(state.floor!==floor){state.floor=floor;state.zoom=1;state.selectedSpot=null;renderBuilding()}
   state.selectedRoom={number,floor};state.roomLabels=true;$('#floorPlan').classList.remove('hide-room-labels');$('#toggleRoomLabels').setAttribute('aria-pressed','true');
   $('#roomSearchResults').hidden=true;$('#roomSearch').value='';updateRoomHighlight();
-  if(locate){const viewport=$('.plan-scroll'),stage=$('#planStage');const fitWidth=stage.offsetWidth/state.zoom;const locateZoom=Math.min(8,Math.max(2.5,Math.ceil(plan.width*2/fitWidth*4)/4));if(state.zoom<locateZoom)changeZoom(locateZoom-state.zoom);viewport.scrollLeft=stage.offsetLeft+room.x/plan.width*stage.offsetWidth-viewport.clientWidth/2;viewport.scrollTop=stage.offsetTop+room.y/plan.height*stage.offsetHeight-viewport.clientHeight/2}
+  if(locate){const viewport=$('.plan-scroll'),stage=$('#planStage');const fitWidth=stage.offsetWidth/state.zoom;const locateZoom=Math.min(8,Math.max(2.5,Math.ceil(plan.width*2/fitWidth*4)/4));if(state.zoom<locateZoom)changeZoom(locateZoom-state.zoom);viewport.scrollLeft=stage.offsetLeft+room.x/plan.width*stage.offsetWidth-viewport.clientWidth/2;viewport.scrollTop=stage.offsetTop+room.y/plan.height*stage.offsetHeight-viewport.clientHeight/2;
+    if(isCompactLayout()){$('#roomSearch').blur();$('#selectedRoomPanel').scrollIntoView({behavior:'smooth',block:'start'})}
+  }
 }
 // Keep the SVG highlight and selected-room panel in sync.
 function updateRoomHighlight(){
   const current=state.selectedRoom?.floor===state.floor?state.selectedRoom:null;
   const plan=buildingPlans()?.[state.floor];
-  if(plan)$('#planAssetBar > span').textContent=current?`Room ${current.number} selected`:`${plan.rooms.length} room numbers on this floor`;
+  if(plan)$('#planAssetBar > span').textContent=current?`Room ${current.number} selected`:'Floor plan';
   $$('#floorPlan [data-room]').forEach(el=>el.classList.toggle('is-selected',el.dataset.room===current?.number));
   const panel=$('#selectedRoomPanel');panel.hidden=!current;
   if(current&&plan){panel.innerHTML=`<div><span class="room-selection-label">On the map</span><h3>Room ${esc(current.number)}</h3><p>${esc(plan.label)} · ${esc(BUILDINGS[state.building].short)}</p></div><button type="button" data-clear-room aria-label="Clear selected room">×</button>`}
@@ -504,18 +610,28 @@ function openSpot(id){
   if(state.view==='building'){if(buildingPlans()?.[state.floor])$$('.plan-pin,.spot-row').forEach(el=>el.classList.toggle('is-selected',el.dataset.spot===s.id));else renderBuilding()}
   const report=currentReport(s),isSaved=data.lists.some(l=>l.spots.includes(s.id));
   const trend=s.typical?.length?`<div class="trend" aria-label="Illustrative typical crowding across five periods">${s.typical.map(n=>`<span class="${n===2?'medium':n===3?'high':''}"></span>`).join('')}</div><div class="trend-labels"><span>Earlier</span><span>Later</span></div>`:'<p>Typical crowding is not available for this spot.</p>';
-  const reportDetails=s.reserved?'<p>Availability is managed by BYU. This prototype does not show room availability.</p>':report?`<p>Noise: ${esc(report.noise)} · Crowding: ${esc(report.busy)}</p><small>${report.source==='supabase'?'Read from Supabase':'Saved locally on this device'} · ${esc(new Date(report.time).toLocaleString())}</small>${report.source==='supabase'?`<p>Database row: <code>${esc(report.id)}</code></p>`:''}${report.note?`<p>${esc(report.note)}</p>`:''}`:usesDatabase(s)&&database.error?`<p class="form-error">Database reports could not be loaded: ${esc(database.error)}</p>`:`<p>Sample status: ${esc(s.noise||'unknown')} noise · ${esc(s.busy||'unknown')} crowding. ${usesDatabase(s)?'No database report loaded for this spot.':'No local report yet.'}</p>`;
-  openModal(`${modalHeader(s.name)}<p class="modal-description">${s.building} · ${esc(floorLabel(s))} · ${s.type==='group'?`Group up to ${s.capacity}`:'Individual study'}</p>${s.detail?`<div class="report-box"><h3>Location details</h3><p>${esc(s.detail)}</p></div>`:''}<div class="detail-tags"><span>${s.private?'Private':'Open space'}</span><span>${s.outlets?'Outlets nearby':'Outlets not listed'}</span><span>${s.reserved?'Reservation required':`Noise: ${esc(currentNoise(s)||'unknown')}`}</span></div><div id="latestReport" class="report-box"><h3>${s.reserved?'Reservation required':'Latest report'}</h3>${reportDetails}</div><div class="report-box"><h3>Typical crowding</h3><small>Illustrative historical pattern for the prototype</small>${trend}</div><div class="modal-actions"><button class="secondary-button" type="button" data-modal-close>Keep searching</button><button class="secondary-button" type="button" data-save-spot="${esc(s.id)}">${isSaved?'Saved / lists':'Save to a list'}</button>${s.reserved?`<a class="primary-button" href="https://lib.byu.edu/services/group-study-rooms/" target="_blank" rel="noopener noreferrer">Reserve with BYU ↗</a>`:`<button class="primary-button" type="button" data-confirm-spot="${esc(s.id)}" ${database.loading||!database.configLoaded?'disabled':''}>Choose this spot</button>`}</div>`);
+  const reportDetails=s.reserved?'<p>Availability is managed by BYU. This prototype does not show room availability.</p>':report?`<p>Noise: ${esc(report.noise)} · Crowding: ${esc(report.busy)}</p>${report.note?`<p>${esc(report.note)}</p>`:''}`:usesDatabase(s)&&database.error?`<p class="form-error">Database reports could not be loaded: ${esc(database.error)}</p>`:`<p>No reports yet. Usually ${esc(s.noise||'unknown')} noise · ${esc(s.busy||'unknown')} crowding.</p>`;
+  openModal(`${modalHeader(s.name)}<p class="modal-description">${s.building} · ${esc(floorLabel(s))} · ${s.type==='group'?`Group up to ${s.capacity}`:'Individual study'}</p>${s.detail?`<div class="report-box"><h3>Location details</h3><p>${esc(s.detail)}</p></div>`:''}<div class="detail-tags"><span>${s.private?'Private':'Open space'}</span><span>${s.outlets?'Outlets nearby':'Outlets not listed'}</span><span>${s.reserved?'Reservation required':`Noise: ${esc(currentNoise(s)||'unknown')}`}</span></div><div id="latestReport" class="report-box"><h3>${s.reserved?'Reservation required':'Latest report'}</h3>${reportDetails}</div><div class="report-box"><h3>Typical crowding</h3>${trend}</div><div class="modal-actions"><button class="secondary-button" type="button" data-modal-close>Keep searching</button><button class="secondary-button" type="button" data-save-spot="${esc(s.id)}">${isSaved?'Saved / lists':'Save to a list'}</button>${s.reserved?`<a class="primary-button" href="https://lib.byu.edu/services/group-study-rooms/" target="_blank" rel="noopener noreferrer">Reserve with BYU ↗</a>`:`<button class="primary-button" type="button" data-confirm-spot="${esc(s.id)}" ${database.loading||!database.configLoaded?'disabled':''}>Choose this spot</button>`}</div>`);
 }
 // Collect arrival reports. Reserved spots use BYU's external booking link instead.
 function openArrival(id){
   const s=spotById(id);if(!s)return;
-  openModal(`${modalHeader('Once you arrive…')}<p class="modal-description">How is ${esc(s.name)} right now? ${usesDatabase(s)?'Confirm report saves to Supabase as the fictional Demo Student. Do not include names or private information.':database.config.configured?'This is a local new-spot suggestion, not a seeded database spot. Its reports remain on this device and are not the database vertical slice.':'Local preview only: this report will stay on this device. Configure .env to test database persistence.'}</p><form id="arrivalForm" data-id="${esc(s.id)}"><fieldset class="report-choice"><legend class="choice-label">Noise level</legend><div class="choice-row">${['low','medium','high'].map((v,i)=>`<label><input type="radio" name="noise" value="${v}" ${i===0?'required':''}>${v[0].toUpperCase()+v.slice(1)}</label>`).join('')}</div></fieldset><fieldset class="report-choice"><legend class="choice-label">How busy is it?</legend><div class="choice-row">${['low','medium','high'].map((v,i)=>`<label><input type="radio" name="busy" value="${v}" ${i===0?'required':''}>${v[0].toUpperCase()+v.slice(1)}</label>`).join('')}</div></fieldset><div class="form-field"><label for="reportNote">Other details (optional)</label><textarea id="reportNote" name="note" maxlength="240" placeholder="Anything useful for the next student?"></textarea></div><p id="arrivalError" class="form-error" role="alert" hidden></p><div class="modal-actions"><button type="button" class="secondary-button" data-modal-close>Not there yet</button><button type="submit" class="primary-button">Confirm report</button></div></form>`);
+  openModal(`${modalHeader('Once you arrive…')}<p class="modal-description">How is ${esc(s.name)} right now? ${usesDatabase(s)?'Do not include names or private information.':'This report will be saved on this device only.'}</p><form id="arrivalForm" data-id="${esc(s.id)}"><fieldset class="report-choice"><legend class="choice-label">Noise level</legend><div class="choice-row">${['low','medium','high'].map((v,i)=>`<label><input type="radio" name="noise" value="${v}" ${i===0?'required':''}>${v[0].toUpperCase()+v.slice(1)}</label>`).join('')}</div></fieldset><fieldset class="report-choice"><legend class="choice-label">How busy is it?</legend><div class="choice-row">${['low','medium','high'].map((v,i)=>`<label><input type="radio" name="busy" value="${v}" ${i===0?'required':''}>${v[0].toUpperCase()+v.slice(1)}</label>`).join('')}</div></fieldset><div class="form-field"><label for="reportNote">Other details (optional)</label><textarea id="reportNote" name="note" maxlength="240" placeholder="Anything useful for the next student?"></textarea></div><p id="arrivalError" class="form-error" role="alert" hidden></p><div class="modal-actions"><button type="button" class="secondary-button" data-modal-close>Not there yet</button><button type="submit" class="primary-button">Confirm report</button></div></form>`);
 }
 // Apply all list checkbox choices together when Save changes is selected.
 function openSave(id){const s=spotById(id);if(!s)return;openModal(`${modalHeader('Save this spot')}<p class="modal-description">Add ${esc(s.name)} to any of your lists.</p><div class="building-checks">${data.lists.map(l=>`<label class="building-check"><input type="checkbox" data-save-list="${esc(l.id)}" ${l.spots.includes(id)?'checked':''}><span>${esc(l.name)}</span></label>`).join('')}</div><div class="modal-actions"><button class="secondary-button" type="button" data-modal-close>Cancel</button><button class="primary-button" type="button" data-save-confirm="${esc(id)}">Save changes</button></div>`)}
+// With Supabase connected, a reported spot is stored as a pending submission for the team to
+// review. It is deliberately not added to the on-page catalogue.
+async function submitNewSpot(form,input){
+  if(newSpotPending)return;
+  const button=form.querySelector('[type="submit"]'),error=$('#newSpotError');
+  newSpotPending=true;button.disabled=true;button.textContent='Sending…';error.hidden=true;
+  try{await database.submitSpot(input);closeModal(true);showToast('Thanks! Your spot was sent to the team for review.');}
+  catch(problem){error.textContent=problem.message;error.hidden=false;}
+  finally{newSpotPending=false;button.disabled=false;button.textContent='Report spot';}
+}
 // Suggestions stay on this device; their map pins are provisional placements.
-function openNewSpot(){openModal(`${modalHeader('Report a new spot')}<p class="modal-description">Suggest a study area missing from this prototype. It will appear on this device for now.</p><form id="newSpotForm"><div class="form-field"><label for="newName">Spot name</label><input id="newName" name="name" required maxlength="60" placeholder="Example: east wing tables"></div><div class="form-field"><label for="newBuilding">Building</label><select id="newBuilding" name="building">${Object.entries(BUILDINGS).map(([id,b])=>`<option value="${id}">${esc(b.name)}</option>`).join('')}</select></div><div class="form-field"><label for="newFloor">Floor</label><select id="newFloor" name="floor"></select></div><div class="form-field"><label for="newType">Space type</label><select id="newType" name="type"><option value="solo">Individual</option><option value="group">Group</option></select></div><div class="form-field" id="newCapacityWrap" hidden><label for="newCapacity">Maximum group size (2-8)</label><input id="newCapacity" name="capacity" type="number" min="2" max="8" value="4"></div><div class="form-field"><label for="newNoise">Usual noise</label><select id="newNoise" name="noise"><option value="low">Quiet</option><option value="medium">Conversational</option><option value="high">Lively</option></select></div><div class="building-checks"><label class="building-check"><input type="checkbox" name="private"><span>Private or separated</span></label><label class="building-check"><input type="checkbox" name="outlets"><span>Outlets nearby</span></label></div><div class="form-field"><label for="newDetail">Location details (optional)</label><textarea id="newDetail" name="detail" maxlength="160" placeholder="Nearby landmark or entrance"></textarea></div><p class="form-error" id="newSpotError" hidden></p><div class="modal-actions"><button type="button" class="secondary-button" data-modal-close>Cancel</button><button type="submit" class="primary-button">Add spot</button></div></form>`);updateNewSpotFloors()}
+function openNewSpot(){openModal(`${modalHeader('Report a new spot')}<p class="modal-description">Suggest a study area missing from this prototype. ${database.config.configured&&database.ready?'It will be sent to the team for review and will not appear on the map right away. Do not include personal information.':'It will appear on this device for now.'}</p><form id="newSpotForm"><div class="form-field"><label for="newName">Spot name</label><input id="newName" name="name" required maxlength="60" placeholder="Example: east wing tables"></div><div class="form-field"><label for="newBuilding">Building</label><select id="newBuilding" name="building">${Object.entries(BUILDINGS).map(([id,b])=>`<option value="${id}">${esc(b.name)}</option>`).join('')}</select></div><div class="form-field"><label for="newFloor">Floor</label><select id="newFloor" name="floor"></select></div><div class="form-field"><label for="newType">Space type</label><select id="newType" name="type"><option value="solo">Individual</option><option value="group">Group</option></select></div><div class="form-field" id="newCapacityWrap" hidden><label for="newCapacity">Maximum group size (2-8)</label><input id="newCapacity" name="capacity" type="number" min="2" max="8" value="4"></div><div class="form-field"><label for="newNoise">Usual noise</label><select id="newNoise" name="noise"><option value="low">Quiet</option><option value="medium">Conversational</option><option value="high">Lively</option></select></div><div class="building-checks"><label class="building-check"><input type="checkbox" name="private"><span>Private or separated</span></label><label class="building-check"><input type="checkbox" name="outlets"><span>Outlets nearby</span></label></div><div class="form-field"><label for="newDetail">Location details (optional)</label><textarea id="newDetail" name="detail" maxlength="160" placeholder="Nearby landmark or entrance"></textarea></div><p class="form-error" id="newSpotError" hidden></p><div class="modal-actions"><button type="button" class="secondary-button" data-modal-close>Cancel</button><button type="submit" class="primary-button">${database.config.configured&&database.ready?'Report spot':'Add spot'}</button></div></form>`);updateNewSpotFloors()}
 // Keep a valid floor selection when the suggested space type changes.
 function updateNewSpotFloors(){const form=$('#newSpotForm');if(!form)return;const b=form.elements.building.value,previous=form.elements.floor.value;form.elements.floor.innerHTML=BUILDINGS[b].floors.map(f=>`<option value="${f.id}" ${f.id===previous?'selected':''}>${esc(f.label)}</option>`).join('');$('#newCapacityWrap').hidden=form.elements.type.value!=='group';$('#newCapacity').disabled=form.elements.type.value!=='group'}
 // Favorites is permanent; the prototype supports two additional lists.
@@ -529,9 +645,12 @@ function showMatches(){const match=allSpots().filter(matches).sort((a,b)=>rank(a
 // 9. Event routing. data-* attributes connect rebuilt controls to shared handlers.
 document.addEventListener('click',event=>{
   const t=event.target.closest('button,a,[data-room],[data-campus-building]');if(!t)return;
+  if(t.id==='exploreMapButton'){const reducedMotion=window.matchMedia('(prefers-reduced-motion: reduce)').matches;$('#exploreMapSection').scrollIntoView({behavior:reducedMotion?'auto':'smooth'});return}
+  if(t.dataset.buildingPanel){setBuildingPanel(t.dataset.buildingPanel);return}
+  if(t.id==='interactMap'){setMapInteraction(t.getAttribute('aria-pressed')!=='true');return}
   if(t.dataset.campusBuilding){showCampusBuilding(t.dataset.campusBuilding);return}
   if(t.hasAttribute('data-dismiss-campus')){$('#campusComingSoon').hidden=true;$$('.campus-building').forEach(el=>el.classList.remove('is-selected'));return}
-  if(t.id==='campusZoomIn'||t.id==='campusZoomOut'||t.id==='campusZoomFit'){changeCampusZoom(t.id==='campusZoomIn'?.25:t.id==='campusZoomOut'?-.25:0,t.id==='campusZoomFit');return}
+  if(t.id==='campusZoomIn'||t.id==='campusZoomOut'||t.id==='campusZoomFit'){if(t.id==='campusZoomFit')changeCampusZoom(0,true);else changeCampusZoom(t.id==='campusZoomIn'?.25:-.25);return}
   // Room selection, map labels, and zoom controls.
   if(t.dataset.findRoom){selectRoom(t.dataset.findRoom,t.dataset.roomFloor,true);return}
   if(t.dataset.room){selectRoom(t.dataset.room);return}
@@ -566,7 +685,7 @@ document.addEventListener('click',event=>{
   if(t.dataset.confirmSpot){openArrival(t.dataset.confirmSpot);return}
   if(t.dataset.saveSpot){openSave(t.dataset.saveSpot);return}
   if(t.dataset.saveConfirm){const id=t.dataset.saveConfirm;data.lists.forEach(l=>{const checked=!!$(`[data-save-list="${l.id}"]`)?.checked;l.spots=l.spots.filter(x=>x!==id);if(checked)l.spots.push(id)});const saved=save();renderSaved();closeModal();if(saved)showToast('Saved lists updated.');return}
-  if(t.id==='editFilters'||t.dataset.action==='edit'){setView('explore');$('#filterHeading').scrollIntoView({behavior:'smooth'});return}
+  if(t.id==='editFilters'||t.dataset.action==='edit'){setView('explore');$('#filterHeading').scrollIntoView({behavior:'smooth'});$('#clearFilters').focus({preventScroll:true});return}
   if(t.dataset.action==='explore'){setView('explore');return}
   if(t.id==='createList'){openCreateList();return}
   if(t.dataset.list){state.selectedList=t.dataset.list;renderSaved();return}
@@ -601,12 +720,22 @@ document.addEventListener('keydown',e=>{
 // Validate trimmed form values before saving local data or sending a report.
 document.addEventListener('submit',e=>{
   if(e.target.id==='arrivalForm'){e.preventDefault();void submitArrival(e.target);return}
-  if(e.target.id==='newSpotForm'){e.preventDefault();const f=e.target.elements;const name=f.name.value.trim();const type=f.type.value;const capacity=type==='group'?Number(f.capacity.value):1;if(name.length<3||(type==='group'&&(capacity<2||capacity>8))){$('#newSpotError').textContent='Enter a spot name and a group size from 2 to 8.';$('#newSpotError').hidden=false;return}const chosenFloor=BUILDINGS[f.building.value].floors.find(fl=>fl.id===f.floor.value);const spot={id:`custom-${Date.now()}`,building:f.building.value,floor:f.floor.value,name,type,capacity,private:f.private.checked,outlets:f.outlets.checked,noise:f.noise.value,busy:null,reserved:false,x:chosenFloor?.defaultX??29,y:chosenFloor?.defaultY??72,typical:[],detail:f.detail.value.trim()};data.customSpots.push(spot);const saved=save();closeModal();openBuilding(spot.building,spot.floor);render();if(saved)showToast('New spot added on this device.');return}
+  if(e.target.id==='newSpotForm'){e.preventDefault();const f=e.target.elements;const name=f.name.value.trim();const type=f.type.value;const capacity=type==='group'?Number(f.capacity.value):1;if(name.length<3||(type==='group'&&(capacity<2||capacity>8))){$('#newSpotError').textContent='Enter a spot name and a group size from 2 to 8.';$('#newSpotError').hidden=false;return}const chosenFloor=BUILDINGS[f.building.value].floors.find(fl=>fl.id===f.floor.value);const spot={id:`custom-${Date.now()}`,building:f.building.value,floor:f.floor.value,name,type,capacity,private:f.private.checked,outlets:f.outlets.checked,noise:f.noise.value,busy:null,reserved:false,x:chosenFloor?.defaultX??29,y:chosenFloor?.defaultY??72,typical:[],detail:f.detail.value.trim()};if(database.config.configured&&database.ready){submitNewSpot(e.target,{building:f.building.value,floorNumber:chosenFloor?.level,floorLabel:chosenFloor?.label,name,type,capacity,private:f.private.checked,outlets:f.outlets.checked,noise:f.noise.value,detail:f.detail.value.trim()});return}data.customSpots.push(spot);const saved=save();closeModal();openBuilding(spot.building,spot.floor);render();if(saved)showToast('New spot added on this device.');return}
   if(e.target.id==='newListForm'){e.preventDefault();const name=e.target.elements.name.value.trim();if(!name||name.length>28){$('#newListError').textContent='Enter a list name from 1 to 28 characters, not just spaces.';$('#newListError').hidden=false;return}const id=`list-${Date.now()}`;data.lists.push({id,name,spots:[]});state.selectedList=id;const saved=save();closeModal();setView('saved');if(saved)showToast('List created.');return}
 });
 // 10. Startup. Render local UI first, then refresh after the connection check.
+const headerResizeObserver=new ResizeObserver(([entry])=>{document.documentElement.style.setProperty('--header-height',`${entry.target.offsetHeight}px`);if(campusZoomInitialized&&state.view==='explore')changeCampusZoom(0)});
+headerResizeObserver.observe($('.site-header'));
 renderCampusMap();
 window.addEventListener('resize',()=>changeCampusZoom(0));
+window.matchMedia?.(COMPACT_LAYOUT_QUERY).addEventListener('change',()=>{
+  setMapInteraction(!isCompactLayout());
+  if(isCompactLayout()){
+    if($('#floorMain').contains(document.activeElement)&&$('.building-layout').dataset.panel==='spots')$('[data-building-panel="spots"]').focus();
+    if($('#studyResults').contains(document.activeElement)&&$('.building-layout').dataset.panel==='map')$('[data-building-panel="map"]').focus();
+  }
+  resizeDigitalMap();
+});
 render();
 renderDatabaseStatus();
-void database.initialize().then(()=>{renderDatabaseStatus();render()}).catch(()=>{database.error='The database connection could not initialize. Check .env and refresh to retry.';renderDatabaseStatus()});
+void database.initialize().then(()=>{renderDatabaseStatus();render();loadBuildingHours()}).catch(()=>{database.error='The database connection could not initialize. Check .env and refresh to retry.';renderDatabaseStatus()});

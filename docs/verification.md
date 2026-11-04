@@ -1,5 +1,14 @@
 # Verification scope for this delivery
 
+## Mobile responsiveness — October 29, 2026
+
+- Compact layouts put collapsible filters and live matching counts above the campus map. A Map / Study spots switch exposes the current floor's results without scrolling past the drawing. Desktop retains both columns.
+- Floor maps let swipes scroll the page by default. Interact with map enables dragging and two-finger zoom; Done restores page scrolling. Zoom stays between 100% and 800%, and Fit respects the actual available width. Mobile controls and study-pin hit areas are at least 44 px across; pin visuals remain small.
+- Selected-room details now appear immediately above the map. Mobile room searches dismiss the input keyboard and scroll to those details. Short landscape screens use a compact layout and a smaller map; the 320 px layout accounts for browser scrollbars.
+- `npm test`: 23 passed, including new checks for inactive swipes, tap targeting, drag-click suppression, pinch midpoint/limits/cancellation, hidden-map sizing, and disclosure/view state. `npm run test:integration`: all four offline SQL/DOM scripts passed.
+- Browser checks: all 23 floor drawings at 390 × 844 fit their viewport with no page-wide overflow and 44 × 44 px study-pin targets. Explore and HBLL were also checked at 320 × 568, 560 × 844, 768 × 844, 844 × 390, 1024 × 768, and 1366 × 900. Checked filter counts/disclosure, matching navigation, mobile map/list switching, Edit filters, room search/selection, map activation, Saved, the report dialog, and restoring the desktop layout/drag mode.
+- Pinch behavior was tested through the actual pointer handlers with simulated touches. Physical iOS/Android pinch and on-screen keyboard behavior still need device testing. Browser inspection used the system dark theme. No hosted database writes, deployment, commit, or push was performed.
+
 ## Campus overview update — October 14, 2026
 
 Replaced the schematic campus blocks with 45 traced SVG building footprints, courtyard/field/path/road context, labels, and illustrative raised edges. Only JKB, HBLL, and WSC open the existing floor-plan views; the other 42 show a dismissible coming-soon message. The feedback control from the source screenshot was not included.
