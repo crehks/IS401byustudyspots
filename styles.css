@@ -900,3 +900,7 @@ html.explore-snap .site-footer{scroll-snap-align:end}
 
 /* Neutral placeholder while a floor-plan bundle downloads. */
 .plan-loading{display:grid;place-items:center;height:100%;margin:0;color:var(--muted);font-size:14px}
+
+/* Auth: log in / sign up dialog and nav button */
+.nav-auth{border:1px solid #c5d7e2;margin-left:4px;color:var(--navy)}
+@media(max-width:700px){.nav-auth{padding:9px 8px}}

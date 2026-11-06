@@ -159,6 +159,7 @@ function loadData(){
 }
 let data=loadData();
 const database=new window.StudyDatabase();
+const auth=new window.StudyAuth(database);
 // BUILDING HOURS: computed in Utah time from the building_hours table.
 let buildingHours=[];
 function utahNow(){
@@ -358,6 +359,28 @@ function labelBusy(spot){if(spot.reserved)return 'Reserve ahead';const busy=curr
 function badgeClass(spot){return spot.reserved?'reserved':currentBusy(spot)==='high'?'high':currentBusy(spot)==='medium'?'medium':currentBusy(spot)?'':'unknown'}
 function showToast(message){const toast=$('#toast');toast.textContent=message;toast.hidden=false;clearTimeout(showToast.timer);showToast.timer=setTimeout(()=>toast.hidden=true,3500)}
 // 5. Reporting. Keep the connection banner short; show details in the dialog.
+function renderAuthNav(){const b=$('#navAuth');if(!b)return;b.textContent=auth.signedIn?`Log out${auth.displayName?` (${auth.displayName})`:''}`:'Log in';b.setAttribute('aria-label',auth.signedIn?`Log out ${auth.displayName}`.trim():'Log in or sign up')}
+auth.onChange(renderAuthNav);
+// Login / sign-up dialog. mode is 'login' or 'signup'; after is an optional callback run on success.
+function openAuth(mode='login',after=null){
+  openAuth.after=after;const signup=mode==='signup';
+  openModal(`${modalHeader(signup?'Create your account':'Log in')}<p class="modal-description">${signup?'Sign up to save favorites and have your reports tied to you.':'Log in to use your saved favorites.'}</p><form id="authForm" data-mode="${mode}" novalidate>${signup?'<div class="form-field"><label for="authFirst">First name</label><input id="authFirst" name="first" required maxlength="60" autocomplete="given-name"></div><div class="form-field"><label for="authLast">Last name</label><input id="authLast" name="last" maxlength="60" autocomplete="family-name"></div>':''}<div class="form-field"><label for="authEmail">Email</label><input id="authEmail" name="email" type="email" required autocomplete="email"></div><div class="form-field"><label for="authPassword">Password</label><input id="authPassword" name="password" type="password" required minlength="8" autocomplete="${signup?'new-password':'current-password'}">${signup?'<small>At least 8 characters.</small>':''}</div><p class="form-error" id="authError" role="alert" hidden></p><div class="modal-actions"><button type="button" class="secondary-button" data-auth-switch="${signup?'login':'signup'}">${signup?'I have an account':'Create account'}</button><button type="submit" class="primary-button">${signup?'Sign up':'Log in'}</button></div></form>`);
+}
+async function submitAuth(form){
+  const f=form.elements,signup=form.dataset.mode==='signup',err=$('#authError'),btn=form.querySelector('[type=submit]');
+  const show=m=>{err.textContent=m;err.hidden=false};err.hidden=true;
+  const email=f.email.value.trim(),password=f.password.value,first=signup?f.first.value.trim():'',last=signup?f.last.value.trim():'';
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email))return show('Enter a valid email address.');
+  if(signup&&!first)return show('Enter your first name.');
+  if(password.length<8)return show('Password must be at least 8 characters.');
+  if(!database.config.configured||database.loading)return show('The database is not connected yet. Wait a moment and try again.');
+  btn.disabled=true;
+  try{
+    if(signup){const r=await auth.signUp({email,password,firstName:first,lastName:last});if(r.needsConfirmation){closeModal(true);showToast('Account created. Check your email to confirm it, then log in.');return}}
+    else await auth.signIn({email,password});
+    const after=openAuth.after;openAuth.after=null;closeModal(true);showToast(`Welcome, ${auth.displayName||'friend'}!`);render();if(after)after();
+  }catch(problem){show(problem.message)}finally{btn.disabled=false}
+}
 function renderDatabaseStatus(){
   $$('[data-confirm-spot]').forEach(button=>{button.disabled=database.loading;});
   $('#databaseWarning').hidden=database.loading||(!database.error&&database.config.configured&&database.ready);
@@ -617,7 +640,7 @@ function openArrival(id){
   openModal(`${modalHeader('Once you arrive…')}<p class="modal-description">How is ${esc(s.name)} right now? ${usesDatabase(s)?'Do not include names or private information.':'This report will be saved on this device only.'}</p><form id="arrivalForm" data-id="${esc(s.id)}"><fieldset class="report-choice"><legend class="choice-label">Noise level</legend><div class="choice-row">${['low','medium','high'].map((v,i)=>`<label><input type="radio" name="noise" value="${v}" ${i===0?'required':''}>${v[0].toUpperCase()+v.slice(1)}</label>`).join('')}</div></fieldset><fieldset class="report-choice"><legend class="choice-label">How busy is it?</legend><div class="choice-row">${['low','medium','high'].map((v,i)=>`<label><input type="radio" name="busy" value="${v}" ${i===0?'required':''}>${v[0].toUpperCase()+v.slice(1)}</label>`).join('')}</div></fieldset><div class="form-field"><label for="reportNote">Other details (optional)</label><textarea id="reportNote" name="note" maxlength="240" placeholder="Anything useful for the next student?"></textarea></div><p id="arrivalError" class="form-error" role="alert" hidden></p><div class="modal-actions"><button type="button" class="secondary-button" data-modal-close>Not there yet</button><button type="submit" class="primary-button">Confirm report</button></div></form>`);
 }
 // Apply all list checkbox choices together when Save changes is selected.
-function openSave(id){const s=spotById(id);if(!s)return;openModal(`${modalHeader('Save this spot')}<p class="modal-description">Add ${esc(s.name)} to any of your lists.</p><div class="building-checks">${data.lists.map(l=>`<label class="building-check"><input type="checkbox" data-save-list="${esc(l.id)}" ${l.spots.includes(id)?'checked':''}><span>${esc(l.name)}</span></label>`).join('')}</div><div class="modal-actions"><button class="secondary-button" type="button" data-modal-close>Cancel</button><button class="primary-button" type="button" data-save-confirm="${esc(id)}">Save changes</button></div>`)}
+function openSave(id){const s=spotById(id);if(!s)return;if(database.config.configured&&!auth.signedIn){openAuth('login',()=>openSave(id));return}openModal(`${modalHeader('Save this spot')}<p class="modal-description">Add ${esc(s.name)} to any of your lists.</p><div class="building-checks">${data.lists.map(l=>`<label class="building-check"><input type="checkbox" data-save-list="${esc(l.id)}" ${l.spots.includes(id)?'checked':''}><span>${esc(l.name)}</span></label>`).join('')}</div><div class="modal-actions"><button class="secondary-button" type="button" data-modal-close>Cancel</button><button class="primary-button" type="button" data-save-confirm="${esc(id)}">Save changes</button></div>`)}
 // With Supabase connected, a reported spot is stored as a pending submission for the team to
 // review. It is deliberately not added to the on-page catalogue.
 async function submitNewSpot(form,input){
@@ -661,6 +684,8 @@ document.addEventListener('click',event=>{
   if(t.id==='backToExplore'||t.id==='savedBack'){goBack();return}
   if(t.id==='navSaved'){setView('saved');return}
   if(t.id==='navReport'){openNewSpot();return}
+  if(t.id==='navAuth'){if(auth.signedIn){void auth.signOut().then(()=>{showToast('Logged out.');render()})}else openAuth('login');return}
+  if(t.dataset.authSwitch){const after=openAuth.after;openAuth(t.dataset.authSwitch,after);return}
   if(t.dataset.openReported){const s=spotById(t.dataset.openReported);if(s){openBuilding(s.building,s.floor);openSpot(s.id)}return}
   if(t.id==='clearFilters'||t.dataset.action==='clear'){resetFilters();return}
   if(t.id==='saveFilters'){data.savedFilters={study:state.study,noise:state.noise,private:state.private,outlets:state.outlets,groupSize:state.groupSize,buildings:[...state.buildings]};if(save())showToast('Filters saved on this device.');return}
@@ -716,6 +741,7 @@ document.addEventListener('keydown',e=>{
 });
 // Validate trimmed form values before saving local data or sending a report.
 document.addEventListener('submit',e=>{
+  if(e.target.id==='authForm'){e.preventDefault();void submitAuth(e.target);return}
   if(e.target.id==='arrivalForm'){e.preventDefault();void submitArrival(e.target);return}
   if(e.target.id==='newSpotForm'){e.preventDefault();const f=e.target.elements;const name=f.name.value.trim();const type=f.type.value;const capacity=type==='group'?Number(f.capacity.value):1;if(name.length<3||(type==='group'&&(capacity<2||capacity>8))){$('#newSpotError').textContent='Enter a spot name and a group size from 2 to 8.';$('#newSpotError').hidden=false;return}const chosenFloor=BUILDINGS[f.building.value].floors.find(fl=>fl.id===f.floor.value);const spot={id:`custom-${Date.now()}`,building:f.building.value,floor:f.floor.value,name,type,capacity,private:f.private.checked,outlets:f.outlets.checked,noise:f.noise.value,busy:null,reserved:false,x:chosenFloor?.defaultX??29,y:chosenFloor?.defaultY??72,typical:[],detail:f.detail.value.trim()};if(database.config.configured&&database.ready){submitNewSpot(e.target,{building:f.building.value,floorNumber:chosenFloor?.level,floorLabel:chosenFloor?.label,name,type,capacity,private:f.private.checked,outlets:f.outlets.checked,noise:f.noise.value,detail:f.detail.value.trim()});return}data.customSpots.push(spot);const saved=save();closeModal();openBuilding(spot.building,spot.floor);render();if(saved)showToast('New spot added on this device.');return}
   if(e.target.id==='newListForm'){e.preventDefault();const name=e.target.elements.name.value.trim();if(!name||name.length>28){$('#newListError').textContent='Enter a list name from 1 to 28 characters, not just spaces.';$('#newListError').hidden=false;return}const id=`list-${Date.now()}`;data.lists.push({id,name,spots:[]});state.selectedList=id;const saved=save();closeModal();setView('saved');if(saved)showToast('List created.');return}
@@ -735,4 +761,5 @@ window.matchMedia?.(COMPACT_LAYOUT_QUERY).addEventListener('change',()=>{
 });
 render();
 renderDatabaseStatus();
-void database.initialize().then(()=>{renderDatabaseStatus();render();loadBuildingHours()}).catch(()=>{database.error='The database connection could not initialize. Check .env and refresh to retry.';renderDatabaseStatus()});
+renderAuthNav();
+void database.initialize().then(()=>auth.restore()).then(()=>{renderDatabaseStatus();render();loadBuildingHours()}).catch(()=>{database.error='The database connection could not initialize. Check .env and refresh to retry.';renderDatabaseStatus()});

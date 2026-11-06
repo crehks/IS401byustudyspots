@@ -28,3 +28,12 @@ The **Report a spot** nav button now saves to the `SpotSubmission` table (migrat
 - Submissions are **not** shown on the website. The public key can only INSERT limited columns; it cannot read, update, or delete submissions. Review them in Supabase Table Editor.
 - Without a Supabase connection, the form keeps its old behavior (a device-local suggestion).
 - ERD addition: `SpotSubmission` (many-to-one to Buildings, SpotType, User; optional link to Study Spot).
+
+## Login and sign-up (Supabase Auth)
+
+- Accounts live in Supabase Auth (`auth.users`); passwords never touch our tables. A trigger creates a matching `User` row (`auth_id` links them; first/last name come from the sign-up form). Existing seed users keep `auth_id` NULL.
+- `auth.js` talks to Supabase Auth over REST with the publishable key and stores the session in `localStorage`; `database.js` then sends the user's token, so RLS applies per user.
+- RLS: a user can read only their own `User` row; reports/spot submissions may use `user_id` 1001 (guest) or the signed-in user's own id; favorites tables are limited to the owner (`Favorites List` by `user_id`, `Favorites` via its list).
+- Migration: `supabase/migrations/20261105_001_user_auth.sql` (already applied to the Study Spot Website project).
+- Supabase has **email confirmation on**: new accounts must click the emailed link before logging in. For class demos you can turn it off in Dashboard > Authentication > Providers > Email.
+- Saving a spot to a list now requires login (when connected). The lists themselves are still device-local; moving them into `Favorites List` / `Favorites` is the next slice.

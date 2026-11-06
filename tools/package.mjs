@@ -11,7 +11,7 @@ const template=await readFile(path.join(root,'.env.example'),'utf8');
 const templateSettings=parseEnv(template);
 if(templateSettings.SUPABASE_URL||templateSettings.SUPABASE_PUBLISHABLE_KEY)throw new Error('Refusing to package nonblank connection settings in .env.example. Keep real values only in .env.');
 // 2. Include approved root files and supported folders; preserve their directory structure.
-const files=['.gitignore','.env.example','package.json','package-lock.json','server.mjs','database.js','supabase-config.js','index.html','styles.css','app.js','wsc-plans.js','hbll-plans.js','jkb-plans.js','README.md'];
+const files=['.gitignore','.env.example','package.json','package-lock.json','server.mjs','database.js','auth.js','supabase-config.js','index.html','styles.css','app.js','wsc-plans.js','hbll-plans.js','jkb-plans.js','README.md'];
 async function walk(directory){
   for(const entry of await readdir(path.join(root,directory),{withFileTypes:true})){
     if(entry.name.startsWith('.') || entry.name.endsWith('.log') || entry.name==='node_modules' || entry.name==='__pycache__')continue;

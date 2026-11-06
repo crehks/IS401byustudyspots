@@ -11,7 +11,7 @@ const numericSpotIds=['hbll-commons','hbll-west','hbll-group','hbll-think','hbll
   class StudyDatabase {
     // Tests inject a fake fetcher; the browser uses its normal fetch function.
     constructor(fetcher=(...args)=>fetch(...args)) {
-      this.fetcher=fetcher;this.config={configured:false,table:'user_reports'};this.reports={};this.ready=false;this.error='';this.loading=true;this.configLoaded=false;
+      this.fetcher=fetcher;this.accessToken='';this.userId=null;this.config={configured:false,table:'user_reports'};this.reports={};this.ready=false;this.error='';this.loading=true;this.configLoaded=false;
     }
     // Bound network waits and avoid cached configuration or report responses.
     async request(url,options={}) {
@@ -50,7 +50,8 @@ const numericSpotIds=['hbll-commons','hbll-west','hbll-group','hbll-think','hbll
       throw new Error('Supabase is not connected. Start with npm start and fill in .env, or add supabase-config.js when hosting statically.');
     }
     // Only the browser-safe publishable key is sent; server validation rejects secrets.
-    headers(extra={}) {return {apikey:this.config.key,...extra};}
+    // A signed-in user's access token (set by auth.js) makes requests run as that user.
+    headers(extra={}) {return {apikey:this.config.key,...(this.accessToken?{Authorization:`Bearer ${this.accessToken}`}:{}),...extra};}
     // Translate API failures without exposing credentials or raw response contents.
     async apiError(response) {
       let result={};try {result=await response.json();} catch {}
@@ -119,6 +120,8 @@ const numericSpotIds=['hbll-commons','hbll-west','hbll-group','hbll-think','hbll
       const numericIndex=numericSpotIds.indexOf(spotId),numericId=numericIndex+1001;
       if(numeric&&numericIndex<0)throw new Error('This spot is not in the database sample inventory.');
       const payload=numeric?{spot_id:numericId,noise_level:levelNumber[input.noise],crowd_level:levelNumber[input.busy],notes:note}:{spot_id:spotId,noise_level:input.noise,crowd_levels:input.busy,notes:note};
+      // Signed-in users post as themselves; guests fall back to the database default (demo user).
+      if(numeric&&this.userId)payload.user_id=this.userId;
       const response=await this.request(`${this.config.url}/rest/v1/${encodeURIComponent(this.config.table)}`,{method:'POST',headers:this.headers({'Content-Type':'application/json',Prefer:'return=representation'}),body:JSON.stringify(payload)});
       if (!response.ok) throw await this.apiError(response);
       const rows=await response.json();
@@ -142,6 +145,7 @@ const numericSpotIds=['hbll-commons','hbll-west','hbll-group','hbll-think','hbll
       const group=input.type==='group',capacity=group?Math.round(Number(input.capacity)):1;
       if (group&&!(capacity>=2&&capacity<=8)) throw new Error('Enter a group size from 2 to 8.');
       const payload={building_id:buildingId,floor_number:Number.isInteger(input.floorNumber)?input.floorNumber:null,floor_label:String(input.floorLabel||'').trim().slice(0,60),spot_name:name,spot_type_id:group?1002:input.private?1003:1001,capacity,noise_level:levelNumber[input.noise],outlets:!!input.outlets,is_private:!!input.private,location_details:detail||null};
+      if(this.userId)payload.user_id=this.userId;
       if (!payload.floor_label) throw new Error('Choose a floor.');
       const response=await this.request(`${this.config.url}/rest/v1/SpotSubmission`,{method:'POST',headers:this.headers({'Content-Type':'application/json',Prefer:'return=minimal'}),body:JSON.stringify(payload)});
       if (!response.ok) throw await this.apiError(response);
