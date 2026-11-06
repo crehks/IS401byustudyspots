@@ -6,7 +6,18 @@ import vm from 'node:vm';
 
 const source=await readFile(new URL('../app.js',import.meta.url),'utf8');
 const helpers=source.slice(source.indexOf('const COMPACT_LAYOUT_QUERY'),source.indexOf('function renderFilters'));
+const navigation=source.slice(source.indexOf('// Announce view changes'),source.indexOf('// Changing drawings'));
 const maps=source.slice(source.indexOf('function resizeDigitalMap'),source.indexOf('// Search every drawing'));
+
+function navigationFixture(compact){
+  const scrolls=[],heading={setAttribute(){},focus(){}};
+  const context=vm.createContext({
+    window:{matchMedia:()=>({matches:compact}),scrollTo:options=>scrolls.push(options)},
+    state:{view:'explore'},viewHistory:[],render(){},$:()=>heading
+  });
+  vm.runInContext(helpers+navigation,context);
+  return {scrolls,run:expression=>vm.runInContext(expression,context)};
+}
 
 function fixture(){
   const classes=()=>{
@@ -43,6 +54,16 @@ function fixture(){
   const click=()=>viewport.dispatchEvent(new Event('click',{cancelable:true}));
   return {viewport,stage,state,elements,buttons,run,pointer,click};
 }
+
+test('view changes only auto-scroll to the top outside compact layouts',()=>{
+  const mobile=navigationFixture(true);
+  mobile.run('setView("saved");goBack()');
+  assert.deepEqual(mobile.scrolls,[]);
+
+  const desktop=navigationFixture(false);
+  desktop.run('setView("saved");goBack()');
+  assert.deepEqual(desktop.scrolls.map(({top,behavior})=>({top,behavior})),[{top:0,behavior:'smooth'},{top:0,behavior:'smooth'}]);
+});
 
 test('inactive maps leave swipes to the page and an active tap keeps its original target',()=>{
   const f=fixture();

@@ -50,6 +50,20 @@ test('report insert uses returned row and a fresh client reloads it from the bac
   assert.equal(second.reports['wsc-tables'][0].id,report.id);
   assert.equal(second.reports['wsc-tables'][0].busy,'high');
 });
+test('spot submissions allow group capacity six and reject larger groups',async()=>{
+  const requests=[];
+  const client=new globalThis.StudyDatabase(async(url,options)=>{
+    requests.push({url,options});
+    return new Response(null,{status:201});
+  });
+  client.loading=false;
+  client.config={...config};
+  const input={building:'WSC',floorNumber:1,floorLabel:'Floor 1',name:'Group study tables',type:'group',capacity:6,noise:'low'};
+  await client.submitSpot(input);
+  assert.equal(JSON.parse(requests[0].options.body).capacity,6);
+  await assert.rejects(client.submitSpot({...input,capacity:7}),/Enter a group size from 2 to 6/);
+  assert.equal(requests.length,1,'an invalid capacity must not be sent to Supabase');
+});
 test('anonymous 401 permission errors are not mislabeled as invalid keys',async()=>{
   const client=new globalThis.StudyDatabase();
   const error=await client.apiError(Response.json({code:'42501',message:'new row violates row-level security policy'},{status:401}));

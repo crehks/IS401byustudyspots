@@ -28,8 +28,8 @@
         <nav class="topnav" aria-label="Main navigation">
           <button id="navExplore" class="nav-link is-active" type="button">Explore</button>
           <button id="navSaved" class="nav-link" type="button">My Nooks</button>
-          <button id="navReport" class="nav-link nav-report" type="button">Report a spot</button>
-          <button id="navAuth" class="nav-link nav-auth" type="button">Log in</button>
+          <button id="navReport" class="nav-link nav-report" type="button" aria-label="Report a Spot"><span>Report<br class="mobile-nav-break"> a Spot</span></button>
+          <button id="navAuth" class="nav-link nav-auth nav-login" type="button">Log in</button>
         </nav>
       </header>
       <!-- JavaScript controls the connection warning and report receipt. -->
@@ -40,7 +40,7 @@
     </div>
 
     <main id="mainContent" tabindex="-1">
-      <!-- EXPLORE VIEW: filters, the campus map, and ranked recommendations. -->
+      <!-- EXPLORE VIEW: ranked recommendations, filters, and the campus map. -->
       <section id="exploreView" class="view">
         <section class="explore-hero" aria-labelledby="exploreTitle">
           <div class="hero-content">
@@ -54,6 +54,11 @@
             <button id="exploreMapButton" class="primary-button hero-map-cta" type="button">Explore campus map <span aria-hidden="true">↓</span></button>
           </div>
         </section>
+        <!-- JavaScript inserts three matching spots or a clear empty state. -->
+        <section class="recommendations" aria-labelledby="recommendHeading">
+          <div class="section-heading"><div><h2 id="recommendHeading">Good places to start</h2></div></div>
+          <div id="recommendationsList" class="recommendation-grid"></div>
+        </section>
         <section id="exploreMapSection" class="explore-map-section" aria-label="Explore campus map and study filters">
           <div class="explore-layout">
           <!-- Keep these input IDs aligned with the shared event handlers in app.js. -->
@@ -62,20 +67,20 @@
             <div class="panel-topline">
               <div>
                 <h2 id="filterHeading">Find your Nook</h2>
+                <p class="kicker">filter by...</p>
               </div>
-              <div class="filter-actions"><button id="clearFilters" class="secondary-button" type="button">Clear filters</button><button id="showMatches" class="primary-button" type="button">View matches</button></div>
             </div>
             <fieldset class="filter-group">
-              <legend>Studying with</legend>
-              <div class="segmented" role="group" aria-label="Study type">
+              <legend>Group size</legend>
+              <div class="segmented" role="group" aria-label="Group size">
                 <button class="segment is-selected" data-study="any" type="button">Anyone</button>
                 <button class="segment" data-study="solo" type="button">Solo</button>
                 <button class="segment" data-study="group" type="button">Group</button>
               </div>
               <div id="groupSizeWrap" class="range-wrap" hidden>
                 <label for="groupSize">Group size <strong id="groupSizeValue">4 people</strong></label>
-                <input id="groupSize" type="range" min="2" max="8" value="4">
-                <div class="range-ends"><span>2</span><span>8 max</span></div>
+                <input id="groupSize" type="range" min="2" max="6" value="4">
+                <div class="range-ends"><span>2</span><span>6 max</span></div>
               </div>
             </fieldset>
             <fieldset class="filter-group">
@@ -83,18 +88,23 @@
               <div class="chip-row" role="group" aria-label="Maximum noise level">
                 <button class="chip is-selected" data-noise="any" type="button">Any</button>
                 <button class="chip" data-noise="low" type="button">Quiet</button>
-                <button class="chip" data-noise="medium" type="button">Conversational</button>
+                <button class="chip" data-noise="medium" type="button">Social</button>
               </div>
             </fieldset>
-            <div class="switch-stack">
-              <label class="switch-row"><span><strong>Private space</strong><small>Enclosed or separated</small></span><input id="privateFilter" type="checkbox"><span class="switch-ui" aria-hidden="true"></span></label>
-              <label class="switch-row"><span><strong>Outlets nearby</strong><small>Power for your devices</small></span><input id="outletFilter" type="checkbox"><span class="switch-ui" aria-hidden="true"></span></label>
-            </div>
-            <fieldset class="filter-group">
-              <legend>Buildings</legend>
+            <details class="filter-group building-filter-group">
+              <summary>Buildings</summary>
+              <div class="building-filter-actions" role="group" aria-label="Select buildings">
+                <button type="button" data-building-action="all">All</button>
+                <button type="button" data-building-action="none">None</button>
+              </div>
               <div id="buildingFilters" class="building-checks"></div>
-            </fieldset>
+            </details>
+            <div class="switch-stack">
+              <label class="switch-row"><span><strong>Tucked Away</strong></span><input id="privateFilter" type="checkbox"><span class="switch-ui" aria-hidden="true"></span></label>
+              <label class="switch-row"><span><strong>Outlets nearby</strong></span><input id="outletFilter" type="checkbox"><span class="switch-ui" aria-hidden="true"></span></label>
             </div>
+            </div>
+            <div class="filter-actions"><button id="clearFilters" class="secondary-button" type="button">Clear filters</button><button id="showMatches" class="primary-button" type="button">View matches</button></div>
           </aside>
 
           <!-- The campus SVG comes from CAMPUS_BUILDINGS, not an external map API. -->
@@ -109,11 +119,6 @@
           </div>
         </section>
 
-        <!-- JavaScript inserts three matching spots or a clear empty state. -->
-        <section class="recommendations" aria-labelledby="recommendHeading">
-          <div class="section-heading"><div><h2 id="recommendHeading">Good places to start</h2></div></div>
-          <div id="recommendationsList" class="recommendation-grid"></div>
-        </section>
       </section>
 
       <!-- BUILDING VIEW: floor/side controls, room search, native map, and study spots. -->
@@ -171,7 +176,7 @@
       </section>
     </main>
 
-    <footer class="site-footer"><span>Nook is a student project prototype. It is not an official BYU service.</span><span><a href="https://map.byu.edu/" target="_blank" rel="noopener noreferrer">Campus map</a><a href="https://pf.byu.edu/space/floor-plans/master" target="_blank" rel="noopener noreferrer">Floor plans</a></span></footer>
+    <footer class="site-footer"><span class="footer-copy"><span>© 2026 Nook.</span><span>Less wandering, more studying.</span><span>Sincerely, Nook.</span></span><span class="footer-links"><a class="footer-button" href="https://map.byu.edu/" target="_blank" rel="noopener noreferrer">BYU Campus Map</a><button class="footer-button" type="button">Rate Us</button></span></footer>
   </div>
 
   <!-- Shared dialog host. app.js manages content, focus, and guarded closing. -->
