@@ -16,7 +16,7 @@ create table if not exists public."SpotSubmission" (
   is_private boolean not null default false,
   location_details text check (char_length(location_details) <= 160),
   status text not null default 'pending' check (status in ('pending','approved','rejected')),
-  approved_spot_id bigint references public."Study Spot"(spot_id)
+  approved_spot_id bigint references public."StudySpot"(spot_id)
 );
 
 create index if not exists spotsubmission_user_idx on public."SpotSubmission"(user_id);

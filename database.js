@@ -132,7 +132,7 @@ const numericSpotIds=['hbll-commons','hbll-west','hbll-group','hbll-think','hbll
       this.reports[spotId]=[report];this.ready=true;this.error='';return report;
     }
     // ---- Saved lists (account favorites) -------------------------------------------------
-    // Lists live in "Favorites List" (one row per list) and "Favorites" (one row per saved spot).
+    // Lists live in "FavoritesList" (one row per list) and "Favorites" (one row per saved spot).
     // Row-level security limits every request to the signed-in user's own lists.
     listUrl(table,query='') {return `${this.config.url}/rest/v1/${encodeURIComponent(table)}${query?`?${query}`:''}`;}
     async listError(response) {
@@ -149,7 +149,7 @@ const numericSpotIds=['hbll-commons','hbll-west','hbll-group','hbll-think','hbll
     async loadFavorites() {
       this.requireUser();
       const query=new URLSearchParams({select:'list_ID,list_name,Favorites(spot_ID)',order:'list_ID.asc'});
-      const response=await this.request(this.listUrl('Favorites List',query),{headers:this.headers()});
+      const response=await this.request(this.listUrl('FavoritesList',query),{headers:this.headers()});
       if (!response.ok) throw await this.listError(response);
       const rows=await response.json();
       if (!Array.isArray(rows)) throw new Error('Supabase returned an unexpected saved-list response.');
@@ -161,7 +161,7 @@ const numericSpotIds=['hbll-commons','hbll-west','hbll-group','hbll-think','hbll
       this.requireUser();
       const clean=String(name||'').trim();
       if (clean.length<1||clean.length>28) throw new Error('Enter a list name from 1 to 28 characters.');
-      const response=await this.request(this.listUrl('Favorites List'),{method:'POST',headers:this.headers({'Content-Type':'application/json',Prefer:'return=representation'}),body:JSON.stringify({user_id:this.userId,list_name:clean})});
+      const response=await this.request(this.listUrl('FavoritesList'),{method:'POST',headers:this.headers({'Content-Type':'application/json',Prefer:'return=representation'}),body:JSON.stringify({user_id:this.userId,list_name:clean})});
       if (!response.ok) throw await this.listError(response);
       const rows=await response.json();
       if (!Array.isArray(rows)||rows.length!==1||!rows[0].list_ID) throw new Error('The list was not saved. Try again.');

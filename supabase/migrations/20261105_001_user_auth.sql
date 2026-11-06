@@ -42,13 +42,13 @@ drop policy if exists studybyu_submit_report_user on public."ReportSpotStatus";
 create policy studybyu_submit_report_guest on public."ReportSpotStatus" for insert to anon
   with check (
     user_id = 1001 and spot_id between 1001 and 1025
-    and exists (select 1 from public."Study Spot" s where s.spot_id = "ReportSpotStatus".spot_id and s.reservable = false)
+    and exists (select 1 from public."StudySpot" s where s.spot_id = "ReportSpotStatus".spot_id and s.reservable = false)
   );
 create policy studybyu_submit_report_user on public."ReportSpotStatus" for insert to authenticated
   with check (
     (user_id = 1001 or user_id in (select u.user_id from public."User" u where u.auth_id = (select auth.uid())))
     and spot_id between 1001 and 1025
-    and exists (select 1 from public."Study Spot" s where s.spot_id = "ReportSpotStatus".spot_id and s.reservable = false)
+    and exists (select 1 from public."StudySpot" s where s.spot_id = "ReportSpotStatus".spot_id and s.reservable = false)
   );
 
 drop policy if exists studybyu_submit_spot on public."SpotSubmission";
@@ -67,17 +67,17 @@ create policy studybyu_submit_spot_user on public."SpotSubmission" for insert to
   );
 
 -- Favorites groundwork: lists belong to a signed-in user; items belong to a list the user owns.
-revoke all on public."Favorites List", public."Favorites", public."Study Spots/Favorites" from anon;
-revoke truncate, references, trigger on public."Favorites List", public."Favorites", public."Study Spots/Favorites" from authenticated;
-drop policy if exists favlist_own on public."Favorites List";
-create policy favlist_own on public."Favorites List" for all to authenticated
+revoke all on public."FavoritesList", public."Favorites", public."StudySpotsFavorites" from anon;
+revoke truncate, references, trigger on public."FavoritesList", public."Favorites", public."StudySpotsFavorites" from authenticated;
+drop policy if exists favlist_own on public."FavoritesList";
+create policy favlist_own on public."FavoritesList" for all to authenticated
   using (user_id in (select u.user_id from public."User" u where u.auth_id = (select auth.uid())))
   with check (user_id in (select u.user_id from public."User" u where u.auth_id = (select auth.uid())));
 
 drop policy if exists fav_own on public."Favorites";
 create policy fav_own on public."Favorites" for all to authenticated
-  using ("list_ID" in (select l."list_ID" from public."Favorites List" l))
-  with check ("list_ID" in (select l."list_ID" from public."Favorites List" l));
+  using ("list_ID" in (select l."list_ID" from public."FavoritesList" l))
+  with check ("list_ID" in (select l."list_ID" from public."FavoritesList" l));
 
 -- Seed rows used explicit IDs (1001+), leaving the identity counter behind; resync so new sign-ups get fresh IDs.
 select setval(pg_get_serial_sequence('public."User"','user_id'), greatest((select max(user_id) from public."User"), 1100));
@@ -87,7 +87,7 @@ grant insert (user_id) on public."ReportSpotStatus" to authenticated;
 grant insert (user_id) on public."SpotSubmission" to authenticated;
 
 -- Junction table: an item is visible/editable only when its Favorites row belongs to one of the user's lists.
-drop policy if exists favlink_own on public."Study Spots/Favorites";
-create policy favlink_own on public."Study Spots/Favorites" for all to authenticated
+drop policy if exists favlink_own on public."StudySpotsFavorites";
+create policy favlink_own on public."StudySpotsFavorites" for all to authenticated
   using (fave_id in (select f.fave_id from public."Favorites" f))
   with check (fave_id in (select f.fave_id from public."Favorites" f));
