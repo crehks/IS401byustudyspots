@@ -360,7 +360,31 @@ function badgeClass(spot){return spot.reserved?'reserved':currentBusy(spot)==='h
 function showToast(message){const toast=$('#toast');toast.textContent=message;toast.hidden=false;clearTimeout(showToast.timer);showToast.timer=setTimeout(()=>toast.hidden=true,3500)}
 // 5. Reporting. Keep the connection banner short; show details in the dialog.
 function renderAuthNav(){const b=$('#navAuth');if(!b)return;b.textContent=auth.signedIn?`Log out${auth.displayName?` (${auth.displayName})`:''}`:'Log in';b.setAttribute('aria-label',auth.signedIn?`Log out ${auth.displayName}`.trim():'Log in or sign up')}
-auth.onChange(renderAuthNav);
+// Saved lists follow the account when the database is connected. Device lists (data.lists) are used
+// only when no database is configured, so one person's lists never leak into another account.
+const cloud={lists:[],ready:false,error:'',userId:null,promise:null};
+const cloudMode=()=>database.config.configured;
+function activeLists(){return cloudMode()?(auth.signedIn&&cloud.ready?cloud.lists:[]):data.lists}
+function loadCloudLists(){
+  const user=auth.userId;cloud.ready=false;cloud.error='';
+  const job=(async()=>{
+    try{
+      const rows=await database.loadFavorites();
+      if(auth.userId!==user)return;
+      cloud.lists=rows.map(r=>({id:r.name.toLowerCase()==='favorites'?'favorites':`list-${r.dbId}`,dbId:r.dbId,name:r.name,spots:r.spots}));
+      cloud.ready=true;
+    }catch(problem){if(auth.userId===user)cloud.error=problem.message}
+    if(cloud.promise===job)cloud.promise=null;
+    renderSaved();
+  })();
+  cloud.promise=job;renderSaved();return job;
+}
+auth.onChange(()=>{
+  renderAuthNav();
+  if(auth.userId===cloud.userId)return;
+  Object.assign(cloud,{lists:[],ready:false,error:'',userId:auth.userId,promise:null});state.selectedList='favorites';
+  if(auth.userId)void loadCloudLists();else renderSaved();
+});
 // Login / sign-up dialog. mode is 'login' or 'signup'; after is an optional callback run on success.
 function openAuth(mode='login',after=null){
   openAuth.after=after;const signup=mode==='signup';
@@ -514,12 +538,22 @@ function retainControlFocus(root){
 }
 // Lists store spot IDs, not copies, so details use the current catalogue and reports.
 function renderSaved(){
-  $('#createList').disabled=data.lists.length>=3;$('#createList').title=data.lists.length>=3?'Two custom lists maximum':'';
-  if(!data.lists.some(l=>l.id===state.selectedList))state.selectedList='favorites';
+  const cloudOn=cloudMode(),lists=activeLists();
+  const canCreate=cloudOn?auth.signedIn&&cloud.ready&&lists.length<3:lists.length<3;
+  $('#createList').disabled=!canCreate;$('#createList').title=lists.length>=3?'Two custom lists maximum':'';
+  $('#savedIntro').textContent=cloudOn?'Your saved study spots, kept with your account on every device.':'Keep your go-to study spots together on this device.';
+  if(!lists.some(l=>l.id===state.selectedList))state.selectedList='favorites';
   const restoreFocus=retainControlFocus($('#savedView'));
-  $('#savedTabs').innerHTML=data.lists.map(l=>`<button type="button" class="saved-tab ${l.id===state.selectedList?'is-selected':''}" data-list="${esc(l.id)}" aria-pressed="${l.id===state.selectedList}">${esc(l.name)} <span>${l.spots.length}</span></button>`).join('');
-  const list=data.lists.find(l=>l.id===state.selectedList);const spots=list.spots.map(spotById).filter(Boolean);
-  $('#savedItems').innerHTML=spots.length?spots.map(s=>`<div class="saved-card"><div><span class="rec-building">${s.building} / ${esc(floorLabel(s))}</span><h3>${esc(s.name)}</h3><p>${s.type==='group'?`Group up to ${s.capacity}`:'Individual'} · ${s.reserved?'Reservation required':labelBusy(s)}</p></div><button type="button" data-open-saved="${esc(s.id)}">View ↗</button></div>`).join(''):`<div class="empty-state"><h3>Nothing saved here yet</h3><p>Open a study spot and save it to this list.</p><button type="button" class="secondary-button" data-action="explore">Explore spaces</button></div>`;
+  $('#savedTabs').innerHTML=lists.map(l=>`<button type="button" class="saved-tab ${l.id===state.selectedList?'is-selected':''}" data-list="${esc(l.id)}" aria-pressed="${l.id===state.selectedList}">${esc(l.name)} <span>${l.spots.length}</span></button>`).join('');
+  const list=lists.find(l=>l.id===state.selectedList);
+  const message=(title,text,button)=>`<div class="empty-state"><h3>${title}</h3><p>${text}</p>${button||''}</div>`;
+  if(cloudOn&&!auth.signedIn)$('#savedItems').innerHTML=message('Log in to see your saved spots','Your lists are saved to your account, so they follow you to any device.','<button type="button" class="primary-button" data-action="login">Log in or sign up</button>');
+  else if(cloudOn&&cloud.error)$('#savedItems').innerHTML=message('Your lists could not load',esc(cloud.error),'<button type="button" class="secondary-button" data-action="retry-lists">Try again</button>');
+  else if(cloudOn&&!cloud.ready)$('#savedItems').innerHTML=message('Loading your lists…','One moment.');
+  else{
+    const spots=list.spots.map(spotById).filter(Boolean);
+    $('#savedItems').innerHTML=spots.length?spots.map(s=>`<div class="saved-card"><div><span class="rec-building">${s.building} / ${esc(floorLabel(s))}</span><h3>${esc(s.name)}</h3><p>${s.type==='group'?`Group up to ${s.capacity}`:'Individual'} · ${s.reserved?'Reservation required':labelBusy(s)}</p></div><button type="button" data-open-saved="${esc(s.id)}">View ↗</button></div>`).join(''):message('Nothing saved here yet','Open a study spot and save it to this list.','<button type="button" class="secondary-button" data-action="explore">Explore spaces</button>');
+  }
   restoreFocus();
 }
 // Refresh shared UI; rebuild the floor drawing only when that view is visible.
@@ -629,7 +663,7 @@ function modalHeader(title){return `<div class="modal-top"><h2 id="modalTitle">$
 function openSpot(id){
   const s=spotById(id);if(!s)return;state.selectedSpot=s.id;
   if(state.view==='building'){if(buildingPlans()?.[state.floor])$$('.plan-pin,.spot-row').forEach(el=>el.classList.toggle('is-selected',el.dataset.spot===s.id));else renderBuilding()}
-  const report=currentReport(s),isSaved=data.lists.some(l=>l.spots.includes(s.id));
+  const report=currentReport(s),isSaved=activeLists().some(l=>l.spots.includes(s.id));
   const trend=s.typical?.length?`<div class="trend" aria-label="Illustrative typical crowding across five periods">${s.typical.map(n=>`<span class="${n===2?'medium':n===3?'high':''}"></span>`).join('')}</div><div class="trend-labels"><span>Earlier</span><span>Later</span></div>`:'<p>Typical crowding is not available for this spot.</p>';
   const reportDetails=s.reserved?'<p>Availability is managed by BYU. This prototype does not show room availability.</p>':report?`<p>Noise: ${esc(report.noise)} · Crowding: ${esc(report.busy)}</p>${report.note?`<p>${esc(report.note)}</p>`:''}`:usesDatabase(s)&&database.error?`<p class="form-error">Database reports could not be loaded: ${esc(database.error)}</p>`:`<p>No reports yet. Usually ${esc(s.noise||'unknown')} noise · ${esc(s.busy||'unknown')} crowding.</p>`;
   openModal(`${modalHeader(s.name)}<p class="modal-description">${s.building} · ${esc(floorLabel(s))} · ${s.type==='group'?`Group up to ${s.capacity}`:'Individual study'}</p>${s.detail?`<div class="report-box"><h3>Location details</h3><p>${esc(s.detail)}</p></div>`:''}<div class="detail-tags"><span>${s.private?'Private':'Open space'}</span><span>${s.outlets?'Outlets nearby':'Outlets not listed'}</span><span>${s.reserved?'Reservation required':`Noise: ${esc(currentNoise(s)||'unknown')}`}</span></div><div id="latestReport" class="report-box"><h3>${s.reserved?'Reservation required':'Latest report'}</h3>${reportDetails}</div><div class="report-box"><h3>Typical crowding</h3>${trend}</div><div class="modal-actions"><button class="secondary-button" type="button" data-modal-close>Keep searching</button><button class="secondary-button" type="button" data-save-spot="${esc(s.id)}">${isSaved?'Saved / lists':'Save to a list'}</button>${s.reserved?`<a class="primary-button" href="https://lib.byu.edu/services/group-study-rooms/" target="_blank" rel="noopener noreferrer">Reserve with BYU ↗</a>`:`<button class="primary-button" type="button" data-confirm-spot="${esc(s.id)}" ${database.loading||!database.configLoaded?'disabled':''}>Choose this spot</button>`}</div>`);
@@ -640,7 +674,14 @@ function openArrival(id){
   openModal(`${modalHeader('Once you arrive…')}<p class="modal-description">How is ${esc(s.name)} right now? ${usesDatabase(s)?'Do not include names or private information.':'This report will be saved on this device only.'}</p><form id="arrivalForm" data-id="${esc(s.id)}"><fieldset class="report-choice"><legend class="choice-label">Noise level</legend><div class="choice-row">${['low','medium','high'].map((v,i)=>`<label><input type="radio" name="noise" value="${v}" ${i===0?'required':''}>${v[0].toUpperCase()+v.slice(1)}</label>`).join('')}</div></fieldset><fieldset class="report-choice"><legend class="choice-label">How busy is it?</legend><div class="choice-row">${['low','medium','high'].map((v,i)=>`<label><input type="radio" name="busy" value="${v}" ${i===0?'required':''}>${v[0].toUpperCase()+v.slice(1)}</label>`).join('')}</div></fieldset><div class="form-field"><label for="reportNote">Other details (optional)</label><textarea id="reportNote" name="note" maxlength="240" placeholder="Anything useful for the next student?"></textarea></div><p id="arrivalError" class="form-error" role="alert" hidden></p><div class="modal-actions"><button type="button" class="secondary-button" data-modal-close>Not there yet</button><button type="submit" class="primary-button">Confirm report</button></div></form>`);
 }
 // Apply all list checkbox choices together when Save changes is selected.
-function openSave(id){const s=spotById(id);if(!s)return;if(database.config.configured&&!auth.signedIn){openAuth('login',()=>openSave(id));return}openModal(`${modalHeader('Save this spot')}<p class="modal-description">Add ${esc(s.name)} to any of your lists.</p><div class="building-checks">${data.lists.map(l=>`<label class="building-check"><input type="checkbox" data-save-list="${esc(l.id)}" ${l.spots.includes(id)?'checked':''}><span>${esc(l.name)}</span></label>`).join('')}</div><div class="modal-actions"><button class="secondary-button" type="button" data-modal-close>Cancel</button><button class="primary-button" type="button" data-save-confirm="${esc(id)}">Save changes</button></div>`)}
+async function openSave(id){
+  const s=spotById(id);if(!s)return;
+  if(cloudMode()){
+    if(!auth.signedIn){openAuth('login',()=>openSave(id));return}
+    if(cloud.promise)await cloud.promise;
+    if(cloud.error||!cloud.ready){showToast(cloud.error||'Your lists are still loading. Try again in a moment.');if(cloud.error)void loadCloudLists();return}
+  }
+  openModal(`${modalHeader('Save this spot')}<p class="modal-description">Add ${esc(s.name)} to any of your lists.</p><div class="building-checks">${activeLists().map(l=>`<label class="building-check"><input type="checkbox" data-save-list="${esc(l.id)}" ${l.spots.includes(id)?'checked':''}><span>${esc(l.name)}</span></label>`).join('')}</div><div class="modal-actions"><button class="secondary-button" type="button" data-modal-close>Cancel</button><button class="primary-button" type="button" data-save-confirm="${esc(id)}">Save changes</button></div>`)}
 // With Supabase connected, a reported spot is stored as a pending submission for the team to
 // review. It is deliberately not added to the on-page catalogue.
 async function submitNewSpot(form,input){
@@ -656,7 +697,33 @@ function openNewSpot(){openModal(`${modalHeader('Report a new spot')}<p class="m
 // Keep a valid floor selection when the suggested space type changes.
 function updateNewSpotFloors(){const form=$('#newSpotForm');if(!form)return;const b=form.elements.building.value,previous=form.elements.floor.value;form.elements.floor.innerHTML=BUILDINGS[b].floors.map(f=>`<option value="${f.id}" ${f.id===previous?'selected':''}>${esc(f.label)}</option>`).join('');$('#newCapacityWrap').hidden=form.elements.type.value!=='group';$('#newCapacity').disabled=form.elements.type.value!=='group'}
 // Favorites is permanent; the prototype supports two additional lists.
-function openCreateList(){if(data.lists.length>=3){showToast('You can have Favorites and two custom lists.');return}openModal(`${modalHeader('New saved list')}<p class="modal-description">Create a list for a class, group, or favorite study routine.</p><form id="newListForm"><div class="form-field"><label for="newListName">List name</label><input id="newListName" name="name" required maxlength="28" placeholder="Example: Group project"></div><p class="form-error" id="newListError" role="alert" hidden></p><div class="modal-actions"><button type="button" class="secondary-button" data-modal-close>Cancel</button><button type="submit" class="primary-button">Create list</button></div></form>`)}
+// Apply the checked lists to one spot. Account lists are saved to the database before the page changes.
+async function confirmSave(id,button){
+  const lists=activeLists(),checked=new Set(lists.filter(l=>$(`[data-save-list="${l.id}"]`)?.checked).map(l=>l.id));
+  const apply=()=>lists.forEach(l=>{l.spots=l.spots.filter(x=>x!==id);if(checked.has(l.id))l.spots.push(id)});
+  if(!cloudMode()){apply();const saved=save();renderSaved();closeModal();if(saved)showToast('Saved lists updated.');return}
+  button.disabled=true;
+  try{
+    await database.setSpotLists(id,lists.map(l=>({dbId:l.dbId,has:l.spots.includes(id),want:checked.has(l.id)})));
+    apply();renderSaved();if($('#modal').contains(button))closeModal();showToast('Saved lists updated.');
+  }catch(problem){
+    // Reload so the page shows exactly what the server kept, then explain what went wrong.
+    if($('#modal').contains(button))closeModal();showToast(problem.message);void loadCloudLists();
+  }
+}
+async function submitNewList(form){
+  const error=$('#newListError'),button=form.querySelector('[type=submit]'),name=form.elements.name.value.trim();
+  const fail=message=>{error.textContent=message;error.hidden=false};
+  if(!name||name.length>28)return fail('Enter a list name from 1 to 28 characters, not just spaces.');
+  if(activeLists().some(l=>l.name.toLowerCase()===name.toLowerCase()))return fail('You already have a list with that name.');
+  if(!cloudMode()){const id=`list-${Date.now()}`;data.lists.push({id,name,spots:[]});state.selectedList=id;const saved=save();closeModal();setView('saved');if(saved)showToast('List created.');return}
+  button.disabled=true;error.hidden=true;
+  try{
+    const row=await database.createList(name),list={id:`list-${row.dbId}`,dbId:row.dbId,name:row.name,spots:[]};
+    cloud.lists.push(list);state.selectedList=list.id;closeModal();setView('saved');showToast('List created.');
+  }catch(problem){fail(problem.message)}finally{button.disabled=false}
+}
+function openCreateList(){if(activeLists().length>=3){showToast('You can have Favorites and two custom lists.');return}openModal(`${modalHeader('New saved list')}<p class="modal-description">Create a list for a class, group, or favorite study routine.</p><form id="newListForm"><div class="form-field"><label for="newListName">List name</label><input id="newListName" name="name" required maxlength="28" placeholder="Example: Group project"></div><p class="form-error" id="newListError" role="alert" hidden></p><div class="modal-actions"><button type="button" class="secondary-button" data-modal-close>Cancel</button><button type="submit" class="primary-button">Create list</button></div></form>`)}
 // Clear also removes the saved filter preset for the next page load.
 function resetFilters(){state.buildings=new Set(['HBLL','WSC','JKB']);state.study='any';state.groupSize=4;state.noise='any';state.private=false;state.outlets=false;data.savedFilters=null;save();render()}
 function updateFilter(){renderFilters();renderRecommendations();if(state.view==='building')renderBuilding()}
@@ -706,9 +773,11 @@ document.addEventListener('click',event=>{
   if(t.dataset.openSaved){const s=spotById(t.dataset.openSaved);openBuilding(s.building,s.floor);openSpot(s.id);return}
   if(t.dataset.confirmSpot){openArrival(t.dataset.confirmSpot);return}
   if(t.dataset.saveSpot){openSave(t.dataset.saveSpot);return}
-  if(t.dataset.saveConfirm){const id=t.dataset.saveConfirm;data.lists.forEach(l=>{const checked=!!$(`[data-save-list="${l.id}"]`)?.checked;l.spots=l.spots.filter(x=>x!==id);if(checked)l.spots.push(id)});const saved=save();renderSaved();closeModal();if(saved)showToast('Saved lists updated.');return}
+  if(t.dataset.saveConfirm){void confirmSave(t.dataset.saveConfirm,t);return}
   if(t.id==='editFilters'||t.dataset.action==='edit'){setView('explore');$('#filterHeading').scrollIntoView({behavior:'smooth'});$('#clearFilters').focus({preventScroll:true});return}
   if(t.dataset.action==='explore'){setView('explore');return}
+  if(t.dataset.action==='login'){openAuth('login');return}
+  if(t.dataset.action==='retry-lists'){void loadCloudLists();return}
   if(t.id==='createList'){openCreateList();return}
   if(t.dataset.list){state.selectedList=t.dataset.list;renderSaved();return}
 });
@@ -744,7 +813,7 @@ document.addEventListener('submit',e=>{
   if(e.target.id==='authForm'){e.preventDefault();void submitAuth(e.target);return}
   if(e.target.id==='arrivalForm'){e.preventDefault();void submitArrival(e.target);return}
   if(e.target.id==='newSpotForm'){e.preventDefault();const f=e.target.elements;const name=f.name.value.trim();const type=f.type.value;const capacity=type==='group'?Number(f.capacity.value):1;if(name.length<3||(type==='group'&&(capacity<2||capacity>8))){$('#newSpotError').textContent='Enter a spot name and a group size from 2 to 8.';$('#newSpotError').hidden=false;return}const chosenFloor=BUILDINGS[f.building.value].floors.find(fl=>fl.id===f.floor.value);const spot={id:`custom-${Date.now()}`,building:f.building.value,floor:f.floor.value,name,type,capacity,private:f.private.checked,outlets:f.outlets.checked,noise:f.noise.value,busy:null,reserved:false,x:chosenFloor?.defaultX??29,y:chosenFloor?.defaultY??72,typical:[],detail:f.detail.value.trim()};if(database.config.configured&&database.ready){submitNewSpot(e.target,{building:f.building.value,floorNumber:chosenFloor?.level,floorLabel:chosenFloor?.label,name,type,capacity,private:f.private.checked,outlets:f.outlets.checked,noise:f.noise.value,detail:f.detail.value.trim()});return}data.customSpots.push(spot);const saved=save();closeModal();openBuilding(spot.building,spot.floor);render();if(saved)showToast('New spot added on this device.');return}
-  if(e.target.id==='newListForm'){e.preventDefault();const name=e.target.elements.name.value.trim();if(!name||name.length>28){$('#newListError').textContent='Enter a list name from 1 to 28 characters, not just spaces.';$('#newListError').hidden=false;return}const id=`list-${Date.now()}`;data.lists.push({id,name,spots:[]});state.selectedList=id;const saved=save();closeModal();setView('saved');if(saved)showToast('List created.');return}
+  if(e.target.id==='newListForm'){e.preventDefault();void submitNewList(e.target);return}
 });
 // 10. Startup. Render local UI first, then refresh after the connection check.
 const headerResizeObserver=new ResizeObserver(([entry])=>{document.documentElement.style.setProperty('--header-height',`${entry.target.offsetHeight}px`);if(campusZoomInitialized&&state.view==='explore')changeCampusZoom(0)});

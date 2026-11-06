@@ -10,9 +10,9 @@
   <!-- Load map bundles before the adapter and app. defer keeps the scripts in order. -->
   <link rel="stylesheet" href="styles.css?v=20261105-auth">
   <script defer src="supabase-config.js?v=20261104-restore"></script>
-  <script defer src="database.js?v=20261105-auth"></script>
-  <script defer src="auth.js?v=20261105-auth"></script>
-  <script defer src="app.js?v=20261105-auth"></script>
+  <script defer src="database.js?v=20261105-lists"></script>
+  <script defer src="auth.js?v=20261105-lists"></script>
+  <script defer src="app.js?v=20261105-lists"></script>
 </head>
 <body>
   <a class="skip-link" href="#mainContent">Skip to content</a>
@@ -162,10 +162,10 @@
         </div>
       </section>
 
-      <!-- SAVED VIEW: device-local Favorites and up to two custom lists. -->
+      <!-- SAVED VIEW: Favorites and up to two custom lists, kept with the account (device-local without a database). -->
       <section id="savedView" class="view saved-view" hidden>
         <button id="savedBack" class="back-button" type="button">← Back to explore</button>
-        <div class="saved-heading"><div><p class="kicker">Your spaces</p><h1>My Nooks</h1><p class="intro">Keep your go-to study spots together on this device.</p></div><button id="createList" class="secondary-button" type="button">+ New list</button></div>
+        <div class="saved-heading"><div><p class="kicker">Your spaces</p><h1>My Nooks</h1><p id="savedIntro" class="intro">Keep your go-to study spots together on this device.</p></div><button id="createList" class="secondary-button" type="button">+ New list</button></div>
         <div id="savedTabs" class="saved-tabs" role="group" aria-label="Saved lists"></div>
         <div id="savedItems" class="saved-items"></div>
       </section>

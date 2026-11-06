@@ -131,6 +131,58 @@ const numericSpotIds=['hbll-commons','hbll-west','hbll-group','hbll-think','hbll
       if (report.spotId!==spotId || report.noise!==input.noise || report.busy!==input.busy || report.note!==note) throw new Error('The database response did not match the submitted report.');
       this.reports[spotId]=[report];this.ready=true;this.error='';return report;
     }
+    // ---- Saved lists (account favorites) -------------------------------------------------
+    // Lists live in "Favorites List" (one row per list) and "Favorites" (one row per saved spot).
+    // Row-level security limits every request to the signed-in user's own lists.
+    listUrl(table,query='') {return `${this.config.url}/rest/v1/${encodeURIComponent(table)}${query?`?${query}`:''}`;}
+    async listError(response) {
+      let body={};try {body=await response.clone().json();} catch {}
+      if (body.code==='23505') return new Error('You already have a list with that name.');
+      if (body.code==='23514') return new Error(String(body.message||'').includes('two custom lists')?'You can have Favorites and two custom lists.':'Enter a list name from 1 to 28 characters.');
+      return this.apiError(response);
+    }
+    requireUser() {
+      if (!this.config.configured) throw new Error('Connect to the database to use saved lists.');
+      if (!this.accessToken||!this.userId) throw new Error('Log in to use saved lists.');
+    }
+    // Returns [{dbId,name,spots:[frontend spot ids]}], oldest first. Creates Favorites if it is missing.
+    async loadFavorites() {
+      this.requireUser();
+      const query=new URLSearchParams({select:'list_ID,list_name,Favorites(spot_ID)',order:'list_ID.asc'});
+      const response=await this.request(this.listUrl('Favorites List',query),{headers:this.headers()});
+      if (!response.ok) throw await this.listError(response);
+      const rows=await response.json();
+      if (!Array.isArray(rows)) throw new Error('Supabase returned an unexpected saved-list response.');
+      const lists=rows.map(row=>({dbId:Number(row.list_ID),name:String(row.list_name||''),spots:[...new Set((Array.isArray(row.Favorites)?row.Favorites:[]).map(f=>numericSpotIds[Number(f.spot_ID)-1001]).filter(Boolean))]}));
+      if (!lists.some(l=>l.name.toLowerCase()==='favorites')) lists.unshift(await this.createList('Favorites'));
+      return lists;
+    }
+    async createList(name) {
+      this.requireUser();
+      const clean=String(name||'').trim();
+      if (clean.length<1||clean.length>28) throw new Error('Enter a list name from 1 to 28 characters.');
+      const response=await this.request(this.listUrl('Favorites List'),{method:'POST',headers:this.headers({'Content-Type':'application/json',Prefer:'return=representation'}),body:JSON.stringify({user_id:this.userId,list_name:clean})});
+      if (!response.ok) throw await this.listError(response);
+      const rows=await response.json();
+      if (!Array.isArray(rows)||rows.length!==1||!rows[0].list_ID) throw new Error('The list was not saved. Try again.');
+      return {dbId:Number(rows[0].list_ID),name:String(rows[0].list_name),spots:[]};
+    }
+    // changes: [{dbId, has, want}] for one spot. Adds and removes only what differs.
+    async setSpotLists(spotId,changes) {
+      this.requireUser();
+      const numeric=numericSpotIds.indexOf(spotId)+1001;
+      if (numeric<1001) throw new Error('This spot is not in the database sample inventory.');
+      const add=changes.filter(c=>c.want&&!c.has).map(c=>({list_ID:c.dbId,spot_ID:numeric}));
+      const remove=changes.filter(c=>!c.want&&c.has).map(c=>c.dbId);
+      if (add.length) {
+        const response=await this.request(this.listUrl('Favorites',new URLSearchParams({on_conflict:'list_ID,spot_ID'})),{method:'POST',headers:this.headers({'Content-Type':'application/json',Prefer:'resolution=ignore-duplicates,return=minimal'}),body:JSON.stringify(add)});
+        if (!response.ok) throw await this.listError(response);
+      }
+      if (remove.length) {
+        const response=await this.request(this.listUrl('Favorites',new URLSearchParams({spot_ID:`eq.${numeric}`,list_ID:`in.(${remove.join(',')})`})),{method:'DELETE',headers:this.headers()});
+        if (!response.ok) throw await this.listError(response);
+      }
+    }
     // New-spot submissions go to the SpotSubmission table as 'pending'. They are write-only for
     // public clients, so the page does not read them back or show them in the catalogue.
     async submitSpot(input) {
