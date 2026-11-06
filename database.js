@@ -140,7 +140,7 @@ const numericSpotIds=['hbll-commons','hbll-west','hbll-group','hbll-think','hbll
       if (detail.length>160) throw new Error('Keep location details to 160 characters.');
       if (!['low','medium','high'].includes(input.noise)) throw new Error('Choose the usual noise level.');
       const group=input.type==='group',capacity=group?Math.round(Number(input.capacity)):1;
-      if (group&&!(capacity>=2&&capacity<=8)) throw new Error('Enter a group size from 2 to 8.');
+      if (group&&!(capacity>=2&&capacity<=6)) throw new Error('Enter a group size from 2 to 6.');
       const payload={building_id:buildingId,floor_number:Number.isInteger(input.floorNumber)?input.floorNumber:null,floor_label:String(input.floorLabel||'').trim().slice(0,60),spot_name:name,spot_type_id:group?1002:input.private?1003:1001,capacity,noise_level:levelNumber[input.noise],outlets:!!input.outlets,is_private:!!input.private,location_details:detail||null};
       if (!payload.floor_label) throw new Error('Choose a floor.');
       const response=await this.request(`${this.config.url}/rest/v1/SpotSubmission`,{method:'POST',headers:this.headers({'Content-Type':'application/json',Prefer:'return=minimal'}),body:JSON.stringify(payload)});

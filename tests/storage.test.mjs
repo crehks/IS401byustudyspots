@@ -26,6 +26,11 @@ test('saved lists, custom location notes, legacy floors and reports survive relo
   assert.equal(result.savedFilters.groupSize,6);
 });
 
+test('saved group-size filters above the current maximum are clamped to six',()=>{
+  const result=load({savedFilters:{study:'group',buildings:['WSC'],groupSize:8}});
+  assert.equal(result.savedFilters.groupSize,6);
+});
+
 test('damaged saved fields cannot prevent startup or discard unrelated valid lists',()=>{
   const result=load({customSpots:[null,{id:'custom-bad',building:'unknown',name:'Bad'}],lists:[null,{id:'list-ok',name:'Class',spots:['hbll-west','missing','hbll-west']},{id:'broken',name:'Broken',spots:null}],reports:{'hbll-west':[null,{noise:'bad',busy:'low',time:123}]},savedFilters:{buildings:'HBLL'}});
   assert.deepEqual(result.lists,[{id:'favorites',name:'Favorites',spots:[]},{id:'list-ok',name:'Class',spots:['hbll-west']}]);

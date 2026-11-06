@@ -22,7 +22,7 @@ Do NOT run SETUP_EXISTING_TABLES.sql, SETUP_REPORT_SLICE.sql, or the older migra
 
 ## Report a new spot (SpotSubmission)
 
-The **Report a spot** nav button now saves to the `SpotSubmission` table (migration `supabase/migrations/20261102_001_spot_submission.sql`, already applied to the Study Spot Website project) when Supabase is connected.
+The **Report a spot** nav button now saves to the `SpotSubmission` table when Supabase is connected. The original table setup is in `supabase/migrations/20261102_001_spot_submission.sql`; apply `supabase/migrations/20261105_001_spot_submission_capacity_six.sql` to cap group submissions at six.
 
 - Each submission is a `pending` row with `building_id` → `Buildings`, `spot_type_id` → `SpotType` (Solo 1001, Group 1002, Solo private 1003), `user_id` → `User` (demo user 1001), plus floor, name, capacity, noise (1-3), outlets, private flag, and location details. `approved_spot_id` is empty until the team decides to promote a submission into `Study Spot`.
 - Submissions are **not** shown on the website. The public key can only INSERT limited columns; it cannot read, update, or delete submissions. Review them in Supabase Table Editor.
