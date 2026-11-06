@@ -34,9 +34,17 @@ drop policy if exists studybyu_read_own_user on public."User";
 create policy studybyu_read_own_user on public."User" for select to authenticated
   using (auth_id = (select auth.uid()));
 
--- Reports: guests keep posting as demo user 1001; signed-in users post as themselves.
+-- Reports and spot submissions: guests (anon) keep posting as demo user 1001; signed-in users post as
+-- themselves. Separate policies per role, because anon has no access to "User" for the lookup.
 drop policy if exists studybyu_submit_report on public."ReportSpotStatus";
-create policy studybyu_submit_report on public."ReportSpotStatus" for insert to anon, authenticated
+drop policy if exists studybyu_submit_report_guest on public."ReportSpotStatus";
+drop policy if exists studybyu_submit_report_user on public."ReportSpotStatus";
+create policy studybyu_submit_report_guest on public."ReportSpotStatus" for insert to anon
+  with check (
+    user_id = 1001 and spot_id between 1001 and 1025
+    and exists (select 1 from public."Study Spot" s where s.spot_id = "ReportSpotStatus".spot_id and s.reservable = false)
+  );
+create policy studybyu_submit_report_user on public."ReportSpotStatus" for insert to authenticated
   with check (
     (user_id = 1001 or user_id in (select u.user_id from public."User" u where u.auth_id = (select auth.uid())))
     and spot_id between 1001 and 1025
@@ -44,7 +52,14 @@ create policy studybyu_submit_report on public."ReportSpotStatus" for insert to 
   );
 
 drop policy if exists studybyu_submit_spot on public."SpotSubmission";
-create policy studybyu_submit_spot on public."SpotSubmission" for insert to anon, authenticated
+drop policy if exists studybyu_submit_spot_guest on public."SpotSubmission";
+drop policy if exists studybyu_submit_spot_user on public."SpotSubmission";
+create policy studybyu_submit_spot_guest on public."SpotSubmission" for insert to anon
+  with check (
+    user_id = 1001 and status = 'pending' and approved_spot_id is null
+    and building_id in (1001,1002,1003) and spot_type_id in (1001,1002,1003)
+  );
+create policy studybyu_submit_spot_user on public."SpotSubmission" for insert to authenticated
   with check (
     (user_id = 1001 or user_id in (select u.user_id from public."User" u where u.auth_id = (select auth.uid())))
     and status = 'pending' and approved_spot_id is null
@@ -70,3 +85,9 @@ select setval(pg_get_serial_sequence('public."User"','user_id'), greatest((selec
 -- Only signed-in users may set user_id on insert (anon keeps the demo-user default).
 grant insert (user_id) on public."ReportSpotStatus" to authenticated;
 grant insert (user_id) on public."SpotSubmission" to authenticated;
+
+-- Junction table: an item is visible/editable only when its Favorites row belongs to one of the user's lists.
+drop policy if exists favlink_own on public."Study Spots/Favorites";
+create policy favlink_own on public."Study Spots/Favorites" for all to authenticated
+  using (fave_id in (select f.fave_id from public."Favorites" f))
+  with check (fave_id in (select f.fave_id from public."Favorites" f));

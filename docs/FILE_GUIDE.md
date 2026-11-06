@@ -9,6 +9,7 @@ Start here when finding code or deciding which file to edit. Source comments use
 | `index.html` | Page structure, three views, shared dialog/toast hosts, and stable element IDs | Visible page sections, form labels, and navigation markup |
 | `styles.css` | Theme, layout, controls, maps, responsive rules, and focus states | Colors, spacing, sizes, mobile layout, and visual states |
 | `app.js` | Catalogue, filters, rendering, navigation, local storage, and event handlers | App interactions, spot content, campus footprints, and provisional pins |
+| `auth.js` | Supabase Auth sign-up, log-in, log-out, session restore and token refresh; loads the linked `User` row | Login errors, session handling |
 | `database.js` | Supabase configuration, report reads/inserts, and response validation | Database column mapping, API errors, and report persistence |
 | `server.mjs` | Local HTTP server and validated browser-safe configuration | Local file serving, allowed public files, and connection-setting checks |
 | `wsc-plans.js`, `hbll-plans.js`, `jkb-plans.js` | Generated SVG drawings and searchable room metadata | Inspect floor data; use the generator for geometry changes |

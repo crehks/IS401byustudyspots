@@ -46,7 +46,7 @@ This approach keeps our custom map interface easy to edit while Supabase handles
 
 ### Sharing the complete project on GitHub
 
-Extract the ZIP and upload the **contents of StudyBYUProduct**, preserving `assets/`, `docs/`, `supabase/`, `tests/`, and `tools/` as folders. Keep `index.html`, `app.js`, `database.js`, `styles.css`, and all three `*-plans.js` files together at the repository root. Uploading only HTML or flattening the folders breaks the maps, ERD, and commands. Include `.gitignore` and the blank `.env.example`, never `.env` or `node_modules`. GitHub Desktop is the easiest way to preserve folders and hidden files.
+Extract the ZIP and upload the **contents of StudyBYUProduct**, preserving `assets/`, `docs/`, `supabase/`, `tests/`, and `tools/` as folders. Keep `index.html`, `app.js`, `database.js`, `auth.js`, `styles.css`, and all three `*-plans.js` files together at the repository root. Uploading only HTML or flattening the folders breaks the maps, ERD, and commands. Include `.gitignore` and the blank `.env.example`, never `.env` or `node_modules`. GitHub Desktop is the easiest way to preserve folders and hidden files.
 
 GitHub stores the source; GitHub Pages cannot run `server.mjs` or read `.env`. For the database demo, teammates must clone the complete project and follow the running instructions above. A public database-enabled app requires a Node-capable host, not Pages.
 

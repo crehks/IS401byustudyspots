@@ -62,3 +62,16 @@ test('restore refreshes an expired saved session',async()=>{
     throw new Error(url)}}),store);
   assert.equal(await a.restore(),true);assert.equal(a.userId,5);
 });
+
+test('refresh swaps in new tokens and a failed refresh signs the user out',async()=>{
+  let fail=false;
+  const {auth,db}=setup(async url=>{
+    if(url.includes('/auth/v1/token?grant_type=password'))return Response.json(session);
+    if(url.includes('grant_type=refresh_token'))return fail?Response.json({error_code:'refresh_token_not_found'},{status:400}):Response.json({...session,access_token:'tok2'});
+    return Response.json([{user_id:3,first_name:'Cy',last_name:''}]);
+  });
+  await auth.signIn({email:'a@b.co',password:'password1'});
+  await auth.refresh();assert.equal(db.accessToken,'tok2');assert.equal(auth.signedIn,true);
+  fail=true;await auth.refresh();assert.equal(auth.signedIn,false);assert.equal(db.accessToken,'');
+  clearTimeout(auth.timer);
+});
