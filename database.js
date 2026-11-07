@@ -107,6 +107,22 @@ const numericSpotIds=['hbll-commons','hbll-west','hbll-group','hbll-think','hbll
       if (!Array.isArray(rows)) throw new Error('Supabase returned an unexpected hours response.');
       return rows.map(row=>({...row,building_code:codes[row.building_id]}));
     }
+        // Each building's room-booking page lives on the Buildings table.
+    async loadReservationLinks() {
+      if (!this.config.configured) return {};
+      const codes={1001:'HBLL',1002:'WSC',1003:'JKB'};
+      const query=new URLSearchParams({select:'building_id,reservation_url'});
+      const response=await this.request(`${this.config.url}/rest/v1/Buildings?${query}`,{headers:this.headers()});
+      if (!response.ok) throw await this.apiError(response);
+      const rows=await response.json();
+      if (!Array.isArray(rows)) throw new Error('Supabase returned an unexpected buildings response.');
+      const links={};
+      for (const row of rows) {
+        const code=codes[row.building_id];
+        if (code&&typeof row.reservation_url==='string'&&row.reservation_url.startsWith('https://')) links[code]=row.reservation_url;
+      }
+      return links;
+    }
     // Send only report inputs. The database supplies user, report ID, and timestamp.
     async submitReport(spotId,input) {
       if (!this.config.configured) throw new Error('Configure Supabase in .env before saving a database report.');
