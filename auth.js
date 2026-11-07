@@ -51,6 +51,7 @@
       if(code==='weak_password'||(status===422&&/password/i.test(msg)))return 'Choose a stronger password (at least 8 characters).';
       if(code==='over_email_send_rate_limit'||code==='over_request_rate_limit'||status===429)return 'Too many attempts. Wait a minute and try again.';
       if(code==='validation_failed'||/valid email|email address/i.test(msg))return 'Enter a valid email address.';
+      if(status>=500)return 'The server had a problem with that request. Try again in a minute, and tell the team if it keeps happening.';
       return 'Could not complete that request. Check your details and try again.';
     }
     // Look up the linked User row. RLS only returns the signed-in user's own row.

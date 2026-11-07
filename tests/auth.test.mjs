@@ -75,3 +75,8 @@ test('refresh swaps in new tokens and a failed refresh signs the user out',async
   fail=true;await auth.refresh();assert.equal(auth.signedIn,false);assert.equal(db.accessToken,'');
   clearTimeout(auth.timer);
 });
+
+test('server errors are reported as server problems, not as bad details',async()=>{
+  const {auth}=setup(async()=>Response.json({code:500,error_code:'unexpected_failure',msg:'Database error saving new user'},{status:500}));
+  await assert.rejects(auth.signUp({email:'a@b.co',password:'password1',firstName:'Ada',lastName:''}),/server had a problem/);
+});
