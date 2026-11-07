@@ -80,3 +80,45 @@ test('server errors are reported as server problems, not as bad details',async()
   const {auth}=setup(async()=>Response.json({code:500,error_code:'unexpected_failure',msg:'Database error saving new user'},{status:500}));
   await assert.rejects(auth.signUp({email:'a@b.co',password:'password1',firstName:'Ada',lastName:''}),/server had a problem/);
 });
+
+test('email rate limit and confirmation errors are explained and carry a code',async()=>{
+  const limit=setup(async()=>Response.json({error_code:'over_email_send_rate_limit',msg:'email rate limit exceeded'},{status:429}));
+  await assert.rejects(limit.auth.signUp({email:'a@b.co',password:'password1',firstName:'A',lastName:''}),e=>/inbox and spam/.test(e.message)&&e.code==='over_email_send_rate_limit');
+  const unconfirmed=setup(async()=>Response.json({error_code:'email_not_confirmed',msg:'Email not confirmed'},{status:400}));
+  await assert.rejects(unconfirmed.auth.signIn({email:'a@b.co',password:'password1'}),e=>e.code==='email_not_confirmed');
+});
+
+test('resendConfirmation posts a signup resend for the email',async()=>{
+  let seen;
+  const {auth}=setup(async(url,o)=>{seen={url,body:JSON.parse(o.body)};return Response.json({})});
+  await auth.resendConfirmation('a@b.co');
+  assert.ok(seen.url.includes('/auth/v1/resend'));assert.deepEqual(seen.body,{type:'signup',email:'a@b.co'});
+});
+
+test('confirmation link: tokens in the URL hash sign the user in and the hash is cleared',async()=>{
+  const {auth,db}=setup(async url=>url.includes('/rest/v1/User?')?Response.json([{user_id:9,first_name:'Eve',last_name:''}]):Response.json({}));
+  let replaced;
+  globalThis.location={protocol:'https:',origin:'https://site.test',pathname:'/app/',search:'',hash:'#access_token=abc&refresh_token=def&expires_in=3600&type=signup'};
+  globalThis.history={replaceState:(a,b,u)=>{replaced=u}};
+  try{
+    assert.equal(await auth.restore(),true);
+    assert.equal(auth.userId,9);assert.equal(db.accessToken,'abc');assert.match(auth.notice,/confirmed/i);assert.equal(replaced,'/app/');
+  }finally{clearTimeout(auth.timer);delete globalThis.location;delete globalThis.history}
+});
+
+test('expired confirmation link reports a helpful notice and does not sign in',async()=>{
+  const {auth}=setup(async()=>Response.json({}));
+  globalThis.location={protocol:'https:',origin:'https://site.test',pathname:'/',search:'',hash:'#error=access_denied&error_code=otp_expired&error_description=expired'};
+  globalThis.history={replaceState(){}};
+  try{
+    await auth.restore();assert.equal(auth.signedIn,false);assert.match(auth.notice,/expired/);
+  }finally{delete globalThis.location;delete globalThis.history}
+});
+
+test('sign-up asks Supabase to return to this site after confirmation',async()=>{
+  let url;
+  const {auth}=setup(async u=>{url=u;return Response.json({id:'x'})});
+  globalThis.location={protocol:'https:',origin:'https://site.test',pathname:'/app/',search:'?x=1',hash:''};
+  try{await auth.signUp({email:'a@b.co',password:'password1',firstName:'A',lastName:''})}finally{delete globalThis.location}
+  assert.ok(url.includes('redirect_to='+encodeURIComponent('https://site.test/app/')),url);
+});

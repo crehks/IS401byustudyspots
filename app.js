@@ -395,11 +395,11 @@ auth.onChange(()=>{
 // Login / sign-up dialog. mode is 'login' or 'signup'; after is an optional callback run on success.
 function openAuth(mode='login',after=null){
   openAuth.after=after;const signup=mode==='signup';
-  openModal(`${modalHeader(signup?'Create your account':'Log in')}<p class="modal-description">${signup?'Sign up to save favorites and have your reports tied to you.':'Log in to use your saved favorites.'}</p><form id="authForm" data-mode="${mode}" novalidate>${signup?'<div class="form-field"><label for="authFirst">First name</label><input id="authFirst" name="first" required maxlength="60" autocomplete="given-name"></div><div class="form-field"><label for="authLast">Last name</label><input id="authLast" name="last" maxlength="60" autocomplete="family-name"></div>':''}<div class="form-field"><label for="authEmail">Email</label><input id="authEmail" name="email" type="email" required autocomplete="email"></div><div class="form-field"><label for="authPassword">Password</label><input id="authPassword" name="password" type="password" required minlength="8" autocomplete="${signup?'new-password':'current-password'}">${signup?'<small>At least 8 characters.</small>':''}</div><p class="form-error" id="authError" role="alert" hidden></p><div class="modal-actions"><button type="button" class="secondary-button" data-auth-switch="${signup?'login':'signup'}">${signup?'I have an account':'Create account'}</button><button type="submit" class="primary-button">${signup?'Sign up':'Log in'}</button></div></form>`);
+  openModal(`${modalHeader(signup?'Create your account':'Log in')}<p class="modal-description">${signup?'Sign up to save favorites and have your reports tied to you.':'Log in to use your saved favorites.'}</p><form id="authForm" data-mode="${mode}" novalidate>${signup?'<div class="form-field"><label for="authFirst">First name</label><input id="authFirst" name="first" required maxlength="60" autocomplete="given-name"></div><div class="form-field"><label for="authLast">Last name</label><input id="authLast" name="last" maxlength="60" autocomplete="family-name"></div>':''}<div class="form-field"><label for="authEmail">Email</label><input id="authEmail" name="email" type="email" required autocomplete="email"></div><div class="form-field"><label for="authPassword">Password</label><input id="authPassword" name="password" type="password" required minlength="8" autocomplete="${signup?'new-password':'current-password'}">${signup?'<small>At least 8 characters.</small>':''}</div><p class="form-error" id="authError" role="alert" hidden></p><button type="button" class="text-link" id="resendConfirm" hidden>Resend confirmation email</button><div class="modal-actions"><button type="button" class="secondary-button" data-auth-switch="${signup?'login':'signup'}">${signup?'I have an account':'Create account'}</button><button type="submit" class="primary-button">${signup?'Sign up':'Log in'}</button></div></form>`);
 }
 async function submitAuth(form){
   const f=form.elements,signup=form.dataset.mode==='signup',err=$('#authError'),btn=form.querySelector('[type=submit]');
-  const show=m=>{err.textContent=m;err.hidden=false};err.hidden=true;
+  const show=m=>{err.textContent=m;err.hidden=false};err.hidden=true;$('#resendConfirm').hidden=true;
   const email=f.email.value.trim(),password=f.password.value,first=signup?f.first.value.trim():'',last=signup?f.last.value.trim():'';
   if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email))return show('Enter a valid email address.');
   if(signup&&!first)return show('Enter your first name.');
@@ -410,7 +410,7 @@ async function submitAuth(form){
     if(signup){const r=await auth.signUp({email,password,firstName:first,lastName:last});if(r.needsConfirmation){closeModal(true);showToast('Account created. Check your email to confirm it, then log in.');return}}
     else await auth.signIn({email,password});
     const after=openAuth.after;openAuth.after=null;closeModal(true);showToast(`Welcome, ${auth.displayName||'friend'}!`);render();if(after)after();
-  }catch(problem){show(problem.message)}finally{btn.disabled=false}
+  }catch(problem){show(problem.message);if(problem.code==='email_not_confirmed')$('#resendConfirm').hidden=false}finally{btn.disabled=false}
 }
 function renderDatabaseStatus(){
   $$('[data-confirm-spot]').forEach(button=>{button.disabled=database.loading;});
@@ -759,6 +759,7 @@ document.addEventListener('click',event=>{
   if(t.id==='navSaved'){setView('saved');return}
   if(t.id==='navReport'){openNewSpot();return}
   if(t.id==='navAuth'){if(auth.signedIn){void auth.signOut().then(()=>{showToast('Logged out.');render()})}else openAuth('login');return}
+  if(t.id==='resendConfirm'){const email=$('#authEmail')?.value.trim();if(!email){showToast('Enter your email first.');return}t.disabled=true;void auth.resendConfirmation(email).then(()=>showToast('Confirmation email sent. Check your inbox and spam.'),e=>showToast(e.message)).finally(()=>{t.disabled=false});return}
   if(t.dataset.authSwitch){const after=openAuth.after;openAuth(t.dataset.authSwitch,after);return}
   if(t.dataset.openReported){const s=spotById(t.dataset.openReported);if(s){openBuilding(s.building,s.floor);openSpot(s.id)}return}
   if(t.id==='clearFilters'||t.dataset.action==='clear'){resetFilters();return}
@@ -839,4 +840,4 @@ window.matchMedia?.(COMPACT_LAYOUT_QUERY).addEventListener('change',()=>{
 render();
 renderDatabaseStatus();
 renderAuthNav();
-void database.initialize().then(()=>auth.restore()).then(()=>{renderDatabaseStatus();render();loadBuildingHours();loadReservationLinks()}).catch(()=>{database.error='The database connection could not initialize. Check .env and refresh to retry.';renderDatabaseStatus()});
+void database.initialize().then(()=>auth.restore()).then(()=>{if(auth.notice)showToast(auth.notice);renderDatabaseStatus();render();loadBuildingHours();loadReservationLinks()}).catch(()=>{database.error='The database connection could not initialize. Check .env and refresh to retry.';renderDatabaseStatus()});
