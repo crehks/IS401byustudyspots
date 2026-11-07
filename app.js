@@ -366,7 +366,7 @@ function labelBusy(spot){if(spot.reserved)return 'Reserve ahead';const busy=curr
 function badgeClass(spot){return spot.reserved?'reserved':currentBusy(spot)==='high'?'high':currentBusy(spot)==='medium'?'medium':currentBusy(spot)?'':'unknown'}
 function showToast(message){const toast=$('#toast');toast.textContent=message;toast.hidden=false;clearTimeout(showToast.timer);showToast.timer=setTimeout(()=>toast.hidden=true,3500)}
 // 5. Reporting. Keep the connection banner short; show details in the dialog.
-function renderAuthNav(){const b=$('#navAuth');if(!b)return;b.textContent=auth.signedIn?`Log out${auth.displayName?` (${auth.displayName})`:''}`:'Log in';b.setAttribute('aria-label',auth.signedIn?`Log out ${auth.displayName}`.trim():'Log in or sign up')}
+function renderAuthNav(){const b=$('#navAuth');if(!b)return;b.innerHTML=auth.signedIn?`<span class="auth-label">Log out</span>${auth.displayName?`<span class="auth-name">(${esc(auth.displayName)})</span>`:''}`:'<span class="auth-label">Log in</span>';b.classList.toggle('is-signed-in',auth.signedIn);b.title=auth.signedIn?`Signed in as ${auth.displayName}. Select to log out.`:'';b.setAttribute('aria-label',auth.signedIn?`Log out ${auth.displayName}`.trim():'Log in or sign up')}
 // Saved lists follow the account when the database is connected. Device lists (data.lists) are used
 // only when no database is configured, so one person's lists never leak into another account.
 const cloud={lists:[],ready:false,error:'',userId:null,promise:null};

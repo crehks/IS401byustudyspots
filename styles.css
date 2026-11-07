@@ -949,3 +949,10 @@ html.explore-snap .site-footer{scroll-snap-align:end}
 /* Auth: log in / sign up dialog and nav button */
 .nav-auth{border:1px solid #c5d7e2;margin-left:4px;color:var(--navy)}
 @media(max-width:700px){.nav-auth{padding:9px 8px}}
+
+/* Log in / Log out button: solid inverse colour (readable in light and dark themes), never wider than its box. */
+.topnav .nav-link.nav-auth{flex:0 1 auto;min-width:0;max-width:100%;gap:.35em;overflow:hidden;white-space:nowrap;background:var(--espresso);border:1px solid var(--espresso);color:var(--cream);font-weight:700}
+.topnav .nav-link.nav-auth:hover,.topnav .nav-link.nav-auth:focus-visible{background:var(--terracotta);border-color:var(--terracotta);color:var(--accent-ink)}
+.nav-auth .auth-label{flex:none}
+.nav-auth .auth-name{min-width:0;max-width:10ch;overflow:hidden;text-overflow:ellipsis;font-weight:400}
+@media(max-width:560px){.nav-auth .auth-name{display:none}}
