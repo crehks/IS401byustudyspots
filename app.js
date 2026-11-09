@@ -699,6 +699,21 @@ async function submitNewSpot(form,input){
   catch(problem){error.textContent=problem.message;error.hidden=false;}
   finally{newSpotPending=false;button.disabled=false;button.textContent='Report spot';}
 }
+// SITE RATING: anyone can rate Nook from the footer. Ratings save to the SiteRating table.
+let ratingPending=false;
+function openRating(){
+  openModal(`${modalHeader('Rate Nook')}<p class="modal-description">How is Nook working for you? Your rating helps us improve.</p><form id="ratingForm"><fieldset class="report-choice"><legend class="choice-label">Your rating</legend><div class="choice-row">${[1,2,3,4,5].map(n=>`<label><input type="radio" name="stars" value="${n}" ${n===1?'required':''}>${n} ★</label>`).join('')}</div></fieldset><div class="form-field"><label for="ratingComment">Comment (optional)</label><textarea id="ratingComment" name="comment" maxlength="500" placeholder="What do you like, or what should we improve?"></textarea></div><p id="ratingError" class="form-error" role="alert" hidden></p><div class="modal-actions"><button type="button" class="secondary-button" data-modal-close>Cancel</button><button type="submit" class="primary-button">Submit rating</button></div></form>`);
+}
+async function submitRating(form){
+  if(ratingPending)return;
+  const error=$('#ratingError'),button=form.querySelector('[type="submit"]');
+  const stars=Number(form.elements.stars.value);
+  if(!stars){error.textContent='Choose a rating from 1 to 5 stars.';error.hidden=false;return}
+  ratingPending=true;button.disabled=true;button.textContent='Sending…';error.hidden=true;
+  try{await database.submitRating({stars,comment:form.elements.comment.value});closeModal(true);showToast('Thanks for rating Nook!');}
+  catch(problem){error.textContent=problem.message;error.hidden=false;}
+  finally{ratingPending=false;button.disabled=false;button.textContent='Submit rating';}
+}
 // Suggestions stay on this device; their map pins are provisional placements.
 function openNewSpot(){openModal(`${modalHeader('Report a new spot')}<p class="modal-description">Suggest a study area missing from this prototype. ${database.config.configured&&database.ready?'It will be sent to the team for review and will not appear on the map right away. Do not include personal information.':'It will appear on this device for now.'}</p><form id="newSpotForm"><div class="form-field"><label for="newName">Spot name</label><input id="newName" name="name" required maxlength="60" placeholder="Example: east wing tables"></div><div class="form-field"><label for="newBuilding">Building</label><select id="newBuilding" name="building">${Object.entries(BUILDINGS).map(([id,b])=>`<option value="${id}">${esc(b.name)}</option>`).join('')}</select></div><div class="form-field"><label for="newFloor">Floor</label><select id="newFloor" name="floor"></select></div><div class="form-field"><label for="newType">Space type</label><select id="newType" name="type"><option value="solo">Individual</option><option value="group">Group</option></select></div><div class="form-field" id="newCapacityWrap" hidden><label for="newCapacity">Maximum group size (2-6)</label><input id="newCapacity" name="capacity" type="number" min="2" max="6" value="4"></div><div class="form-field"><label for="newNoise">Usual noise</label><select id="newNoise" name="noise"><option value="low">Quiet</option><option value="medium">Social</option><option value="high">Lively</option></select></div><div class="building-checks"><label class="building-check"><input type="checkbox" name="private"><span>Private or separated</span></label><label class="building-check"><input type="checkbox" name="outlets"><span>Outlets nearby</span></label></div><div class="form-field"><label for="newDetail">Location details (optional)</label><textarea id="newDetail" name="detail" maxlength="160" placeholder="Nearby landmark or entrance"></textarea></div><p class="form-error" id="newSpotError" role="alert" hidden></p><div class="modal-actions"><button type="button" class="secondary-button" data-modal-close>Cancel</button><button type="submit" class="primary-button">${database.config.configured&&database.ready?'Report spot':'Add spot'}</button></div></form>`);updateNewSpotFloors()}
 // Keep a valid floor selection when the suggested space type changes.
@@ -758,6 +773,7 @@ document.addEventListener('click',event=>{
   if(t.id==='backToExplore'||t.id==='savedBack'){goBack();return}
   if(t.id==='navSaved'){setView('saved');return}
   if(t.id==='navReport'){openNewSpot();return}
+    if(t.id==='rateUs'){event.preventDefault();openRating();return}
   if(t.id==='navAuth'){if(auth.signedIn){void auth.signOut().then(()=>{showToast('Logged out.');render()})}else openAuth('login');return}
   if(t.id==='resendConfirm'){const email=$('#authEmail')?.value.trim();if(!email){showToast('Enter your email first.');return}t.disabled=true;void auth.resendConfirmation(email).then(()=>showToast('Confirmation email sent. Check your inbox and spam.'),e=>showToast(e.message)).finally(()=>{t.disabled=false});return}
   if(t.dataset.authSwitch){const after=openAuth.after;openAuth(t.dataset.authSwitch,after);return}
@@ -822,6 +838,7 @@ document.addEventListener('submit',e=>{
   if(e.target.id==='authForm'){e.preventDefault();void submitAuth(e.target);return}
   if(e.target.id==='arrivalForm'){e.preventDefault();void submitArrival(e.target);return}
   if(e.target.id==='newSpotForm'){e.preventDefault();const f=e.target.elements;const name=f.name.value.trim();const type=f.type.value;const capacity=type==='group'?Number(f.capacity.value):1;if(name.length<3||(type==='group'&&(capacity<2||capacity>6))){$('#newSpotError').textContent='Enter a spot name and a group size from 2 to 6.';$('#newSpotError').hidden=false;return}const chosenFloor=BUILDINGS[f.building.value].floors.find(fl=>fl.id===f.floor.value);const spot={id:`custom-${Date.now()}`,building:f.building.value,floor:f.floor.value,name,type,capacity,private:f.private.checked,outlets:f.outlets.checked,noise:f.noise.value,busy:null,reserved:false,x:chosenFloor?.defaultX??29,y:chosenFloor?.defaultY??72,typical:[],detail:f.detail.value.trim()};if(database.config.configured&&database.ready){submitNewSpot(e.target,{building:f.building.value,floorNumber:chosenFloor?.level,floorLabel:chosenFloor?.label,name,type,capacity,private:f.private.checked,outlets:f.outlets.checked,noise:f.noise.value,detail:f.detail.value.trim()});return}data.customSpots.push(spot);const saved=save();closeModal();openBuilding(spot.building,spot.floor);render();if(saved)showToast('New spot added on this device.');return}
+  if(e.target.id==='ratingForm'){e.preventDefault();void submitRating(e.target);return}
   if(e.target.id==='newListForm'){e.preventDefault();void submitNewList(e.target);return}
 });
 // 10. Startup. Render local UI first, then refresh after the connection check.
