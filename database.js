@@ -199,6 +199,16 @@ const numericSpotIds=['hbll-commons','hbll-west','hbll-group','hbll-think','hbll
         if (!response.ok) throw await this.listError(response);
       }
     }
+        // Site ratings go to SiteRating. Anyone can submit; the page never reads them back.
+    async submitRating(input) {
+      if (!this.config.configured) throw new Error('The database is not connected yet. Try again in a moment.');
+      const stars=Math.round(Number(input.stars));
+      if (!(stars>=1&&stars<=5)) throw new Error('Choose a rating from 1 to 5 stars.');
+      const comment=String(input.comment||'').trim();
+      if (comment.length>500) throw new Error('Keep your comment to 500 characters.');
+      const response=await this.request(`${this.config.url}/rest/v1/SiteRating`,{method:'POST',headers:this.headers({'Content-Type':'application/json',Prefer:'return=minimal'}),body:JSON.stringify({stars,comment:comment||null})});
+      if (!response.ok) throw await this.apiError(response);
+    }
     // New-spot submissions go to the SpotSubmission table as 'pending'. They are write-only for
     // public clients, so the page does not read them back or show them in the catalogue.
     async submitSpot(input) {
