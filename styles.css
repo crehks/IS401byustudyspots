@@ -373,11 +373,11 @@ h1,h2,h3,.filter-group legend,.switch-row strong,.range-wrap strong,.saved-tab.i
 .campus-building-walls{fill:var(--campus-wall);stroke:var(--campus-wall);stroke-width:.5;pointer-events:none}
 .campus-building-roof{fill:var(--campus-roof);stroke:#90a6b4;stroke-width:1.5;stroke-linejoin:round;transition:fill .15s,stroke .15s}
 .campus-courtyard{fill:var(--campus-lawn);stroke:#96b9a9;stroke-width:2;pointer-events:none}
-.campus-building-label{fill:var(--campus-label);font-size:15px;font-weight:700;pointer-events:none;paint-order:stroke;stroke:var(--campus-roof);stroke-width:3}
+.campus-building-label{fill:var(--campus-label);font-size:14px;font-weight:800;pointer-events:none;paint-order:stroke;stroke:var(--campus-roof);stroke-width:3}
 .campus-building-status{fill:#d0eaf5;font-size:10px;font-weight:700;letter-spacing:1.2px;pointer-events:none}
 .is-available .campus-building-walls{fill:var(--campus-available-wall);stroke:var(--campus-available-wall)}
 .is-available .campus-building-roof{fill:var(--campus-available);stroke:#73b5d7;stroke-width:2.8}
-.is-available .campus-building-label{fill:#f5fbff;font-size:24px;font-weight:800;stroke:var(--campus-available);stroke-width:3}
+.is-available .campus-building-label{fill:#f5fbff;stroke:var(--campus-available);stroke-width:3}
 .campus-building:hover .campus-building-roof,.campus-building:focus-visible .campus-building-roof,.campus-building.is-selected .campus-building-roof{stroke:var(--terracotta);stroke-width:4;fill:var(--beige)}
 .campus-building.is-available:hover .campus-building-roof,.campus-building.is-available:focus-visible .campus-building-roof{fill:var(--terracotta);stroke:var(--espresso);stroke-width:4}
 .campus-building:focus-visible .campus-building-label{stroke-width:0}

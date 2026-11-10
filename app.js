@@ -246,43 +246,35 @@ function campusPointInside(points,x,y){
   }
   return inside;
 }
-// Try smaller labels and alternate anchors until the whole label fits the roof.
-function campusLabelLayout(building,available){
+// Place every label at its building's visual center: the spot inside the roof
+// farthest from any wall. A coarse pass finds the area, then a fine pass refines it.
+function campusLabelLayout(building){
+  // ARTS and MB look best at the center point stored with each building.
+  if(['ARTS','MB','MCDB','PPMW'].includes(building.id))return {x:building.x,y:building.y};
   const points=building.points.split(' ').map(point=>point.split(',').map(Number));
   const xs=points.map(p=>p[0]),ys=points.map(p=>p[1]);
   const left=Math.min(...xs),right=Math.max(...xs),top=Math.min(...ys),bottom=Math.max(...ys);
-  // Conservative Arial-bold metrics, including room for the text outline.
-  const widths={I:.3,J:.6,M:.9,W:1,T:.7,F:.65,L:.65};
-  const textWidth=[...building.id].reduce((width,char)=>width+(widths[char]||.8),0);
-  const anchors=building.id==='JKB'?[[547,64],[building.x,building.y]]:[[building.x,building.y]];
-  for(let row=1;row<8;row++)for(let col=1;col<8;col++)anchors.push([left+(right-left)*col/8,top+(bottom-top)*row/8]);
-  for(const angle of available?[0]:[0,-90]){
-    for(let size=available?20:14;size>=2;size-=.5){
-      const padding=size<8?1.2:3;
-      const width=(angle?size*1.55:textWidth*size)+padding,height=(angle?textWidth*size:size*1.55)+padding;
-      for(const [x,y] of anchors){
-        if(campusLabelBoxFits(points,x-width/2,y-height/2,x+width/2,y+height/2))return {x,y,size,angle};
-      }
+  let best=null;
+  const scan=(x0,x1,y0,y1,step)=>{
+    for(let x=x0;x<=x1;x+=step)for(let y=y0;y<=y1;y+=step){
+      if(!campusPointInside(points,x,y))continue;
+      const distance=campusEdgeDistance(points,x,y);
+      if(!best||distance>best.distance)best={x,y,distance};
     }
-  }
-  return {x:building.x,y:building.y,size:3,angle:0};
+  };
+  scan(left,right,top,bottom,4);
+  if(best)scan(best.x-4,best.x+4,best.y-4,best.y+4,1);
+  return best?{x:best.x,y:best.y}:{x:building.x,y:building.y};
 }
-// Check corners and edges: corners alone miss notches in concave footprints.
-function campusLabelBoxFits(points,left,top,right,bottom){
-  if(![[left,top],[right,top],[left,bottom],[right,bottom]].every(([x,y])=>campusPointInside(points,x,y)))return false;
-  // Reject roof edges crossing the label box, including narrow concave notches.
+// Shortest distance from a point to the building's outline.
+function campusEdgeDistance(points,x,y){
+  let nearest=Infinity;
   for(let i=0;i<points.length;i++){
-    const [x,y]=points[i],[nx,ny]=points[(i+1)%points.length],dx=nx-x,dy=ny-y;
-    let start=0,end=1,intersects=true;
-    for(const [p,q] of [[-dx,x-left],[dx,right-x],[-dy,y-top],[dy,bottom-y]]){
-      if(p===0){if(q<0){intersects=false;break;}}
-      else if(p<0)start=Math.max(start,q/p);
-      else end=Math.min(end,q/p);
-      if(start>end){intersects=false;break;}
-    }
-    if(intersects)return false;
+    const [ax,ay]=points[i],[bx,by]=points[(i+1)%points.length],dx=bx-ax,dy=by-ay,length=dx*dx+dy*dy;
+    const t=length?Math.max(0,Math.min(1,((x-ax)*dx+(y-ay)*dy)/length)):0;
+    nearest=Math.min(nearest,Math.hypot(x-ax-t*dx,y-ay-t*dy));
   }
-  return true;
+  return nearest;
 }
 // Build the native campus SVG once, then attach dragging and initial zoom.
 function renderCampusMap(){
@@ -291,8 +283,8 @@ function renderCampusMap(){
     const vertices=b.points.split(' ').map(point=>point.split(',').map(Number));
     const walls=vertices.map(([x,y],i)=>{const [nx,ny]=vertices[(i+1)%vertices.length];return `<polygon points="${x},${y} ${nx},${ny} ${nx+3},${ny+depth} ${x+3},${y+depth}"/>`;}).join('');
     const courtyard=b.courtyard?`<polygon class="campus-courtyard" points="${b.courtyard}"/>`:'';
-    const label=campusLabelLayout(b,available);
-    return `<g class="campus-building ${available?'is-available':'is-coming-soon'}" data-campus-building="${b.id}" ${available?`data-open-building="${b.id}"`:''} role="button" tabindex="0" aria-label="${esc(available?`${b.id} floor plans`:`${b.id}${b.name?' '+b.name:''}, coming soon`)}" ${available?'':'aria-controls="campusComingSoon"'}><title>${esc(b.name||b.id)}: ${available?'floor plans available':'not yet supported, coming soon'}</title><polygon class="campus-building-shadow" points="${b.points}" transform="translate(6 ${depth+5})"/><g class="campus-building-walls" aria-hidden="true">${walls}</g><polygon class="campus-building-roof" points="${b.points}"/>${courtyard}<text class="campus-building-label" x="${label.x}" y="${label.y}" style="font-size:${label.size}px;stroke-width:${label.size<8?.6:2}px" transform="rotate(${label.angle} ${label.x} ${label.y})" text-anchor="middle" dominant-baseline="central">${b.id}</text></g>`;
+    const label=campusLabelLayout(b);
+    return `<g class="campus-building ${available?'is-available':'is-coming-soon'}" data-campus-building="${b.id}" ${available?`data-open-building="${b.id}"`:''} role="button" tabindex="0" aria-label="${esc(available?`${b.id} floor plans`:`${b.id}${b.name?' '+b.name:''}, coming soon`)}" ${available?'':'aria-controls="campusComingSoon"'}><title>${esc(b.name||b.id)}: ${available?'floor plans available':'not yet supported, coming soon'}</title><polygon class="campus-building-shadow" points="${b.points}" transform="translate(6 ${depth+5})"/><g class="campus-building-walls" aria-hidden="true">${walls}</g><polygon class="campus-building-roof" points="${b.points}"/>${courtyard}<text class="campus-building-label" x="${label.x}" y="${label.y}" text-anchor="middle" dominant-baseline="central">${b.id}</text></g>`;
   }).join('');
   const trees=[[185,81],[399,25],[569,213],[563,281],[558,299],[586,286],[563,193],[550,214],[577,345],[873,556],[417,689],[966,161],[932,381],[695,499],[280,619],[372,691],[510,715],[623,560],[587,531],[487,364],[222,573]].map(([x,y],i)=>`<g transform="translate(${x} ${y})"><ellipse class="campus-tree-shadow" cx="3" cy="5" rx="7" ry="5"/><circle class="campus-tree" r="${i%3+6}"/><circle class="campus-tree-light" cx="-2" cy="-2" r="3"/></g>`).join('');
   const parking=[[173,58,139,287],[436,21,45,80],[848,24,86,137],[998,259,214,49],[948,357,44,167],[845,479,115,55],[1105,304,101,245],[958,626,250,84]].map(([x,y,w,h])=>`<g class="campus-parking"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="8"/>${Array.from({length:Math.floor(w/18)},(_,i)=>`<path d="M${x+10+i*18} ${y+8}v11 M${x+10+i*18} ${y+h-8}v-11"/>`).join('')}</g>`).join('');
