@@ -200,6 +200,9 @@ export async function createBackend({port = 54321} = {}) {
         const row = (await asService(() => pg.query(
           "insert into auth.users (email, encrypted_password, raw_app_meta_data, email_confirmed_at) values ($1, extensions.crypt($2, extensions.gen_salt('bf')), $3::jsonb, now()) returning id, email",
           [email.toLowerCase(), password, JSON.stringify(role === 'admin' ? {role: 'admin'} : {})]))).rows[0];
+        // The live project has a trigger that creates the main-site profile; mirror it here.
+        const clean = value => String(value ?? '').trim().slice(0, 60);
+        await asService(() => pg.query('insert into public."User" (auth_id, first_name, last_name) values ($1, $2, $3)', [row.id, clean(body.first_name) || email.split('@')[0], clean(body.last_name)]));
         return send(res, 201, {user: row});
       } catch (error) { return fail(error.code === '23505' ? 409 : 400, error.code === '23505' ? 'That email already has an account.' : 'Could not create the user.'); }
     }
@@ -212,7 +215,12 @@ export async function createBackend({port = 54321} = {}) {
       if (action === 'delete') {
         if (id === self) return fail(400, 'You cannot delete your own account.');
         if (wasActiveAdmin && await adminCount(id) < 1) return fail(400, 'You cannot remove the last admin.');
-        await asService(() => pg.query('delete from auth.users where id=$1', [id]));
+        const owns = (await pg.query('select exists (select 1 from public."ReportSpotStatus" r join public."User" u on u.user_id = r.user_id where u.auth_id = $1) as b', [id])).rows[0].b;
+        if (owns) return fail(409, 'This account has reports or submissions, so it cannot be deleted. Disable it instead.');
+        await asService(async () => {
+          await pg.query('delete from public."User" where auth_id=$1', [id]);
+          await pg.query('delete from auth.users where id=$1', [id]);
+        });
         return send(res, 200, {ok: true});
       }
       const nextRole = body.role ?? target.role, nextDisabled = body.disabled ?? target.disabled;

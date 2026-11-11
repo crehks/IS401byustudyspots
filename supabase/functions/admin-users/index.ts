@@ -1,4 +1,4 @@
-// DEV PAGE (test branch). NOT deployed. Admin user management behind the admin gate.
+// DEV PAGE. Admin user management behind the admin gate.
 // The service-role key comes from Edge Function secrets (SUPABASE_SERVICE_ROLE_KEY) and never reaches the browser.
 // The local dev backend (tools/dev-backend.mjs) implements the same contract for testing.
 import { createClient } from 'npm:@supabase/supabase-js@2';
@@ -36,6 +36,17 @@ Deno.serve(async (req) => {
   const listAll = async () => (await admin.auth.admin.listUsers({ page: 1, perPage: 1000 })).data.users;
   const otherActiveAdmins = async (excluding: string) =>
     (await listAll()).filter((u) => u.id !== excluding && roleOf(u) === 'admin' && isActive(u)).length;
+  // Reports and submissions reference the user without cascade, so a hard delete would fail midway. Say so up front.
+  const ownsRecords = async (authId: string) => {
+    const { data: profile } = await admin.from('User').select('user_id').eq('auth_id', authId).maybeSingle();
+    if (!profile) return false;
+    for (const table of ['ReportSpotStatus', 'SpotSubmission']) {
+      const { count } = await admin.from(table).select('*', { count: 'exact', head: true }).eq('user_id', profile.user_id);
+      if ((count ?? 0) > 0) return true;
+    }
+    return false;
+  };
+  const cleanName = (value: unknown) => String(value ?? '').trim().slice(0, 60);
 
   switch (body.action) {
     case 'list': {
@@ -50,8 +61,10 @@ Deno.serve(async (req) => {
       if (!EMAIL.test(email ?? '')) return reply(400, { error: 'Enter a valid email address.' });
       if (String(password ?? '').length < 8) return reply(400, { error: 'Password must be at least 8 characters.' });
       if (!['admin', 'user'].includes(role)) return reply(400, { error: 'Role must be admin or user.' });
+      // first_name/last_name feed the database trigger that creates the main-site profile for the new account.
       const { data, error } = await admin.auth.admin.createUser({
         email, password, email_confirm: true, app_metadata: role === 'admin' ? { role: 'admin' } : {},
+        user_metadata: { first_name: cleanName(body.first_name), last_name: cleanName(body.last_name) },
       });
       if (error) return reply(/already/i.test(error.message) ? 409 : 400, { error: /already/i.test(error.message) ? 'That email already has an account.' : 'Could not create the user.' });
       return reply(201, { user: { id: data.user.id, email: data.user.email } });
@@ -66,6 +79,7 @@ Deno.serve(async (req) => {
       if (body.action === 'delete') {
         if (id === selfId) return reply(400, { error: 'You cannot delete your own account.' });
         if (wasActiveAdmin && (await otherActiveAdmins(id)) < 1) return reply(400, { error: 'You cannot remove the last admin.' });
+        if (await ownsRecords(id)) return reply(409, { error: 'This account has reports or submissions, so it cannot be deleted. Disable it instead.' });
         const { error } = await admin.auth.admin.deleteUser(id);
         return error ? reply(400, { error: 'Could not delete the user.' }) : reply(200, { ok: true });
       }

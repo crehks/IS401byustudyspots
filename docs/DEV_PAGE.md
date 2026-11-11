@@ -10,7 +10,7 @@ Nothing here touches the live Supabase project. Do not merge or apply the SQL wi
 4. `npm run test:admin` runs the auth-matrix tests against the real migration SQL.
 
 ## Files
-- `admin.html`, `admin.css`, `admin.js`, `admin-config.js`: the page (config points at the local backend).
+- `admin.html`, `admin.css`, `admin.js`: the page. It connects like the main site: the server's `/api/config` first (local `.env` or `tools/dev/local.env`), then `supabase-config.js` on static hosting.
 - `supabase/migrations/dev-page/`: admin gate (codes, sessions, RLS) and map coordinates. Files only, never applied to live.
 - `supabase/functions/admin-users/`: Edge Function for Maintain Users. Not deployed.
 - `tools/dev-backend.mjs`, `tools/dev/`: local backend, schema fixture, seed.
@@ -47,4 +47,6 @@ Maintain Records > Study Spots opens in **Floor plan** mode. Pick a building and
 - **Admin menu:** on the main site, the Log out button logs out on click for everyone except admins, who get a small menu (Dev tools, Log out). Showing it is cosmetic; the database still decides who can edit. Logging out also ends the admin unlock and clears the dev-page cookies.
 - **One login:** the dev page adopts the main site's saved login (same origin), then asks only for the admin code. Its own login box remains for direct visits.
 - **Required spot details** (name, type, capacity, solo/group, outlets, reservable, private, typical noise) mirror what the main site filters on and what reports need.
-- **Going live needs, in order (none done):** apply the `dev-page` migrations (review the SQL first), deploy `admin-users`, mark admins in the dashboard (`app_metadata.role = 'admin'`) and insert their admin codes, point `admin-config.js` at the live URL, and merge the main-site changes. Existing live spots (ids 1001-1025) stay unpinned, so they never show once real pins exist.
+- **Going live (status):** the SQL is ready and tested locally but **not yet applied to the live project**. Run `supabase/live-apply/dev-portal-all-in-one.sql` in the Supabase SQL editor (one transaction, safe to re-run), or apply the six `supabase/migrations/dev-page/` files in order. `supabase/rollback/dev-page-rollback.sql` reverses it. Then deploy the `admin-users` function (`supabase/functions/admin-users/index.ts`), mark each admin in the dashboard (`app_metadata.role = 'admin'`), and set each admin's own code with the snippet at the bottom of `20261111_001_admin_gate.sql` (never commit a real code). The main-site code stays on the test branch until you merge it.
+- **Live findings that required the grants/report migration (006):** `authenticated` had no write rights on `Buildings`/`StudySpot` and no rights at all on `Floors`/`SpotType`; the old report policies only allowed spot ids 1001-1025; `anon` held write/TRUNCATE rights on `Resources`, `ResourceType`, `BuildingHours` (blocked only by RLS, now revoked).
+- **Users:** deleting an account that owns reports or submissions is refused with "Disable it instead" (foreign keys); disable it in Edit user.

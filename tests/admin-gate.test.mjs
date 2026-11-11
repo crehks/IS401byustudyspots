@@ -159,8 +159,26 @@ test('admin-users function: 403 unless unlocked admin, with self and password gu
   assert.equal((await fn({action: 'delete', id: created.json.user.id})).status, 200);
 });
 
+test('admin-users: names reach the profile; users with reports cannot be deleted, only disabled', async () => {
+  const admin = await login(...ADMIN);
+  await unlock(admin.access_token, CODE);
+  const fn = body => call('/functions/v1/admin-users', {method: 'POST', token: admin.access_token, body});
+  const made = await fn({action: 'create', email: 'named@nook.test', password: 'Named#2026pw', first_name: 'Ada', last_name: 'Lovelace'});
+  assert.equal(made.status, 201);
+  const profile = (await backend.pg.query('select first_name, last_name from public."User" where auth_id = $1', [made.json.user.id])).rows[0];
+  assert.deepEqual(profile, {first_name: 'Ada', last_name: 'Lovelace'});
+  await backend.pg.query('insert into public."ReportSpotStatus" (spot_id, user_id, noise_level, crowd_level) select 1, user_id, 1, 1 from public."User" where auth_id = $1', [made.json.user.id]);
+  const blocked = await fn({action: 'delete', id: made.json.user.id});
+  assert.equal(blocked.status, 409);
+  assert.match(blocked.json.error, /Disable it instead/);
+  assert.equal((await fn({action: 'update', id: made.json.user.id, disabled: true})).status, 200);
+  const cleanUser = await fn({action: 'create', email: 'plain@nook.test', password: 'Plain#2026pw'});
+  assert.equal((await fn({action: 'delete', id: cleanUser.json.user.id})).status, 200);
+  assert.equal((await backend.pg.query('select count(*)::int n from public."User" where auth_id = $1', [cleanUser.json.user.id])).rows[0].n, 0);
+});
+
 test('no privileged key appears in browser-facing dev page files', async () => {
-  for (const file of ['admin.html', 'admin.js', 'admin.css', 'admin-config.js']) {
+  for (const file of ['admin.html', 'admin.js', 'admin.css', 'supabase-config.js']) {
     const text = await readFile(new URL(`../${file}`, import.meta.url), 'utf8');
     assert.ok(!/service_role|sb_secret_|SERVICE_ROLE/i.test(text), `${file} must not reference a service-role key`);
   }

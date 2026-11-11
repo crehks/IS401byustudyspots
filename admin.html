@@ -3,15 +3,16 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Nook Admin</title>
-<meta name="description" content="Nook admin area: maintain study spots, buildings and users. Dev page, test branch.">
+<title>Nook Dev Portal</title>
+<meta name="description" content="Nook admin area: maintain study spots, buildings and users. Dev portal for the Nook team.">
 <link rel="icon" href="assets/nook-logo.png">
 <link rel="stylesheet" href="admin.css">
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
+<div class="dev-ribbon" role="note"><span class="dev-ribbon-tag">Dev mode</span><span class="dev-ribbon-sub">Admin tools for the Nook team. Changes here are real.</span></div>
 <header class="topbar">
-  <a class="brand" href="#/" aria-label="Nook admin home"><img src="assets/nook-logo.png" alt="" width="40" height="34"><span>Nook <em>Admin</em></span></a>
+  <a class="brand" href="#/" aria-label="Nook dev portal home"><img src="assets/nook-logo.png" alt="" width="40" height="34"><span>Nook <em>Dev</em></span></a>
   <nav aria-label="Primary">
     <a class="nav-anchor" id="nav-features" href="#features">Features</a>
     <button type="button" class="btn btn-primary" id="nav-login">Log in</button>
@@ -31,14 +32,14 @@
       <div class="hero-copy">
         <p class="kicker">Nook for BYU &middot; Admin area</p>
         <h1>Keep every study spot accurate.</h1>
-        <p class="lead">Manage buildings, floors, study spots and team access in one place, then drop pins on the campus map so students walk to the right door.</p>
+        <p class="lead">Manage buildings, floors, study spots and team access in one place, then drop pins on the digitized floor plans so students walk to the right door.</p>
         <p><button type="button" class="btn btn-primary btn-lg" id="hero-login">Log in to manage</button></p>
       </div>
-      <img class="hero-img" src="assets/admin-hero.jpg" alt="The Nook campus map showing the Lee Library, Wilkinson Student Center and Joseph Knight Building highlighted among other BYU buildings" width="1366" height="900">
+      <img class="hero-img" src="assets/admin-hero.jpg" alt="The Nook student site: filters for group size, noise and outlets beside the campus map" width="800" height="600">
     </div>
     <div class="features" id="features">
       <article class="card"><h2>Maintain records</h2><p>Create, edit and delete rows for every table the app uses, with validation and clear errors.</p></article>
-      <article class="card"><h2>Drop a pin</h2><p>Click the satellite map to set a building or spot location. Drag to fine-tune it.</p></article>
+      <article class="card"><h2>Drop a pin</h2><p>Click a floor plan to place a study spot or resource, then fill in its details. Drag to fine-tune; deleted pins can be restored.</p></article>
       <article class="card"><h2>Protected access</h2><p>Admins sign in, then unlock with a personal code. The database enforces it, not just this page.</p></article>
     </div>
   </section>
@@ -85,7 +86,7 @@
   </form>
 </dialog>
 
-<script src="admin-config.js"></script>
+<script src="supabase-config.js"></script>
 <script type="module" src="admin.js"></script>
 </body>
 </html>

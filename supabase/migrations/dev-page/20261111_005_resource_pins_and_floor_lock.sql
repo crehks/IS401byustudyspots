@@ -1,4 +1,4 @@
--- DEV PAGE (test branch). NOT applied to the live project.
+-- DEV PAGE. Tested on local PGlite first, then applied to the live project on 2026-11-11.
 -- 1) Floor-plan pins and soft delete for Resources (same model as study spots).
 -- 2) Floors are locked: nobody going through the API (admins, TAs, testers) can delete or re-key a floor.
 

@@ -100,3 +100,26 @@ td.actions{white-space:nowrap;display:flex;gap:6px}
 .deleted-list summary{cursor:pointer;font-weight:600}
 .deleted-list ul{list-style:none;margin:12px 0 0;padding:0;display:grid;gap:8px}
 .deleted-list li{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+
+/* ---- Dev portal skin ----
+   Same structure as the main site (Arial, 72px bar, 14px cards, 10px buttons, footer) in a dev palette,
+   plus an amber ribbon so nobody mistakes this for the public site. */
+:root{--radius:14px;--dev:#ffb347;font-family:Arial,Helvetica,sans-serif}
+.dev-ribbon{display:flex;justify-content:center;align-items:center;flex-wrap:wrap;gap:4px 12px;padding:7px 16px;background:repeating-linear-gradient(-45deg,#ffb347 0 14px,#f5a533 14px 28px);color:#1a1a1a;font-size:12px;text-align:center}
+.dev-ribbon-tag{font-weight:800;letter-spacing:.1em;text-transform:uppercase}
+.dev-ribbon-sub{font-weight:700}
+.topbar{min-height:72px;padding:0 clamp(20px,4vw,64px);gap:20px}
+.brand{font-size:22px;letter-spacing:-.045em;gap:11px}
+.brand img{width:48px;height:40px;padding:4px;border-radius:10px}
+.brand em{color:var(--dev);font-weight:500}
+.nav-anchor{font-size:14px;font-weight:700;padding:12px 16px;border-radius:10px}
+.nav-anchor:hover{background:var(--surface-2)}
+h1,h2{letter-spacing:-.045em}
+.btn{border-radius:10px;padding:12px 16px;font-size:13px;font-weight:800;min-height:44px}
+.btn-sm{padding:7px 12px;min-height:36px;font-size:12px}
+.btn-lg{font-size:14px;padding:14px 24px}
+.card,.panel,.side-panel,.table-wrap,.deleted-list,.plan-scroll,#map{border-radius:14px}
+dialog{border-radius:14px}
+.footer{padding:22px clamp(20px,4vw,64px);font-size:11px;text-align:left}
+@media(max-width:640px){.topbar{padding:10px 16px}.brand{font-size:20px}}
+.hero-img{object-position:center;aspect-ratio:4/3}

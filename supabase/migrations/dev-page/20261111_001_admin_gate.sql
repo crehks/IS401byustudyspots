@@ -1,5 +1,4 @@
--- DEV PAGE (test branch). NOT applied to the live project. Reviewed and run only against local PGlite
--- (tests/admin-gate.test.mjs, tools/dev-backend.mjs). Apply to Supabase only after team approval.
+-- DEV PAGE. Tested on local PGlite first (tests/admin-gate.test.mjs, tests/pinned-spots.test.mjs), then applied to the live project on 2026-11-11.
 --
 -- Admin gate: an admin (app_metadata.role = 'admin') must also enter a personal code, which opens a
 -- time-limited database session. RLS on every maintained table checks that session.

@@ -1,6 +1,17 @@
 // Dev page: login, admin-code unlock, Maintain Users, Maintain Records (generic CRUD) and map pin-drop.
 // UI hiding is convenience only; the database enforces admin access (see supabase/migrations/dev-page).
-const cfg = window.NOOK_ADMIN_CONFIG;
+// Same connection rules as the main site (database.js): the local server's /api/config first, then the shipped
+// supabase-config.js (static hosting). Only the public, browser-safe key is ever used here.
+async function loadConfig() {
+  try {
+    const response = await fetch('api/config', {cache: 'no-store'});
+    if (response.ok) { const served = await response.json(); if (served?.configured && served.url && served.key) return {url: String(served.url).replace(/\/$/, ''), key: String(served.key)}; }
+  } catch {}
+  const shipped = window.STUDY_BYU_CONFIG;
+  if (shipped?.url && shipped?.key) return {url: String(shipped.url).replace(/\/$/, ''), key: String(shipped.key)};
+  return null;
+}
+const cfg = await loadConfig();
 const $ = (sel, root = document) => root.querySelector(sel);
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
 
@@ -261,9 +272,10 @@ function fkLabel(refName, id) {
   if (id === null || id === undefined) return '';
   const row = (state.lookups[refName] || []).find(r => r[byTable(refName).pk] === id);
   if (!row) return String(id);
+  if (refName === 'Buildings') return `${byTable(refName).title(row)} (#${id})`;
   if (refName === 'Floors') {
     const building = (state.lookups.Buildings || []).find(b => b.building_id === row.building_id);
-    return `${building?.building_name || 'Building ' + row.building_id}, floor ${row.floor_number}`;
+    return `${building?.building_name || 'Building'} (#${row.building_id}), floor ${row.floor_number}`;
   }
   return byTable(refName).title(row);
 }
@@ -591,7 +603,7 @@ async function openPlan(cfgTable) {
   const spotForm = {...cfgTable, columns: cfgTable.columns.filter(c => !c.geo && c.key !== 'building_id' && c.key !== 'floor_id')};
 
   body.innerHTML = `<div class="toolbar plan-toolbar">
-      <span class="inline-field"><label for="plan-building">Building</label><select id="plan-building">${buildings.map(b => `<option value="${b.building_id}" ${b.building_id === view.planBuilding ? 'selected' : ''}>${esc(b.building_name)}</option>`).join('')}</select></span>
+      <span class="inline-field"><label for="plan-building">Building</label><select id="plan-building">${buildings.map(b => `<option value="${b.building_id}" ${b.building_id === view.planBuilding ? 'selected' : ''}>${esc(b.building_name)} (#${b.building_id})</option>`).join('')}</select></span>
       <span class="inline-field"><label for="plan-sheet">Floor plan</label><select id="plan-sheet"></select></span>
       <span class="seg" role="group" aria-label="Zoom"><button type="button" id="zoom-out" aria-label="Zoom out">-</button><button type="button" id="zoom-in" aria-label="Zoom in">+</button></span>
     </div>
@@ -710,7 +722,7 @@ function drawUsers() {
   for (const b of body.querySelectorAll('[data-udel]')) b.addEventListener('click', () => deleteUser(users.find(u => u.id === b.dataset.udel)));
 }
 async function deleteUser(user) {
-  if (!await confirmDialog(`Delete ${user.email}?`, 'This removes their login permanently.')) return;
+  if (!await confirmDialog(`Delete ${user.email}?`, 'This removes their login permanently. Accounts with reports or submissions cannot be deleted; disable them instead.')) return;
   const before = users; users = users.filter(u => u.id !== user.id); drawUsers(); usersError('');
   try { await usersCall({action: 'delete', id: user.id}); }
   catch (error) { users = before; drawUsers(); if (isDenied(error)) return onDenied(); usersError(error.message); }
@@ -719,6 +731,7 @@ function userForm(user) {
   const dialog = $('#form-dialog'), host = $('#form-host'), editing = !!user;
   host.innerHTML = `<form novalidate id="user-form"><h2 id="form-title">${editing ? 'Edit user' : 'Add user'}</h2>
     <label for="u_email">Email</label><input id="u_email" type="email" value="${esc(user?.email || '')}" required>
+    ${editing ? '' : '<label for="u_first">First name (optional)</label><input id="u_first" type="text" maxlength="60" autocomplete="off"><label for="u_last">Last name (optional)</label><input id="u_last" type="text" maxlength="60" autocomplete="off"><p class="field-hint">Shown on the main site after they sign in.</p>'}
     <label for="u_password">${editing ? 'New password (leave blank to keep)' : 'Password'}</label><input id="u_password" type="password" autocomplete="new-password" ${editing ? '' : 'required'}>
     <p class="field-hint">At least 8 characters. Passwords are never shown, only replaced.</p>
     <label for="u_role">Role</label><select id="u_role"><option value="user" ${user?.role !== 'admin' ? 'selected' : ''}>User</option><option value="admin" ${user?.role === 'admin' ? 'selected' : ''}>Admin</option></select>
@@ -741,7 +754,7 @@ function userForm(user) {
         if (password) patch.password = password;
         users = users.map(u => u.id === user.id ? {...u, email, role, disabled: patch.disabled} : u); drawUsers();
         await usersCall(patch);
-      } else await usersCall({action: 'create', email, password, role});
+      } else await usersCall({action: 'create', email, password, role, first_name: $('#u_first').value.trim(), last_name: $('#u_last').value.trim()});
       dialog.close();
       users = (await usersCall({action: 'list'})).users; drawUsers();
     } catch (error) {

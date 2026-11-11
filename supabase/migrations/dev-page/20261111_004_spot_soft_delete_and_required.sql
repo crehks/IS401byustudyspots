@@ -1,4 +1,4 @@
--- DEV PAGE (test branch). NOT applied to the live project.
+-- DEV PAGE. Tested on local PGlite first, then applied to the live project on 2026-11-11.
 -- Soft delete for study spots, and "all details required" for any spot placed on a floor plan.
 
 alter table public."StudySpot" add column if not exists deleted_at timestamptz;

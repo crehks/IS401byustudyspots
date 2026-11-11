@@ -961,9 +961,9 @@ html.explore-snap .site-footer{scroll-snap-align:end}
 /* Resources pinned from the dev page (printers, water, vending): square amber pins, distinct from round study spots */
 .plan-pin.resource-pin{border-radius:7px;background:#b8651c;border:2px solid #fff;font-weight:800}
 .plan-pin.resource-pin:hover{background:#8f4c10;box-shadow:0 0 0 4px #f0c595,0 3px 10px #102b3c66}
-/* Admin-only account menu on the main site */
-.nav-menu{position:fixed;z-index:60;min-width:170px;padding:6px;border-radius:12px;background:#fff;border:1px solid #cfdde6;box-shadow:0 10px 30px #102b3c33;display:grid;gap:2px}
+/* Admin-only account menu on the main site: the site's own cream/espresso palette */
+.nav-menu{position:fixed;z-index:60;min-width:176px;padding:6px;border-radius:14px;background:#fff;border:1px solid var(--line);box-shadow:0 10px 30px #3d383233;display:grid;gap:2px}
 .nav-menu[hidden]{display:none}
-.nav-menu-item{display:block;width:100%;text-align:left;border:0;background:transparent;color:#1d3d52;font:inherit;font-weight:700;font-size:14px;padding:11px 14px;border-radius:8px;text-decoration:none;cursor:pointer}
-.nav-menu-item:hover,.nav-menu-item:focus-visible{background:#eaf2f7}
-@media(prefers-color-scheme:dark){.nav-menu{background:#1c3140;border-color:#355367}.nav-menu-item{color:#d6e7f0}.nav-menu-item:hover,.nav-menu-item:focus-visible{background:#29495b}}
+.nav-menu-item{display:block;width:100%;text-align:left;border:0;background:transparent;color:var(--espresso);font:inherit;font-weight:800;font-size:13px;padding:12px 14px;border-radius:10px;text-decoration:none;cursor:pointer}
+.nav-menu-item:hover,.nav-menu-item:focus-visible{background:var(--beige)}
+@media(prefers-color-scheme:dark){.nav-menu{background:#2c2924;border-color:#4a443b}.nav-menu-item{color:#f1eadc}.nav-menu-item:hover,.nav-menu-item:focus-visible{background:#3d3832}}

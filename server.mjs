@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 export const APP_ROOT = path.dirname(fileURLToPath(import.meta.url));
 // Allowlists keep unrelated environment values and project files out of responses.
 const ENV_NAMES = ['SUPABASE_URL', 'SUPABASE_PUBLISHABLE_KEY', 'SUPABASE_REPORTS_TABLE'];
-const PUBLIC_FILES = new Set(['index.html','styles.css','app.js','database.js','auth.js','supabase-config.js','admin.html','admin.css','admin.js','admin-config.js','wsc-plans.js','hbll-plans.js','jkb-plans.js']);
+const PUBLIC_FILES = new Set(['index.html','styles.css','app.js','database.js','auth.js','supabase-config.js','admin.html','admin.css','admin.js','wsc-plans.js','hbll-plans.js','jkb-plans.js']);
 const TYPES = {'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.svg':'image/svg+xml','.pdf':'application/pdf','.png':'image/png','.jpg':'image/jpeg','.webp':'image/webp','.json':'application/json; charset=utf-8'};
 
 // Read known .env names, including quoted values and trailing comments.

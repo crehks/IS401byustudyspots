@@ -1,4 +1,4 @@
--- DEV PAGE (test branch). NOT applied to the live project.
+-- DEV PAGE. Tested on local PGlite first, then applied to the live project on 2026-11-11.
 -- Floor-plan pins: which digitized plan sheet a study spot sits on, and where (percent of the drawing).
 
 alter table public."StudySpot" add column if not exists plan_key text;

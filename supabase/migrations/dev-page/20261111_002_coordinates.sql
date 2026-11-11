@@ -1,4 +1,4 @@
--- DEV PAGE (test branch). NOT applied to the live project.
+-- DEV PAGE. Tested on local PGlite first, then applied to the live project on 2026-11-11.
 -- Map pins: plain lat/lng on buildings and spots, constrained to a BYU/Provo bounding box.
 
 alter table public."Buildings" add column if not exists lat double precision;
