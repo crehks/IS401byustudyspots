@@ -54,6 +54,11 @@
             <button id="exploreMapButton" class="primary-button hero-map-cta" type="button">Explore campus map <span aria-hidden="true">↓</span></button>
           </div>
         </section>
+        <!-- JavaScript inserts three matching spots or a clear empty state. -->
+        <section class="recommendations" aria-labelledby="recommendHeading">
+          <div class="section-heading"><div><h2 id="recommendHeading">Good places to start</h2></div></div>
+          <div id="recommendationsList" class="recommendation-grid"></div>
+        </section>
         <section id="exploreMapSection" class="explore-map-section" aria-label="Explore campus map and study filters">
           <div class="explore-layout">
           <!-- Keep these input IDs aligned with the shared event handlers in app.js. -->
@@ -63,7 +68,6 @@
               <div>
                 <h2 id="filterHeading">Find your Nook</h2>
               </div>
-              <div class="filter-actions"><button id="clearFilters" class="secondary-button" type="button">Clear filters</button><button id="showMatches" class="primary-button" type="button">View matches</button></div>
             </div>
             <fieldset class="filter-group">
               <legend>Studying with</legend>
@@ -95,6 +99,7 @@
               <div id="buildingFilters" class="building-checks"></div>
             </fieldset>
             </div>
+            <div class="filter-actions"><button id="clearFilters" class="secondary-button" type="button">Clear filters</button><button id="showMatches" class="primary-button" type="button">View matches</button></div>
           </aside>
 
           <!-- The campus SVG comes from CAMPUS_BUILDINGS, not an external map API. -->
@@ -109,11 +114,6 @@
           </div>
         </section>
 
-        <!-- JavaScript inserts three matching spots or a clear empty state. -->
-        <section class="recommendations" aria-labelledby="recommendHeading">
-          <div class="section-heading"><div><h2 id="recommendHeading">Good places to start</h2></div></div>
-          <div id="recommendationsList" class="recommendation-grid"></div>
-        </section>
       </section>
 
       <!-- BUILDING VIEW: floor/side controls, room search, native map, and study spots. -->
@@ -137,8 +137,9 @@
             <!-- Search spans this building and may switch to another floor drawing. -->
             <div id="roomTools" class="room-tools" hidden>
               <div class="room-search-wrap"><label for="roomSearch">Find a room in the Wilk</label><input id="roomSearch" type="search" placeholder="Room number, e.g. 2050" autocomplete="off" aria-controls="roomSearchResults"><div id="roomSearchResults" class="room-search-results" hidden></div></div>
-              <button id="toggleRoomLabels" class="map-label-toggle" type="button" aria-pressed="true">Room numbers</button>
+              <div class="map-mode-tabs"><button id="toggleRoomLabels" class="map-label-toggle" type="button" aria-pressed="true">Room Numbers</button><button id="toggleResources" class="map-label-toggle" type="button" aria-pressed="false" aria-controls="resourceFilters" hidden>Resources</button></div>
             </div>
+            <div id="resourceFilters" class="resource-filters" hidden aria-label="Filter map by resource"></div>
             <div id="planAssetBar" class="plan-asset-bar" hidden><span>Digitized floor plan</span><div class="plan-asset-actions"><div class="plan-zoom" role="group" aria-label="Plan zoom"><button id="zoomOut" type="button" aria-label="Zoom out">−</button><output id="zoomValue">100%</output><button id="zoomIn" type="button" aria-label="Zoom in">+</button><button id="zoomFit" type="button">Fit</button></div><a id="sourcePdfLink" href="#" target="_blank" rel="noopener noreferrer">Source drawing ↗</a></div></div>
             <div id="selectedRoomPanel" class="selected-room-panel" role="status" hidden></div>
             <div class="map-interaction-bar">
