@@ -61,3 +61,13 @@ GitHub stores the source; GitHub Pages cannot run `server.mjs` or read `.env`. F
 Noise/crowding use **1 = Low, 2 = Medium, 3 = High**. The test spot uses ID **1008**, and reports use fictional demo user **1001**. Database reporting covers non-reservable built-in sample spots; favorites and user-added spot suggestions remain local.
 
 For the assignment, record only the button, changed UI, and refresh proof in a video under two minutes. Submit the video link and public repository/README link; check both in a private browser window.
+
+## AI-tagged crowd/noise reports
+
+Signed-in users report a space; the `tag-report` Edge Function asks Gemini to tag noise and crowd (low/medium/high) and flag spam. Pins and filters show only approved reports from the last 45 minutes, otherwise "No recent data". Guests still post to the legacy `ReportSpotStatus` table, which does not feed pins.
+
+- Migration: `supabase/migrations/20261109_001_ai_tagged_reports.sql` (`spot_reports`, rate limit of 3 per user per space per hour, `space_conditions()` RPC).
+- Function: `supabase/functions/tag-report/`. The only provider-specific code is `llm.ts`; swap Gemini for Groq by replacing `classify()`.
+- Secrets (never in the repo): `supabase secrets set GEMINI_API_KEY=... CRON_SECRET=... [GEMINI_MODEL=...]`. Check current free-tier limits in Google AI Studio.
+- Failures (429, timeout, bad output) leave the report `pending`. Retry with `POST /functions/v1/tag-report {"retry":true}` and header `x-cron-secret`, manually or from pg_cron (10 reports per run, max 5 attempts).
+- Staleness window: change the default in `space_conditions()` and `loadConditions()` in `database.js`.
