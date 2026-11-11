@@ -619,15 +619,10 @@ function renderFilters(){
   $('#groupSizeWrap').hidden=state.study!=='group';$('#groupSize').value=state.groupSize;$('#groupSizeValue').textContent=`${state.groupSize} people`;
   $('#privateFilter').checked=state.private;$('#outletFilter').checked=state.outlets;
 }
-function recommendationDescription(spot){
-  const atmosphere={low:'Quiet',medium:'Social',high:'Lively'}[currentNoise(spot)]||'Noise level not reported';
-  const study=spot.type==='group'?`group study for up to ${spot.capacity}`:spot.private?'private individual study':'individual study';
-  return `${atmosphere} ${study}, ${spot.outlets?'with outlets nearby':'outlets not listed'}.${spot.reserved?' Reservation required.':''}`;
-}
 // Render the three best matches, or a way to clear restrictive filters.
 function renderRecommendations(){
   const spots=allSpots().filter(matches).sort((a,b)=>rank(a)-rank(b)).slice(0,3);
-  $('#recommendationsList').innerHTML=spots.length?spots.map(s=>`<button type="button" class="recommendation-card" data-spot="${esc(s.id)}"><div class="rec-top"><span class="rec-building">${s.building} / ${esc(floorLabel(s))}</span><span class="availability ${badgeClass(s)}">${labelBusy(s)}</span></div><h3>${esc(recommendationDescription(s))}</h3><span class="rec-meta">Select to see the location</span></button>`).join(''):`<div class="empty-state"><h3>No spaces match these filters</h3><p>Try another building, a different noise level, or fewer requirements.</p><button class="secondary-button" type="button" data-action="clear">Clear filters</button></div>`;
+  $('#recommendationsList').innerHTML=spots.length?spots.map(s=>`<button type="button" class="recommendation-card" data-spot="${esc(s.id)}"><div class="rec-top"><span class="rec-building">${s.building} / ${esc(floorLabel(s))}</span><span class="availability ${badgeClass(s)}">${labelBusy(s)}</span></div><h3>${esc(s.name)}</h3><span class="rec-meta">${s.type==='group'?`Group up to ${s.capacity}`:'Individual'} · ${s.outlets?'Outlets':'No outlet listed'} ${s.reserved?'· Reservation required':''}</span></button>`).join(''):`<div class="empty-state"><h3>No spaces match these filters</h3><p>Try another building, a different noise level, or fewer requirements.</p><button class="secondary-button" type="button" data-action="clear">Clear filters</button></div>`;
 }
 // Select the drawing and controls for the active building, floor, and side.
 function renderBuilding(){
