@@ -41,7 +41,7 @@ h3{color:#17344c}
 .explore-layout{display:grid;grid-template-columns:330px minmax(0,1fr);gap:20px;align-items:stretch}
 .filter-panel,.campus-area,.floor-plan-shell,.results-panel{background:#fff;border:1px solid var(--line);border-radius:var(--radius)}
 .filter-panel{padding:22px}
-.mobile-view-switch,.map-interaction-bar{display:none}
+.mobile-view-switch{display:none}
 .panel-topline,.results-head,.section-heading,.floor-toolbar{display:flex;align-items:flex-start;justify-content:space-between;gap:20px}
 .panel-topline p,.section-heading p,.floor-toolbar p,.results-head p{margin:0;color:var(--muted);font-size:13px;line-height:1.45}
 .subtle-button{background:none;border:0;color:var(--blue);font-size:12px;font-weight:800;padding:4px 0;white-space:nowrap}
@@ -140,7 +140,8 @@ h3{color:#17344c}
 .floor-tabs{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
 .floor-tab{background:#fff;color:#5a7080;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:11px;font-weight:800}
 .floor-tab.is-selected{background:var(--navy);border-color:var(--navy);color:#fff}
-.floor-plan-shell{padding:15px}
+.floor-plan-shell{position:relative;padding:15px}
+.floor-plan-shell>#interactMap{display:none}
 .floor-plan{position:relative;height:510px;overflow:hidden;background:#f6f9fa;border:1px solid #dce6ea;border-radius:10px}
 .floor-plan:before{content:"";position:absolute;inset:6%;border:13px solid #dce8ec;border-radius:9px;box-shadow:inset 0 0 0 2px #bed0d9}
 .floor-plan:after{content:"";position:absolute;left:13%;right:13%;top:44%;height:12%;background:#eaf1f3;border-top:2px solid #c8d9df;border-bottom:2px solid #c8d9df}
@@ -300,8 +301,11 @@ h1{font-size:31px}
 .campus-map-controls #campusZoomFit,.campus-map-controls #zoomFit{font-size:10px;padding:0 8px}
 .campus-map-controls button:disabled{opacity:.45;cursor:default}
 .campus-north{font-size:11px;font-weight:800;color:var(--blue);margin-left:auto;white-space:nowrap}
+.campus-map-stage{position:relative;display:flex;flex:1;min-width:0;min-height:0;flex-direction:column}
+.campus-map-stage>#campusInteractMap{display:none}
 /* Scroll the map inside this viewport without widening the whole page. */
 .campus-map-viewport{height:auto;aspect-ratio:1238/845;min-height:440px;overflow:auto;position:relative;scrollbar-width:thin;scrollbar-color:#708d9b var(--campus-ground);background:var(--campus-ground);cursor:grab;overscroll-behavior:contain;touch-action:pan-x pan-y}
+.campus-map-viewport.is-interactive{touch-action:none;overscroll-behavior:contain;cursor:grab}
 .campus-map-viewport.is-panning{cursor:grabbing;user-select:none}
 .campus-map-drawing{min-width:760px;line-height:0}
 .campus-svg{display:block;width:100%;height:auto;overflow:visible;user-select:none}
@@ -516,7 +520,6 @@ button{transition:background-color .16s,border-color .16s,box-shadow .16s}
   .building-select-label select{font-size:16px}
   .toast{bottom:16px;right:16px}
 }
-body:has(#buildingView:not([hidden])) .footer-links a[href="https://map.byu.edu/"]{display:none}
 /* Small phones get a separate navigation row rather than clipped buttons. */
 @media(max-width:360px){.brand{gap:7px}
 .topnav{width:100%;justify-content:space-between}
@@ -542,6 +545,7 @@ body:has(#buildingView:not([hidden])) .footer-links a[href="https://map.byu.edu/
   .campus-map-viewport{height:clamp(240px,43svh,400px);min-height:0;aspect-ratio:auto;overscroll-behavior:auto}
   .campus-map-controls button{min-width:44px;min-height:44px}
   .campus-coming-soon button{min-width:44px;min-height:44px}
+  .campus-map-stage>#campusInteractMap{position:absolute;z-index:6;top:10px;right:10px;display:inline-flex;min-height:44px;max-width:145px;padding:10px;font-size:12px;white-space:normal}
   .building-heading{margin-bottom:18px;gap:10px}
   .building-title-row{gap:12px;align-items:center;flex-wrap:nowrap}
   .building-title-row>div{min-width:0}
@@ -564,9 +568,7 @@ body:has(#buildingView:not([hidden])) .footer-links a[href="https://map.byu.edu/
   .room-tools{align-items:stretch;gap:8px;margin:12px 0}
   .form-field input,.form-field select,.form-field textarea{font-size:16px;min-height:44px}
   .map-label-toggle{align-self:flex-end;min-height:44px}
-  .map-interaction-bar{display:flex;align-items:center;gap:12px;margin:10px 0}
-  .map-interaction-bar p{flex:1;min-width:0;margin:0;font-size:12px;line-height:1.4;color:var(--muted)}
-  .map-interaction-bar button{min-height:44px;font-size:12px;padding:10px;white-space:normal;max-width:145px}
+  .floor-plan-shell>#interactMap{position:absolute;z-index:5;top:24px;right:24px;display:inline-flex;min-height:44px;max-width:145px;padding:10px;font-size:12px;white-space:normal}
   .floor-plan.native-plan{height:clamp(220px,50svh,460px);min-height:0}
   .plan-pin,.plan-pin:hover,.plan-pin.is-selected{width:44px;height:44px;border:0;background:transparent;box-shadow:none}
   .plan-pin>span{display:grid;place-items:center;width:25px;height:25px;border:2px solid #fff;border-radius:50%;background:#247e68;color:#fff;font-size:9px;box-shadow:0 2px 8px #102b3c66}
@@ -806,8 +808,7 @@ html.explore-snap .site-footer{scroll-snap-align:end}
 .topbar{background:var(--sage)}
 .topnav .nav-link,.topnav .nav-report{display:flex;align-items:center;justify-content:center;flex:1 1 0;min-width:0;min-height:44px;margin:0;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--cream);color:var(--espresso);font-size:14px}
 .topnav #navSaved{padding-right:16px;padding-left:16px}
-.topnav .nav-report{padding-right:28px;padding-left:28px}
-.mobile-nav-break{display:none}
+.topnav .nav-report{padding-right:24px;padding-left:24px}
 .topnav .nav-login{background:transparent;border:2px solid #fff;color:#fff}
 .topnav .nav-login:hover{background:#ffffff1a;border-color:#fff;color:#fff}
 .topnav .nav-link:hover,.topnav .nav-report:hover{background:var(--terracotta);border-color:var(--terracotta);color:var(--accent-ink)}
@@ -816,8 +817,8 @@ html.explore-snap .site-footer{scroll-snap-align:end}
 @media(max-width:560px){
   .topnav .nav-link,.topnav .nav-report{font-size:12px;padding:9px 7px}
   .topnav #navSaved{padding-right:10px;padding-left:10px}
-  .topnav .nav-report{padding-right:14px;padding-left:14px;white-space:normal}
-  .mobile-nav-break{display:block}
+  .topnav .nav-login{padding-right:10px;padding-left:10px}
+  .topnav .nav-report{white-space:normal}
 }
 /* Touch targets: keep links and the brand button at least 44px tall on phones. */
 @media (max-width:800px){.brand,.text-link,.map-footer a,.site-footer a{display:inline-flex;align-items:center;min-height:44px}.official-link{padding-bottom:0}}

@@ -8,6 +8,7 @@ const source=await readFile(new URL('../app.js',import.meta.url),'utf8');
 const helpers=source.slice(source.indexOf('const COMPACT_LAYOUT_QUERY'),source.indexOf('function renderFilters'));
 const navigation=source.slice(source.indexOf('// Announce view changes'),source.indexOf('// Changing drawings'));
 const maps=source.slice(source.indexOf('function resizeDigitalMap'),source.indexOf('// Select a room directly'));
+const campusMapHandlers=source.slice(source.indexOf('// Preserve the map center on zoom; Reset centers the supported buildings.'),source.indexOf('// Open supported maps or explain why another building is not yet available.'));
 
 function navigationFixture(compact){
   const scrolls=[],heading={setAttribute(){},focus(){}};
@@ -34,7 +35,7 @@ function fixture(){
     offsetWidth:{get:()=>parseFloat(stage.style.width)||0},offsetHeight:{get:()=>parseFloat(stage.style.height)||0}
   });
   stage.getBoundingClientRect=()=>({left:24-viewport.scrollLeft,top:24-viewport.scrollTop,width:stage.offsetWidth,height:stage.offsetHeight});
-  const elements=Object.fromEntries(['#floorPlan','#interactMap','#mapTouchHint','.plan-canvas','#zoomValue','#zoomOut','#zoomIn','.filter-panel','.building-layout'].map(selector=>[selector,element()]));
+  const elements=Object.fromEntries(['#floorPlan','#interactMap','.plan-canvas','#zoomValue','#zoomOut','#zoomIn','.filter-panel','.building-layout'].map(selector=>[selector,element()]));
   Object.assign(elements,{'.plan-scroll':viewport,'#planStage':stage});
   const buttons=['map','spots'].map(panel=>Object.assign(element(),{dataset:{buildingPanel:panel}}));
   const state={zoom:1,floor:'test'};
@@ -55,6 +56,31 @@ function fixture(){
   return {viewport,stage,state,elements,buttons,run,pointer,click};
 }
 
+function campusFixture(){
+  const classes=()=>{
+    const values=new Set();
+    return {contains:value=>values.has(value),add:value=>values.add(value),remove:value=>values.delete(value),toggle(value,on){if(on)values.add(value);else values.delete(value)}};
+  };
+  const element=()=>({style:{},classList:classes(),attributes:{},setAttribute(key,value){this.attributes[key]=String(value)}});
+  const viewport=Object.assign(new EventTarget(),element(),{
+    clientWidth:320,clientHeight:360,scrollLeft:0,scrollTop:0,captures:[],closest:()=>null,
+    setPointerCapture(id){this.captures.push(id)},getBoundingClientRect:()=>({left:0,top:0})
+  });
+  const drawing=element();drawing.style.width='760px';
+  const elements={
+    '#campusMapViewport':viewport,'#campusMapDrawing':drawing,
+    '#campusZoomIn':element(),'#campusZoomOut':element(),'#campusInteractMap':element()
+  };
+  const context=vm.createContext({$:selector=>elements[selector],setTimeout,Math,Map});
+  vm.runInContext('let campusZoom=1,campusSuppressClick=false;'+campusMapHandlers+';installCampusMapInteraction($("#campusMapViewport"));',context);
+  const pointer=(type,id,x,y,pointerType='touch')=>{
+    const event=new Event(type,{cancelable:true});
+    Object.assign(event,{pointerId:id,pointerType,button:0,clientX:x,clientY:y});
+    viewport.dispatchEvent(event);
+  };
+  return {viewport,drawing,elements,context,pointer,run:expression=>vm.runInContext(expression,context)};
+}
+
 test('view changes only auto-scroll to the top outside compact layouts',()=>{
   const mobile=navigationFixture(true);
   mobile.run('setView("saved");goBack()');
@@ -63,6 +89,58 @@ test('view changes only auto-scroll to the top outside compact layouts',()=>{
   const desktop=navigationFixture(false);
   desktop.run('setView("saved");goBack()');
   assert.deepEqual(desktop.scrolls.map(({top,behavior})=>({top,behavior})),[{top:0,behavior:'smooth'},{top:0,behavior:'smooth'}]);
+});
+
+test('view matches opens suggested spots on compact layouts and the map otherwise',()=>{
+  const building=source.slice(source.indexOf('function openBuilding'),source.indexOf('// 7. Floor tools'));
+  const matching=source.slice(source.indexOf('function showMatches'),source.indexOf('// 9. Event routing'));
+  for(const compact of [true,false]){
+    const calls=[],elements={'#campusComingSoon':{hidden:false},'.building-layout':{dataset:{}}};
+    const context=vm.createContext({
+      BUILDINGS:{HBLL:{groundFloor:'G',floors:[{id:'G'}]}},
+      state:{buildings:new Set(['HBLL'])},
+      window:{matchMedia:()=>({matches:compact})},
+      $:selector=>elements[selector],
+      $$:()=>[],
+      resizeDigitalMap(){},
+      setView:view=>calls.push(view),
+      buildingPlans:()=>true,
+      allSpots:()=>[{building:'HBLL',floor:'G'}],
+      matches:()=>true,
+      rank:()=>0
+    });
+    vm.runInContext(helpers+building+matching,context);
+    vm.runInContext('showMatches()',context);
+    assert.equal(elements['.building-layout'].dataset.panel,compact?'spots':'map');
+    assert.deepEqual(calls,['building']);
+  }
+});
+
+test('homepage map touch gestures pan and pinch only while interaction is enabled',async()=>{
+  const f=campusFixture();
+  f.pointer('pointerdown',1,200,200);f.pointer('pointermove',1,100,150);f.pointer('pointerup',1,100,150);
+  assert.equal(f.viewport.scrollLeft,0);assert.equal(f.viewport.scrollTop,0);
+
+  f.pointer('pointerdown',2,200,200,'mouse');f.pointer('pointermove',2,100,150,'mouse');f.pointer('pointerup',2,100,150,'mouse');
+  assert.equal(f.viewport.scrollLeft,100);assert.equal(f.viewport.scrollTop,50,'Desktop mouse panning remains available');
+  f.viewport.scrollLeft=0;f.viewport.scrollTop=0;
+
+  f.run('setCampusMapInteraction(true)');
+  assert.equal(f.elements['#campusInteractMap'].attributes['aria-pressed'],'true');
+  f.pointer('pointerdown',3,200,200);f.pointer('pointermove',3,100,150);f.pointer('pointerup',3,100,150);
+  assert.equal(f.viewport.scrollLeft,100);assert.equal(f.viewport.scrollTop,50);
+  await new Promise(resolve=>setTimeout(resolve,5));
+
+  const mapPointX=(f.viewport.scrollLeft+150)/parseFloat(f.drawing.style.width);
+  const mapPointY=(f.viewport.scrollTop+150)/(parseFloat(f.drawing.style.width)*845/1238);
+  f.pointer('pointerdown',4,90,150);f.pointer('pointerdown',5,210,150);
+  f.pointer('pointermove',5,330,150);
+  assert.equal(vm.runInContext('campusZoom',f.context),2);
+  assert.ok(Math.abs((f.viewport.scrollLeft+210)/parseFloat(f.drawing.style.width)-mapPointX)<1e-10);
+  assert.ok(Math.abs((f.viewport.scrollTop+150)/(parseFloat(f.drawing.style.width)*845/1238)-mapPointY)<1e-10);
+  f.pointer('pointercancel',4,90,150);f.pointer('pointercancel',5,330,150);
+  await new Promise(resolve=>setTimeout(resolve,5));
+  assert.equal(vm.runInContext('campusSuppressClick',f.context),false);
 });
 
 test('inactive maps leave swipes to the page and an active tap keeps its original target',()=>{

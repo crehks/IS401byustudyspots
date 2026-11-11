@@ -28,7 +28,7 @@
         <nav class="topnav" aria-label="Main navigation">
           <button id="navExplore" class="nav-link is-active" type="button">Explore</button>
           <button id="navSaved" class="nav-link" type="button">My Nooks</button>
-          <button id="navReport" class="nav-link nav-report" type="button" aria-label="Report a Spot"><span>Report<br class="mobile-nav-break"> a Spot</span></button>
+          <button id="navReport" class="nav-link nav-report" type="button" aria-label="Report a Spot"><span>Report a Spot</span></button>
           <button id="navAuth" class="nav-link nav-auth nav-login" type="button">Log in</button>
         </nav>
       </header>
@@ -111,8 +111,11 @@
           <div class="campus-area">
             <div class="campus-map campus-map-digital" role="group" aria-label="Digitized BYU campus map. HBLL, WSC, and JKB have floor plans; other buildings are coming soon.">
               <div class="campus-map-heading"><div class="campus-map-controls" aria-label="Campus map zoom"><button id="campusZoomIn" type="button" aria-label="Zoom campus map in">+</button><button id="campusZoomOut" type="button" aria-label="Zoom campus map out">−</button><button id="campusZoomFit" type="button">Reset</button></div><span class="campus-north" aria-label="North is up">N ↑</span></div>
-              <div class="campus-map-viewport" id="campusMapViewport">
-                <div id="campusMapDrawing" class="campus-map-drawing"></div>
+              <div class="campus-map-stage">
+                <div class="campus-map-viewport" id="campusMapViewport">
+                  <div id="campusMapDrawing" class="campus-map-drawing"></div>
+                </div>
+                <button id="campusInteractMap" class="secondary-button" type="button" aria-pressed="false" aria-controls="campusMapViewport">Interact with map</button>
               </div>
               <div id="campusComingSoon" class="campus-coming-soon" role="status" hidden></div>
             </div>
@@ -144,12 +147,9 @@
             </div>
             <div id="planAssetBar" class="campus-map-heading floor-map-heading" hidden><span>Digitized floor plan</span><div class="campus-map-controls" role="group" aria-label="Floor plan zoom"><button id="zoomIn" type="button" aria-label="Zoom campus map in">+</button><button id="zoomOut" type="button" aria-label="Zoom campus map out">−</button><output id="zoomValue">100%</output><button id="zoomFit" type="button">Reset</button></div></div>
             <div id="selectedRoomPanel" class="selected-room-panel" role="status" hidden></div>
-            <div class="map-interaction-bar">
-              <p id="mapTouchHint">Swipe to scroll the page. Activate the map to pan and pinch to zoom.</p>
-              <button id="interactMap" class="secondary-button" type="button" aria-pressed="false" aria-controls="floorPlan" aria-describedby="mapTouchHint">Interact with map</button>
-            </div>
             <!-- floorPlan receives the selected SVG and provisional study pins. -->
             <div class="floor-plan-shell">
+              <button id="interactMap" class="secondary-button" type="button" aria-pressed="false" aria-controls="floorPlan">Interact with map</button>
               <div id="floorPlan" class="floor-plan" aria-label="Illustrative floor view of study spots"></div>
               <div id="mapInstructions" class="map-instructions" hidden><span id="mapNorth" class="map-north" aria-label="North direction">N ↑</span></div>
               <div id="floorLegend" class="floor-legend"><span><i class="legend-dot open"></i>Open study area</span><span><i class="legend-dot reserved"></i>Reservation required</span><span><i class="legend-dot amenity"></i>Amenity</span></div>
