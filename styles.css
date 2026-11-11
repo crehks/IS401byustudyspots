@@ -704,6 +704,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   .floor-spot:hover,.floor-spot.is-selected,.plan-pin:hover,.plan-pin.is-selected,.plan-pin:hover>span,.plan-pin.is-selected>span{background:var(--terracotta);border-color:var(--terracotta);color:var(--accent-ink);box-shadow:0 0 0 3px #d48b7440}
   .floor-spot.reserved{border-color:var(--terracotta);color:var(--espresso)}
   .spot-row.is-selected{border-color:var(--sage);background:#454035}
+  .spot-row{background:var(--surface);border-color:var(--line);color:var(--espresso)}
   .trend span{background:#5a5143}
   .trend span.medium,.trend span.high{background:var(--sage)}
   .campus-map-digital{--campus-ground:#27241f;--campus-lawn:#465342;--campus-road:#454035;--campus-road-edge:#5a5143;--campus-path:#373229;--campus-roof:#5a5143;--campus-wall:#756d5e;--campus-label:#f1eadc;--campus-available:#aabd9e;--campus-available-wall:#65775c;--campus-context:#c5bbab}
