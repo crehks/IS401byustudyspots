@@ -299,11 +299,7 @@ function renderCampusMap(){
   <g class="campus-plaza"><path d="M627 94L657 94L656 159L625 159Z M672 171L739 170L739 197L672 197Z M786 173L851 171L852 190L786 191Z M842 540L889 540L889 568L842 568Z"/></g>
   <g class="campus-context-labels"><text x="88" y="138">RB Fields</text><text x="80" y="513">South Field</text><text x="71" y="688">Tennis courts</text><text x="721" y="187">Brigham Square</text><text x="899" y="183">Lee Lane</text><text x="970" y="241">Cougar Quad</text><text x="750" y="388">Cougar Crossing</text><text x="660" y="540">South Campus Quad</text><text x="344" y="603">Maeser Quad</text><text x="470" y="494">Kimball Quad</text><text x="188" y="355">Richards Quad</text><text x="501" y="753">Arboretum &amp; Botany Pond</text><text x="122" y="721">South Campus Trail</text></g>
   <g class="campus-road-labels"><text x="366" y="367" transform="rotate(-78 366 367)">Campus Drive</text><text x="820" y="366">1060 N</text><text x="455" y="672" transform="rotate(-12 455 672)">Campus Drive</text><text x="1069" y="610">900 N</text><text x="450" y="799">800 N</text><text x="1089" y="738">820 North Street</text><text x="980" y="467" transform="rotate(90 980 467)">750 East</text></g>${trees}</g>${blocks}</svg>`;
-  const viewport=$('#campusMapViewport');let drag=null;
-  viewport.onpointerdown=event=>{if(event.pointerType==='touch'||event.button!==0||event.target.closest('button'))return;drag={x:event.clientX,y:event.clientY,left:viewport.scrollLeft,top:viewport.scrollTop,moved:false};};
-  viewport.onpointermove=event=>{if(!drag)return;const dx=event.clientX-drag.x,dy=event.clientY-drag.y;if(Math.hypot(dx,dy)>6){drag.moved=true;viewport.classList.add('is-panning');viewport.setPointerCapture?.(event.pointerId);viewport.scrollLeft=drag.left-dx;viewport.scrollTop=drag.top-dy;}};
-  const endDrag=()=>{if(drag?.moved){campusSuppressClick=true;setTimeout(()=>campusSuppressClick=false,0);}drag=null;viewport.classList.remove('is-panning');};
-  viewport.onpointerup=endDrag;viewport.onpointercancel=endDrag;
+  installCampusMapInteraction($('#campusMapViewport'));
 }
 // Preserve the map center on zoom; Reset centers the supported buildings.
 function changeCampusZoom(delta,initial=false){
@@ -329,6 +325,58 @@ function changeCampusZoom(delta,initial=false){
   drawing.style.width=`${width}px`;
   $('#campusZoomOut').disabled=campusZoom===1;$('#campusZoomIn').disabled=campusZoom===3;
   viewport.scrollLeft=centerX*width-viewport.clientWidth/2;viewport.scrollTop=centerY*height-viewport.clientHeight/2;
+}
+function setCampusMapInteraction(active){
+  const viewport=$('#campusMapViewport'),button=$('#campusInteractMap');
+  viewport.classList.toggle('is-interactive',active);
+  button.setAttribute('aria-pressed',active);
+  button.textContent=active?'Done moving map':'Interact with map';
+}
+function installCampusMapInteraction(viewport){
+  const drawing=$('#campusMapDrawing'),pointers=new Map();
+  let start=null,pinch=null,dragging=false,gestureMoved=false;
+  const beginPan=point=>{start={x:point.x,y:point.y,left:viewport.scrollLeft,top:viewport.scrollTop};dragging=false};
+  const beginPinch=()=>{
+    const [a,b]=[...pointers.values()],rect=viewport.getBoundingClientRect();
+    const width=parseFloat(drawing.style.width)||Math.max(viewport.clientWidth,760)*campusZoom;
+    const midpointX=(a.x+b.x)/2,midpointY=(a.y+b.y)/2;
+    pinch={distance:Math.max(1,Math.hypot(a.x-b.x,a.y-b.y)),zoom:campusZoom,x:(viewport.scrollLeft+midpointX-rect.left)/width,y:(viewport.scrollTop+midpointY-rect.top)/(width*845/1238)};
+    for(const id of pointers.keys())viewport.setPointerCapture?.(id);
+    gestureMoved=true;dragging=true;
+  };
+  viewport.addEventListener('pointerdown',event=>{
+    const active=viewport.classList.contains('is-interactive');
+    if((event.pointerType==='touch'&&!active)||event.button!==0||event.target.closest('button'))return;
+    const point={x:event.clientX,y:event.clientY};pointers.set(event.pointerId,point);
+    if(pointers.size===1){beginPan(point);pinch=null;gestureMoved=false}
+    else if(pointers.size===2)beginPinch();
+  });
+  viewport.addEventListener('pointermove',event=>{
+    if(!pointers.has(event.pointerId))return;
+    pointers.set(event.pointerId,{x:event.clientX,y:event.clientY});
+    if(pointers.size>=2&&pinch){
+      const [a,b]=[...pointers.values()],midpointX=(a.x+b.x)/2,midpointY=(a.y+b.y)/2;
+      const zoom=Math.max(1,Math.min(3,pinch.zoom*Math.hypot(a.x-b.x,a.y-b.y)/pinch.distance));
+      changeCampusZoom(zoom-campusZoom);
+      const rect=viewport.getBoundingClientRect(),width=parseFloat(drawing.style.width),height=width*845/1238;
+      viewport.scrollLeft=pinch.x*width-(midpointX-rect.left);viewport.scrollTop=pinch.y*height-(midpointY-rect.top);
+      return;
+    }
+    if(!start)return;
+    const dx=event.clientX-start.x,dy=event.clientY-start.y;
+    if(!dragging&&Math.hypot(dx,dy)>6){dragging=true;gestureMoved=true;viewport.setPointerCapture?.(event.pointerId);viewport.classList.add('is-panning')}
+    if(dragging){viewport.scrollLeft=start.left-dx;viewport.scrollTop=start.top-dy}
+  });
+  const finish=event=>{
+    if(!pointers.delete(event.pointerId))return;
+    pinch=null;
+    if(pointers.size>=2){beginPinch();return}
+    if(pointers.size){beginPan([...pointers.values()][0]);return}
+    if(gestureMoved){campusSuppressClick=true;setTimeout(()=>campusSuppressClick=false,0)}
+    gestureMoved=false;
+    start=null;dragging=false;viewport.classList.remove('is-panning');
+  };
+  viewport.addEventListener('pointerup',finish);viewport.addEventListener('pointercancel',finish);viewport.addEventListener('lostpointercapture',finish);
 }
 // Open supported maps or explain why another building is not yet available.
 function showCampusBuilding(id){
@@ -462,7 +510,6 @@ function setMapInteraction(active){
   $('#floorPlan').classList.toggle('is-interactive',active);
   $('#interactMap').setAttribute('aria-pressed',active);
   $('#interactMap').textContent=active?'Done moving map':'Interact with map';
-  $('#mapTouchHint').textContent=active?'Drag to pan. Pinch to zoom. Choose Done to scroll the page.':'Swipe to scroll the page. Activate the map to pan and pinch to zoom.';
 }
 function renderFilters(){
   if(!$('#buildingFilters').children.length)$('#buildingFilters').innerHTML=Object.entries(BUILDINGS).map(([id,b])=>`<label class="building-check"><input type="checkbox" value="${id}"><span>${id}</span><small>${esc(b.short)}</small></label>`).join('');
@@ -573,7 +620,7 @@ function focusView(){const heading=$(`#${state.view}View h1`);heading?.setAttrib
 function setView(view){const changed=state.view!==view;if(changed)viewHistory.push(state.view);state.view=view;render();if(changed)focusView();if(!isCompactLayout())window.scrollTo({top:0,behavior:'smooth'})}
 function goBack(){state.view=viewHistory.pop()||'explore';render();focusView();if(!isCompactLayout())window.scrollTo({top:0,behavior:'smooth'})}
 // Changing drawings clears the previous room and spot selection.
-function openBuilding(id,floor){if(!BUILDINGS[id])return;$('#campusComingSoon').hidden=true;state.building=id;state.floor=floor||BUILDINGS[id].groundFloor||BUILDINGS[id].floors[0].id;state.zoom=1;state.selectedSpot=null;state.selectedRoom=null;setBuildingPanel('map');setView('building');if(!buildingPlans(id))loadPlans(id).then(()=>{if(state.view==='building'&&state.building===id)renderBuilding()}).catch(()=>showToast('Floor map could not load. Check your connection and try again.'))}
+function openBuilding(id,floor,panel='map'){if(!BUILDINGS[id])return;$('#campusComingSoon').hidden=true;state.building=id;state.floor=floor||BUILDINGS[id].groundFloor||BUILDINGS[id].floors[0].id;state.zoom=1;state.selectedSpot=null;state.selectedRoom=null;setBuildingPanel(panel);setView('building');if(!buildingPlans(id))loadPlans(id).then(()=>{if(state.view==='building'&&state.building===id)renderBuilding()}).catch(()=>showToast('Floor map could not load. Check your connection and try again.'))}
 // 7. Floor tools. Fit preserves aspect ratio; zoom multiplies the fitted size.
 function resizeDigitalMap(){
   const plan=buildingPlans()?.[state.floor];if(!plan||!$('#planStage'))return;
@@ -741,7 +788,7 @@ function openCreateList(){if(activeLists().length>=3){showToast('You can have Fa
 function resetFilters(){state.buildings=new Set(['HBLL','WSC','JKB']);state.study='any';state.groupSize=4;state.noise='any';state.private=false;state.outlets=false;data.savedFilters=null;save();render()}
 function updateFilter(){renderFilters();renderRecommendations();if(state.view==='building')renderBuilding()}
 // Open the best matching floor while retaining the current filters.
-function showMatches(){const match=allSpots().filter(matches).sort((a,b)=>rank(a)-rank(b));if(!state.buildings.size){showToast('Choose at least one building.');return}if(!match.length){openBuilding([...state.buildings][0]);showToast('No spaces match. Try changing a filter.');return}openBuilding(match[0].building,match[0].floor)}
+function showMatches(){const match=allSpots().filter(matches).sort((a,b)=>rank(a)-rank(b));if(!state.buildings.size){showToast('Choose at least one building.');return}if(!match.length){openBuilding([...state.buildings][0]);showToast('No spaces match. Try changing a filter.');return}openBuilding(match[0].building,match[0].floor,isCompactLayout()?'spots':'map')}
 
 // 9. Event routing. data-* attributes connect rebuilt controls to shared handlers.
 document.addEventListener('click',event=>{
@@ -749,6 +796,7 @@ document.addEventListener('click',event=>{
   if(t.id==='exploreMapButton'){const reducedMotion=window.matchMedia('(prefers-reduced-motion: reduce)').matches;$('#exploreMapSection').scrollIntoView({behavior:reducedMotion?'auto':'smooth'});return}
   if(t.dataset.buildingPanel){setBuildingPanel(t.dataset.buildingPanel);return}
   if(t.id==='interactMap'){setMapInteraction(t.getAttribute('aria-pressed')!=='true');return}
+  if(t.id==='campusInteractMap'){setCampusMapInteraction(t.getAttribute('aria-pressed')!=='true');return}
   if(t.dataset.campusBuilding){showCampusBuilding(t.dataset.campusBuilding);return}
   if(t.hasAttribute('data-dismiss-campus')){$('#campusComingSoon').hidden=true;$$('.campus-building').forEach(el=>el.classList.remove('is-selected'));return}
   if(t.id==='campusZoomIn'||t.id==='campusZoomOut'||t.id==='campusZoomFit'){if(t.id==='campusZoomFit')changeCampusZoom(0,true);else changeCampusZoom(t.id==='campusZoomIn'?.25:-.25);return}
@@ -835,6 +883,7 @@ renderCampusMap();addCampusMapGuide();
 window.addEventListener('resize',()=>changeCampusZoom(0));
 window.matchMedia?.(COMPACT_LAYOUT_QUERY).addEventListener('change',()=>{
   setMapInteraction(!isCompactLayout());
+  if(!isCompactLayout())setCampusMapInteraction(false);
   if(isCompactLayout()){
     if($('#floorMain').contains(document.activeElement)&&$('.building-layout').dataset.panel==='spots')$('[data-building-panel="spots"]').focus();
     if($('#studyResults').contains(document.activeElement)&&$('.building-layout').dataset.panel==='map')$('[data-building-panel="map"]').focus();

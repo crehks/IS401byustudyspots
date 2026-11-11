@@ -31,11 +31,13 @@ test('campus map has 45 traced buildings but only the three supported building r
   }
   const html=await readFile(new URL('index.html',root),'utf8');
   assert.match(html,/id="campusMapDrawing"/);assert.match(html,/id="campusComingSoon"/);
+  assert.match(html,/<div class="campus-map-stage">\s*<div class="campus-map-viewport" id="campusMapViewport">[\s\S]*?<\/div>\s*<button id="campusInteractMap" class="secondary-button"[^>]*>Interact with map<\/button>/);
   assert.doesNotMatch(html,/Feedback|Schematic BYU campus map/);
 });
 test('campus map starts focused on supported buildings and keeps zoom controls usable',async()=>{
   const app=await readFile(new URL('app.js',root),'utf8');
   const html=await readFile(new URL('index.html',root),'utf8');
+  const css=await readFile(new URL('styles.css',root),'utf8');
   const prefix=app.slice(0,app.indexOf('const STORAGE_KEY'));
   const zoom=app.slice(app.indexOf('// Preserve the map center on zoom; Reset centers the supported buildings.'),app.indexOf('// Open supported maps or explain why another building is not yet available.'));
   for(const [clientWidth,clientHeight,expectedZoom] of [[800,500,1.75],[320,400,null]]){
@@ -65,6 +67,7 @@ test('campus map starts focused on supported buildings and keeps zoom controls u
     assert.equal(viewport.scrollTop,initialScrollTop);
   }
   assert.match(html,/<div class="campus-map-controls" aria-label="Campus map zoom"><button id="campusZoomIn"[^>]*>\+<\/button><button id="campusZoomOut"[^>]*>−<\/button><button id="campusZoomFit" type="button">Reset<\/button>/);
+  assert.match(css,/\.campus-map-stage>#campusInteractMap\{position:absolute;z-index:6;top:10px;right:10px;display:inline-flex;min-height:44px;max-width:145px;padding:10px;font-size:12px;white-space:normal\}/);
   assert.doesNotMatch(html,/Find your building|Three buildings ready to explore|campusZoomValue|Reset map/);
 });
 test('homepage presents a welcome screen and snaps to the full-height filter and map screen',async()=>{
@@ -114,7 +117,7 @@ test('homepage presents a welcome screen and snaps to the full-height filter and
   assert.match(html,/<div class="site-header">[\s\S]*id="databaseWarning"[\s\S]*id="databaseReceipt"/);
   assert.match(html,/<section class="explore-hero" aria-labelledby="exploreTitle">/);
   assert.ok(html.indexOf('<section class="recommendations"')<html.indexOf('<section id="exploreMapSection"'),'"Good places to start" should appear above the map');
-  assert.match(html,/<button id="navReport" class="nav-link nav-report" type="button" aria-label="Report a Spot"><span>Report<br class="mobile-nav-break"> a Spot<\/span><\/button>/);
+  assert.match(html,/<button id="navReport" class="nav-link nav-report" type="button" aria-label="Report a Spot"><span>Report a Spot<\/span><\/button>/);
   assert.match(html,/<button id="navAuth" class="nav-link nav-auth nav-login" type="button">Log in<\/button>/);
   assert.doesNotMatch(html,/<section id="exploreView"[\s\S]*?id="databaseWarning"/);
   assert.match(html,/<h1 id="exploreTitle">Find a <span class="hero-accent">Nook<\/span> that works for you\.<\/h1>/);
@@ -146,8 +149,9 @@ test('homepage presents a welcome screen and snaps to the full-height filter and
   assert.match(css,/\.filter-actions\{width:100%;justify-content:flex-start;gap:10px\}[\s\S]*?\.filter-actions>button\{flex:1;min-width:0\}/);
   assert.match(css,/\.topnav \.nav-link\.is-active\{background:var\(--terracotta\);border-color:var\(--terracotta\);color:#F7F4EB\}/);
   assert.match(css,/\.topnav #navSaved\{padding-right:16px;padding-left:16px\}/);
-  assert.match(css,/\.topnav \.nav-report\{padding-right:28px;padding-left:28px\}/);
-  assert.match(css,/@media\(max-width:560px\)\{[\s\S]*?\.topnav \.nav-report\{padding-right:14px;padding-left:14px;white-space:normal\}[\s\S]*?\.mobile-nav-break\{display:block\}/);
+  assert.match(css,/\.topnav \.nav-link,\.topnav \.nav-report\{display:flex;align-items:center;justify-content:center;flex:1 1 0;min-width:0;min-height:44px;margin:0;padding:10px 12px;border:1px solid var\(--line\);border-radius:10px;background:var\(--cream\);color:var\(--espresso\);font-size:14px\}/);
+  assert.match(css,/\.topnav \.nav-report\{padding-right:24px;padding-left:24px\}/);
+  assert.match(css,/@media\(max-width:560px\)\{[\s\S]*?\.topnav \.nav-link,\.topnav \.nav-report\{font-size:12px;padding:9px 7px\}[\s\S]*?\.topnav \.nav-login\{padding-right:10px;padding-left:10px\}[\s\S]*?\.topnav \.nav-report\{white-space:normal\}/);
   assert.match(css,/\.topnav \.nav-login\{background:transparent;border:2px solid #fff;color:#fff\}/);
   assert.match(html,/<p class="intro">Filter campus study spots by noise, group size, and outlets before you walk in the building\.<\/p>/);
   assert.match(html,/<button id="exploreMapButton" class="primary-button hero-map-cta" type="button">/);
@@ -276,11 +280,14 @@ test('building pages omit external map links, source links, and room search',asy
   assert.match(buildingView,/id="toggleRoomLabels"/);
   assert.match(buildingView,/id="planAssetBar" class="campus-map-heading floor-map-heading"/);
   assert.match(buildingView,/id="zoomIn"[^>]*>\+<\/button><button id="zoomOut"[^>]*>−<\/button>[\s\S]*?id="zoomFit"[^>]*>Reset/);
+  assert.doesNotMatch(buildingView,/Swipe to scroll the page\. Activate the map to pan and pinch to zoom\./);
+  assert.match(buildingView,/<div class="floor-plan-shell">\s*<button id="interactMap" class="secondary-button"[^>]*>Interact with map<\/button>/);
+  assert.match(css,/\.floor-plan-shell>#interactMap\{position:absolute;z-index:5;top:24px;right:24px;display:inline-flex;min-height:44px;max-width:145px;padding:10px;font-size:12px;white-space:normal\}/);
   assert.match(css,/\.building-hours\{[^}]*color:var\(--muted\)/);
   assert.match(css,/\.building-hours\.is-open\{color:#526b50\}/);
   assert.match(css,/@media\(prefers-color-scheme:dark\)\{[\s\S]*?\.building-hours\.is-open\{color:var\(--sage\)\}/);
   assert.match(css,/\.campus-map-controls button\{background:var\(--blue-soft\);border:1px solid var\(--line\);color:var\(--ink\);border-radius:6px;min-width:30px;min-height:32px;font-weight:700\}/);
   assert.doesNotMatch(css,/\.plan-zoom button\{/);
   assert.match(app,/function selectRoom\(number\)/);
-  assert.match(css,/body:has\(#buildingView:not\(\[hidden\]\)\) \.footer-links a\[href="https:\/\/map\.byu\.edu\/"\]\{display:none\}/);
+  assert.doesNotMatch(css,/body:has\(#buildingView:not\(\[hidden\]\)\) \.footer-links a\[href="https:\/\/map\.byu\.edu\/"\]\{display:none\}/);
 });
