@@ -7,7 +7,7 @@ import vm from 'node:vm';
 const source=await readFile(new URL('../app.js',import.meta.url),'utf8');
 const helpers=source.slice(source.indexOf('const COMPACT_LAYOUT_QUERY'),source.indexOf('function renderFilters'));
 const navigation=source.slice(source.indexOf('// Announce view changes'),source.indexOf('// Changing drawings'));
-const maps=source.slice(source.indexOf('function resizeDigitalMap'),source.indexOf('// Search every drawing'));
+const maps=source.slice(source.indexOf('function resizeDigitalMap'),source.indexOf('// Select a room directly'));
 
 function navigationFixture(compact){
   const scrolls=[],heading={setAttribute(){},focus(){}};
