@@ -111,15 +111,17 @@ test('floors are locked: no delete or re-key through the API, adding still works
   await unlock(admin.access_token, CODE);
   const req = (path, method, body) => call(path, {method, token: admin.access_token, headers: {Prefer: 'return=representation'}, body});
   const floors = (await call('/rest/v1/Floors?order=floor_id.asc&limit=1', {token: admin.access_token})).json;
-  const removed = await req(`/rest/v1/Floors?floor_id=eq.${floors[0].floor_id}`, 'DELETE');
-  assert.equal(removed.status, 400);
-  assert.match(removed.json.message, /locked/i);
-  assert.equal((await req(`/rest/v1/Floors?floor_id=eq.${floors[0].floor_id}`, 'PATCH', {floor_number: 99})).status, 400);
-  assert.equal((await req(`/rest/v1/Floors?floor_id=eq.${floors[0].floor_id}`, 'PATCH', {building_id: 3})).status, 400);
+  const id = floors[0].floor_id;
+  // Lock 1: the API role has no UPDATE/DELETE privilege on Floors at all.
+  assert.equal((await req(`/rest/v1/Floors?floor_id=eq.${id}`, 'DELETE')).status, 403);
+  assert.equal((await req(`/rest/v1/Floors?floor_id=eq.${id}`, 'PATCH', {floor_number: 99})).status, 403);
+  // Lock 2: even a privileged path hits the trigger, until the owner sets the override inside a transaction.
+  await assert.rejects(() => backend.pg.query(`delete from public."Floors" where floor_id = ${id}`), /locked/i);
+  await assert.rejects(() => backend.pg.query(`update public."Floors" set floor_number = 99 where floor_id = ${id}`), /locked/i);
+  await backend.pg.exec(`begin; set local nook.allow_floor_change = 'on'; update public."Floors" set floor_number = floor_number where floor_id = ${id}; rollback;`);
   const added = await req('/rest/v1/Floors', 'POST', {building_id: 1, floor_number: 7});
   assert.equal(added.status, 201);
-  const still = await call(`/rest/v1/Floors?floor_id=eq.${floors[0].floor_id}`, {token: admin.access_token});
-  assert.equal(still.json.length, 1);
+  assert.equal((await call(`/rest/v1/Floors?floor_id=eq.${id}`, {token: admin.access_token})).json.length, 1);
 });
 
 test('resource pins need every detail and a valid position', async () => {

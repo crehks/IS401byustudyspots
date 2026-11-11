@@ -85,3 +85,46 @@ test('admin menu flag comes from the sign-in token role', () => {
   const none = new globalThis.StudyAuth({config: {}}, {getItem() { return null; }, setItem() {}, removeItem() {}});
   assert.equal(none.isAdmin, false);
 });
+
+const can = async (role, table, privilege) => (await backend.pg.query(`select has_table_privilege('${role}', 'public."${table}"', '${privilege}') as ok`)).rows[0].ok;
+
+test('admin CRUD privileges are granted, unneeded ones are revoked', async () => {
+  for (const table of ['Buildings', 'StudySpot', 'SpotType']) for (const privilege of ['SELECT', 'INSERT', 'UPDATE', 'DELETE']) assert.equal(await can('authenticated', table, privilege), true, `${table} ${privilege}`);
+  assert.equal(await can('authenticated', 'Floors', 'SELECT'), true);
+  assert.equal(await can('authenticated', 'Floors', 'INSERT'), true);
+  assert.equal(await can('authenticated', 'Floors', 'UPDATE'), false);
+  assert.equal(await can('authenticated', 'Floors', 'DELETE'), false);
+  for (const table of ['Resources', 'ResourceType', 'BuildingHours']) {
+    for (const privilege of ['INSERT', 'UPDATE', 'DELETE', 'TRUNCATE']) assert.equal(await can('anon', table, privilege), false, `anon ${table} ${privilege}`);
+    assert.equal(await can('authenticated', table, 'TRUNCATE'), false, `authenticated ${table} TRUNCATE`);
+    assert.equal(await can('authenticated', table, 'DELETE'), true, `authenticated ${table} DELETE`);
+  }
+  assert.equal(await can('anon', 'Buildings', 'SELECT'), true);
+  assert.equal(await can('anon', 'Buildings', 'INSERT'), false);
+});
+
+test('guests can report pinned spots; unpinned, deleted and reservable ones stay closed; sample ids still work', async () => {
+  const id = async name => (await backend.pg.query('select spot_id from public."StudySpot" where spot_location = $1', [name])).rows[0].spot_id;
+  const report = spot_id => call('/rest/v1/ReportSpotStatus', {method: 'POST', body: {spot_id, user_id: 1001, noise_level: 1, crowd_level: 2, notes: 'test'}});
+  assert.equal((await report(await id('Pinned spot'))).status, 204);
+  assert.equal((await report(await id('Unpinned spot'))).status, 403);
+  assert.equal((await report(await id('Deleted spot'))).status, 403);
+  // A pinned spot that is reservable cannot be crowd-reported, same rule as the sample spots.
+  await backend.pg.query(`insert into public."StudySpot" (spot_location, building_id, floor_id, spot_type_id, capacity, group_type, outlets, reservable, is_private, noise_level, plan_key, plan_x, plan_y) values ('Bookable room', 1, 1, 1, 6, 'group', true, true, true, 'low', 'L3', 50, 50)`);
+  assert.equal((await report(await id('Bookable room'))).status, 403);
+  // An old sample id (1001-1025) that is not reservable keeps working without any pin.
+  await backend.pg.query(`insert into public."StudySpot" (spot_id, spot_location, building_id, reservable) overriding system value values (1001, 'Sample spot', 1, false)`);
+  assert.equal((await report(1001)).status, 204);
+  // Outside the sample range and unpinned: still rejected.
+  assert.equal((await report(1500)).status, 403);
+});
+
+test('guests read reports only for sample ids and live pinned spots', async () => {
+  const rows = (await call('/rest/v1/latest_report_spot_status?select=spot_id')).json;
+  const pinned = (await backend.pg.query(`select spot_id from public."StudySpot" where spot_location = 'Pinned spot'`)).rows[0].spot_id;
+  assert.ok(rows.some(r => r.spot_id === pinned));
+  assert.ok(rows.some(r => r.spot_id === 1001));
+  await backend.pg.query(`update public."StudySpot" set deleted_at = now() where spot_id = ${pinned}`);
+  const after = (await call('/rest/v1/latest_report_spot_status?select=spot_id')).json;
+  assert.ok(!after.some(r => r.spot_id === pinned));
+});

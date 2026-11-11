@@ -118,10 +118,25 @@ create table public."ReportSpotStatus" (
   created_at timestamptz not null default now()
 );
 alter table public."ReportSpotStatus" enable row level security;
-create policy report_status_read on public."ReportSpotStatus" for select to anon, authenticated using (true);
+-- Mirror the live report policies exactly as they were before the dev portal (migration 006 replaces them).
+create policy studybyu_read_reports on public."ReportSpotStatus" for select to anon, authenticated
+  using ((spot_id >= 1001) and (spot_id <= 1025));
+create policy studybyu_submit_report_guest on public."ReportSpotStatus" for insert to anon
+  with check ((user_id = 1001) and ((spot_id >= 1001) and (spot_id <= 1025)) and (exists (
+    select 1 from public."StudySpot" s where ((s.spot_id = "ReportSpotStatus".spot_id) and (s.reservable = false)))));
+create policy studybyu_submit_report_user on public."ReportSpotStatus" for insert to authenticated
+  with check (((user_id = 1001) or (user_id in (select u.user_id from public."User" u where (u.auth_id = (select auth.uid() as uid)))))
+    and ((spot_id >= 1001) and (spot_id <= 1025)) and (exists (
+    select 1 from public."StudySpot" s where ((s.spot_id = "ReportSpotStatus".spot_id) and (s.reservable = false)))));
+
 create view public.latest_report_spot_status with (security_invoker = true) as
   select distinct on (spot_id) report_id, spot_id, user_id, noise_level, crowd_level, notes, created_at
   from public."ReportSpotStatus" order by spot_id, created_at desc, report_id desc;
 
 grant select, insert, update, delete on all tables in schema public to anon, authenticated;
+
+-- Mirror live privileges before the dev portal: spots and buildings are read-only for the API roles,
+-- floors and spot types are not exposed at all. Migration 006 grants what the admin portal needs.
+revoke insert, update, delete on public."Buildings", public."StudySpot" from anon, authenticated;
+revoke all on public."Floors", public."SpotType" from anon, authenticated;
 grant usage on all sequences in schema public to anon, authenticated;
