@@ -434,7 +434,7 @@ async function submitArrival(form){
   reportSubmissionPending=true;button.disabled=true;button.textContent=remote?'Saving to Supabase…':'Saving locally…';error.hidden=true;
   try{
     // Show remote success only after the adapter validates the returned row.
-    if(remote&&auth.signedIn){const report=await database.submitAiReport(id,input);closeModal(true);render();renderDatabaseStatus();renderDatabaseReceipt(report);showToast(report.status==='approved'?'Thanks! Your report is live.':report.status==='rejected'?'Your report was not accepted as a valid conditions report.':'Thanks! Your report is saved and will appear once it is checked.');}
+    if(remote&&auth.signedIn){const report=await database.submitAiReport(id,input);closeModal(true);render();renderDatabaseStatus();if(report.status!=='rejected')renderDatabaseReceipt(report);showToast(report.status==='approved'?'Thanks! Your report is live.':report.status==='rejected'?'Your report was not accepted as a valid conditions report.':'Thanks! Your report is saved and will appear once it is checked.');}
     else if(remote){const report=await database.submitReport(id,input);closeModal(true);render();renderDatabaseStatus();renderDatabaseReceipt(report);showToast('Thanks! Your report was submitted.');}
     else{const report={...input,time:Date.now(),source:'local'};(data.reports[id]??=[]).unshift(report);data.reports[id]=data.reports[id].slice(0,10);const saved=save();closeModal(true);render();if(saved)showToast('Local preview: report saved only on this device.');}
   }catch(problem){error.textContent=problem.message;error.hidden=false;database.error=problem.message;renderDatabaseStatus();}
