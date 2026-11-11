@@ -6,7 +6,7 @@
 // 1. Building catalogue. Floor IDs select drawings; level is the physical floor.
 // JKB's G key displays Floor 1 but must keep matching existing spot references.
 const BUILDINGS = {
-  HBLL: { name: 'Harold B. Lee Library', short: 'Library', description: '', floors: [
+  HBLL: { name: 'Harold B. Lee Library', short: 'Library', groundFloor: 'L3', description: 'Explore the library floor by floor, or find a room by number.', floors: [
     {id:'L3',label:'Floor 3 South / Entry',file:'hbll-3s',level:3,side:'South',defaultX:43,defaultY:52},
     {id:'L3N',label:'Floor 3 North',file:'hbll-3ns',level:3,side:'North',defaultX:64,defaultY:49},
     {id:'L2',label:'Floor 2 South',file:'hbll-2s',level:2,side:'South',defaultX:25,defaultY:73},
@@ -17,8 +17,8 @@ const BUILDINGS = {
     {id:'L5',label:'Floor 5',file:'hbll-5s',level:5,defaultX:67,defaultY:50},
     {id:'L6',label:'Floor 6',file:'hbll-6s',level:6,defaultX:74,defaultY:52},
     {id:'B',label:'Basement North',file:'hbll-bns',level:0,side:'North',defaultX:39,defaultY:66}
-  ] },
-  WSC: { name: 'Wilkinson Student Center', short: 'The Wilk', description: '', floors: [
+  ], map:'https://map.byu.edu/', floorsUrl:'https://lib.byu.edu/floormaps/' },
+  WSC: { name: 'Wilkinson Student Center', short: 'The Wilk', groundFloor: '2E', description: 'Explore the Wilk, room by room. Find a room or browse study ideas on each floor.', floors: [
     {id:'1E',label:'Floor 1 East',file:'wsc-1s',level:1,side:'East',defaultX:25,defaultY:43},
     {id:'1W',label:'Floor 1 West',file:'wsc-1ws',level:1,side:'West',defaultX:31,defaultY:48},
     {id:'2E',label:'Floor 2 East',file:'wsc-2s',level:2,side:'East',defaultX:21,defaultY:43},
@@ -28,8 +28,8 @@ const BUILDINGS = {
     {id:'4E',label:'Floor 4',file:'wsc-4s',level:4,side:'East',defaultX:69,defaultY:32},
     {id:'5E',label:'Floor 5',file:'wsc-5s',level:5,side:'East',defaultX:33,defaultY:43},
     {id:'6E',label:'Floor 6',file:'wsc-6s',level:6,side:'East',defaultX:34,defaultY:53}
-  ] },
-  JKB: { name: 'Jesse Knight Building', short: 'JKB', description: '', floors: [
+  ], map:'https://map.byu.edu/', floorsUrl:'https://wscmaps.byu.edu/map' },
+  JKB: { name: 'Jesse Knight Building', short: 'JKB', groundFloor: 'L2', description: '', floors: [
     {id:'G',label:'Floor 1',file:'jkb-1s',level:1,defaultX:43,defaultY:22},
     {id:'L2',label:'Floor 2',file:'jkb-2s',level:2,defaultX:50,defaultY:24},
     {id:'L3',label:'Floor 3',file:'jkb-3s',level:3,defaultX:48,defaultY:20},
@@ -339,6 +339,16 @@ function showCampusBuilding(id){
   $('#campusComingSoon').innerHTML=`<div><strong>${esc(building.name||id)}${building.name?` (${esc(id)})`:''}</strong><p>This building is not yet supported. Study maps are coming soon.</p></div><button type="button" data-dismiss-campus aria-label="Dismiss building message">×</button>`;
   $('#campusComingSoon').hidden=false;
 }
+// Explain which buildings have study maps: a hint in the map's top bar and a color legend.
+function addCampusMapGuide(){
+  const north=$('.campus-north'),heading=$('.campus-map-heading');
+  if(heading&&!$('#campusMapHint')){
+    const hint='<p id="campusMapHint" class="campus-map-hint">Select a green building to explore its floors.</p>';
+    north?north.insertAdjacentHTML('beforebegin',hint):heading.insertAdjacentHTML('beforeend',hint);
+  }
+  const viewport=$('#campusMapViewport');
+  if(viewport&&!$('#campusMapLegend'))viewport.insertAdjacentHTML('afterend','<div id="campusMapLegend" class="campus-map-legend"><span><i class="campus-legend-swatch is-available" aria-hidden="true"></i>Study maps available</span><span><i class="campus-legend-swatch" aria-hidden="true"></i>Coming soon</span></div>');
+}
 // 4. Shared helpers. A failed local save returns false to prevent a success message.
 function save(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(data));return true}catch{showToast('Could not save on this device. Changes will last only until you refresh.');return false}}
 function allSpots(){return [...DEMO_SPOTS,...data.customSpots]}
@@ -482,10 +492,10 @@ function renderBuilding(){
   const sides=isWsc?['East','West']:['North','South'];
   const hasSides=isDigital&&building.floors.filter(f=>f.level===floor.level).length>1;
   const levels=[...new Set(building.floors.map(f=>f.level))].sort((a,b)=>a-b);
-  $('#floorTitle').textContent=floor.label;
-  $('#floorSubtitle').hidden=isDigital;
-  $('#floorSubtitle').textContent=loadingPlans?'Loading floor map…':`${building.short} · schematic study area guide`;
-  $('#floorTabs').innerHTML=loadingPlans?'':isDigital?levels.map(level=>`<button class="floor-tab ${floor.level===level?'is-selected':''}" data-${state.building.toLowerCase()}-level="${level}" type="button" aria-label="${level===0?'Basement':`Floor ${level}`}">${level===0?'B':level}</button>`).join(''):building.floors.map(f=>`<button class="floor-tab ${f.id===state.floor?'is-selected':''}" data-floor="${f.id}" type="button">${esc(f.label)}</button>`).join('');
+    const groundLevel=building.floors.find(f=>f.id===building.groundFloor)?.level;
+  $('#floorTitle').innerHTML=`${esc(floor.label)}${floor.level===groundLevel?' <span class="ground-floor-badge">Ground floor</span>':''}`;
+  $('#floorSubtitle').textContent=isDigital?'Choose a room on the map, or search for its number.':loadingPlans?'Loading floor map…':`${building.short} · schematic study area guide`;
+  $('#floorTabs').innerHTML=loadingPlans?'':isDigital?levels.map(level=>`<button class="floor-tab ${floor.level===level?'is-selected':''} ${level===groundLevel?'is-ground':''}" data-${state.building.toLowerCase()}-level="${level}" type="button" aria-label="${level===0?'Basement':`Floor ${level}`}${level===groundLevel?', ground floor':''}" title="${level===groundLevel?'Ground floor':''}">${level===0?'B':level}</button>`).join(''):building.floors.map(f=>`<button class="floor-tab ${f.id===state.floor?'is-selected':''}" data-floor="${f.id}" type="button">${esc(f.label)}</button>`).join('');
   $('#floorSideTabs').hidden=!hasSides;
   $('#floorSideTabs').innerHTML=hasSides?sides.map(side=>`<button class="floor-tab ${floor.side===side?'is-selected':''}" data-${isHbll?'hbll':'wsc'}-side="${side}" type="button">${side}</button>`).join(''):'';
   $('#planAssetBar').hidden=!isDigital;
@@ -561,8 +571,8 @@ function render(){renderFilters();renderRecommendations();if(state.view==='build
 function focusView(){const heading=$(`#${state.view}View h1`);heading?.setAttribute('tabindex','-1');heading?.focus({preventScroll:true})}
 function setView(view){const changed=state.view!==view;if(changed)viewHistory.push(state.view);state.view=view;render();if(changed)focusView();if(!isCompactLayout())window.scrollTo({top:0,behavior:'smooth'})}
 function goBack(){state.view=viewHistory.pop()||'explore';render();focusView();if(!isCompactLayout())window.scrollTo({top:0,behavior:'smooth'})}
-// Changing drawings clears the previous room and spot selection.
-function openBuilding(id,floor){if(!BUILDINGS[id])return;$('#campusComingSoon').hidden=true;state.building=id;state.floor=floor||BUILDINGS[id].floors[0].id;state.zoom=1;state.selectedSpot=null;state.selectedRoom=null;setBuildingPanel('map');setView('building');if(!buildingPlans(id))loadPlans(id).then(()=>{if(state.view==='building'&&state.building===id)renderBuilding()}).catch(()=>showToast('Floor map could not load. Check your connection and try again.'))}
+// Changing drawings clears the previous room, spot selection, and search results.
+function openBuilding(id,floor){if(!BUILDINGS[id])return;$('#campusComingSoon').hidden=true;state.building=id;state.floor=floor||BUILDINGS[id].groundFloor||BUILDINGS[id].floors[0].id;state.zoom=1;state.selectedSpot=null;state.selectedRoom=null;$('#roomSearch').value='';$('#roomSearchResults').hidden=true;setBuildingPanel('map');setView('building');if(!buildingPlans(id))loadPlans(id).then(()=>{if(state.view==='building'&&state.building===id)renderBuilding()}).catch(()=>showToast('Floor map could not load. Check your connection and try again.'))}
 // 7. Floor tools. Fit preserves aspect ratio; zoom multiplies the fitted size.
 function resizeDigitalMap(){
   const plan=buildingPlans()?.[state.floor];if(!plan||!$('#planStage'))return;
@@ -821,7 +831,7 @@ document.addEventListener('submit',e=>{
 // 10. Startup. Render local UI first, then refresh after the connection check.
 const headerResizeObserver=new ResizeObserver(([entry])=>{document.documentElement.style.setProperty('--header-height',`${entry.target.offsetHeight}px`);if(campusZoomInitialized&&state.view==='explore')changeCampusZoom(0)});
 headerResizeObserver.observe($('.site-header'));
-renderCampusMap();
+renderCampusMap();addCampusMapGuide();
 window.addEventListener('resize',()=>changeCampusZoom(0));
 window.matchMedia?.(COMPACT_LAYOUT_QUERY).addEventListener('change',()=>{
   setMapInteraction(!isCompactLayout());
