@@ -74,7 +74,9 @@ test('homepage presents a welcome screen and snaps to the full-height filter and
   assert.doesNotMatch(app,/Conversational/);
   const buildingCatalogue=vm.runInNewContext(app.slice(0,app.indexOf('const STORAGE_KEY'))+'; ({BUILDINGS})').BUILDINGS;
   assert.equal(buildingCatalogue.HBLL.short,'Library');
+  assert.equal(buildingCatalogue.HBLL.description,'');
   assert.equal(buildingCatalogue.JKB.description,'');
+  assert.equal(buildingCatalogue.WSC.description,'');
   assert.doesNotMatch(html,/campus-map-key|campus-quick-links|map-footer|View the official map/);
   assert.doesNotMatch(html,/Choose any combination|id="saveFilters"|Save filters/);
   assert.match(html,/<div id="filterFields" class="filter-fields">[\s\S]*?<div class="filter-actions"><button id="clearFilters" class="secondary-button" type="button">Clear filters<\/button><button id="showMatches" class="primary-button" type="button">View matches<\/button><\/div>\s*<\/aside>/);
@@ -91,7 +93,7 @@ test('homepage presents a welcome screen and snaps to the full-height filter and
   assert.match(app,/Maximum group size \(2-6\)[\s\S]*?name="capacity" type="number" min="2" max="6"/);
   assert.doesNotMatch(html,/mobile-filter-bar|toggleFilters|mobileShowMatches|activeFilterCount/);
   assert.doesNotMatch(html,/matchCount|mobileMatchCount|View Matches/);
-  assert.match(html,/<footer class="site-footer"><span class="footer-copy"><span>© 2026 Nook\.<\/span><span>Less wandering, more studying\.<\/span><span>Sincerely, Nook\.<\/span><\/span><span class="footer-links"><a class="footer-button" href="https:\/\/map\.byu\.edu\/"[^>]*>BYU Campus Map<\/a><button class="footer-button" type="button">Rate Us<\/button><\/span><\/footer>/);
+  assert.match(html,/<footer class="site-footer"><span class="footer-copy"><span>© 2026 Nook\.<\/span><span>Less wandering, more studying\.<\/span><span>Sincerely, Nook\.<\/span><\/span><span class="footer-links"><a class="footer-button" href="https:\/\/map\.byu\.edu\/"[^>]*>BYU Campus Map<\/a><button id="rateUs" class="footer-button" type="button">Rate Us<\/button><\/span><\/footer>/);
   assert.doesNotMatch(html,/Floor plans/);
   assert.match(css,/\.explore-map-section \.campus-map-viewport\{height:auto;min-height:0;flex:1;aspect-ratio:auto\}/);
   assert.match(css,/\.explore-map-section \.filter-panel\{height:100%;display:flex;flex-direction:column;overflow:auto;scrollbar-width:none;padding-bottom:0\}/);
@@ -186,7 +188,7 @@ test('original ERD, all nine native maps and source PDFs remain bundled',async()
   assert.match(readme,/!\[[^\]]+\]\(docs\/erd\.png\)/);
 });
 
-test('all ten HBLL drawings are native, searchable maps with correct floor sides',async()=>{
+test('all ten HBLL drawings are native room maps with correct floor sides',async()=>{
   const context={window:{}};
   vm.runInNewContext(await readFile(new URL('hbll-plans.js',root),'utf8'),context);
   const plans=context.window.HBLL_PLANS;
@@ -224,7 +226,7 @@ test('all ten HBLL drawings are native, searchable maps with correct floor sides
   assert.match(css,/\.floor-plan\.native-plan/);
 });
 
-test('all four JKB drawings are native searchable maps with legacy spot IDs preserved',async()=>{
+test('all four JKB drawings are native room maps with legacy spot IDs preserved',async()=>{
   const context={window:{}};
   vm.runInNewContext(await readFile(new URL('jkb-plans.js',root),'utf8'),context);
   const plans=context.window.JKB_PLANS;
@@ -256,4 +258,29 @@ test('all four JKB drawings are native searchable maps with legacy spot IDs pres
   const html=await readFile(new URL('index.html',root),'utf8');
   assert.ok(!html.includes('jkb-plans.js'),'plan bundles load lazily');
   assert.ok((await readFile(new URL('app.js',root),'utf8')).includes('jkb-plans.js'));
+});
+
+test('building pages omit external map links, source links, and room search',async()=>{
+  const html=await readFile(new URL('index.html',root),'utf8');
+  const buildingView=html.slice(html.indexOf('<section id="buildingView"'),html.indexOf('<!-- SAVED VIEW'));
+  const app=await readFile(new URL('app.js',root),'utf8');
+  const css=await readFile(new URL('styles.css',root),'utf8');
+  assert.doesNotMatch(buildingView,/officialFloorLink|buildingMapLink|sourcePdfLink|roomSearch|room-search|https:\/\/(?:map\.byu\.edu|pf\.byu\.edu)/);
+  assert.doesNotMatch(buildingView,/<p class="kicker">Explore by floor<\/p>|>Building<select/);
+  assert.match(buildingView,/<select id="buildingSelect" aria-label="Choose building"><\/select>/);
+  assert.doesNotMatch(app,/Choose a room on the map|Study spot locations are approximate/);
+  assert.doesNotMatch(app,/Explore the library floor by floor, or browse study ideas by area|Drag to move · Select a room to locate it/);
+  assert.doesNotMatch(buildingView,/Drag to move · Select a room to locate it/);
+  assert.match(app,/#floorSubtitle'\)\.hidden=isDigital/);
+  assert.match(app,/#floorDisclaimer'\)\.hidden=isDigital/);
+  assert.match(buildingView,/id="toggleRoomLabels"/);
+  assert.match(buildingView,/id="planAssetBar" class="campus-map-heading floor-map-heading"/);
+  assert.match(buildingView,/id="zoomIn"[^>]*>\+<\/button><button id="zoomOut"[^>]*>−<\/button>[\s\S]*?id="zoomFit"[^>]*>Reset/);
+  assert.match(css,/\.building-hours\{[^}]*color:var\(--muted\)/);
+  assert.match(css,/\.building-hours\.is-open\{color:#526b50\}/);
+  assert.match(css,/@media\(prefers-color-scheme:dark\)\{[\s\S]*?\.building-hours\.is-open\{color:var\(--sage\)\}/);
+  assert.match(css,/\.campus-map-controls button\{background:var\(--blue-soft\);border:1px solid var\(--line\);color:var\(--ink\);border-radius:6px;min-width:30px;min-height:32px;font-weight:700\}/);
+  assert.doesNotMatch(css,/\.plan-zoom button\{/);
+  assert.match(app,/function selectRoom\(number\)/);
+  assert.match(css,/body:has\(#buildingView:not\(\[hidden\]\)\) \.footer-links a\[href="https:\/\/map\.byu\.edu\/"\]\{display:none\}/);
 });
