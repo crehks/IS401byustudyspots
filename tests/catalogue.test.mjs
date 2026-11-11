@@ -192,7 +192,7 @@ test('original ERD, all nine native maps and source PDFs remain bundled',async()
   assert.match(readme,/!\[[^\]]+\]\(docs\/erd\.png\)/);
 });
 
-test('all ten HBLL drawings are native room maps with correct floor sides',async()=>{
+test('all eight public HBLL drawings are native room maps with correct floor sides',async()=>{
   const context={window:{}};
   vm.runInNewContext(await readFile(new URL('hbll-plans.js',root),'utf8'),context);
   const plans=context.window.HBLL_PLANS;
@@ -200,7 +200,7 @@ test('all ten HBLL drawings are native room maps with correct floor sides',async
   assert.deepEqual(Object.keys(plans).sort(),expected.sort());
   const app=await readFile(new URL('app.js',root),'utf8');
   const catalogue=vm.runInNewContext(app.slice(0,app.indexOf('const STORAGE_KEY'))+'; ({BUILDINGS,DEMO_SPOTS})');
-  assert.equal(catalogue.BUILDINGS.HBLL.floors.length,10);
+  assert.equal(catalogue.BUILDINGS.HBLL.floors.length,8);
   let count=0;
   for(const floor of catalogue.BUILDINGS.HBLL.floors){
     const plan=plans[floor.id];assert.ok(plan,`Missing HBLL ${floor.id}`);
@@ -219,7 +219,7 @@ test('all ten HBLL drawings are native room maps with correct floor sides',async
     assert.equal(pdf.subarray(0,5).toString(),'%PDF-');
     count+=plan.rooms.length;
   }
-  assert.equal(count,909);
+  assert.equal(count,806);
   assert.ok(plans.B.rooms.some(room=>room.number==='79A'));
   assert.ok(plans.L4.rooms.some(room=>room.number==='4732'));
   assert.equal(catalogue.DEMO_SPOTS.filter(spot=>spot.building==='HBLL').length,7,'Keep the original database catalogue');

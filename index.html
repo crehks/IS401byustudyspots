@@ -143,8 +143,9 @@
             <div class="floor-toolbar"><div><h2 id="floorTitle">Entry level</h2><p id="floorSubtitle">Select a spot on the floor view.</p></div><div class="floor-control-stack"><div id="floorTabs" class="floor-tabs" role="group" aria-label="Choose floor"></div><div id="floorSideTabs" class="floor-tabs side-tabs" role="group" aria-label="Choose side" hidden></div></div></div>
             <!-- Room labels can be toggled separately from spot selection. -->
             <div id="roomTools" class="room-tools" hidden>
-              <button id="toggleRoomLabels" class="map-label-toggle" type="button" aria-pressed="true">Room numbers</button>
+              <div class="map-mode-tabs"><button id="toggleRoomLabels" class="map-label-toggle" type="button" aria-pressed="true">Room numbers</button><button id="toggleResources" class="map-label-toggle" type="button" aria-pressed="false" aria-controls="resourceFilters" hidden>Resources</button></div>
             </div>
+            <div id="resourceFilters" class="resource-filters" hidden aria-label="Filter map by resource"></div>
             <div id="planAssetBar" class="campus-map-heading floor-map-heading" hidden><span>Digitized floor plan</span><div class="campus-map-controls" role="group" aria-label="Floor plan zoom"><button id="zoomIn" type="button" aria-label="Zoom campus map in">+</button><button id="zoomOut" type="button" aria-label="Zoom campus map out">−</button><output id="zoomValue">100%</output><button id="zoomFit" type="button">Reset</button></div></div>
             <div id="selectedRoomPanel" class="selected-room-panel" role="status" hidden></div>
             <!-- floorPlan receives the selected SVG and provisional study pins. -->

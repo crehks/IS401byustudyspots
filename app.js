@@ -15,8 +15,6 @@ const BUILDINGS = {
     {id:'L1N',label:'Floor 1 North',file:'hbll-1ns',level:1,side:'North',defaultX:31,defaultY:74},
     {id:'L4',label:'Floor 4',file:'hbll-4s',level:4,defaultX:26,defaultY:68},
     {id:'L5',label:'Floor 5',file:'hbll-5s',level:5,defaultX:67,defaultY:50},
-    {id:'L6',label:'Floor 6',file:'hbll-6s',level:6,defaultX:74,defaultY:52},
-    {id:'B',label:'Basement North',file:'hbll-bns',level:0,side:'North',defaultX:39,defaultY:66}
   ], map:'https://map.byu.edu/', floorsUrl:'https://lib.byu.edu/floormaps/' },
   WSC: { name: 'Wilkinson Student Center', short: 'The Wilk', groundFloor: '2E', description: '', floors: [
     {id:'1E',label:'Floor 1 East',file:'wsc-1s',level:1,side:'East',defaultX:25,defaultY:43},
@@ -204,7 +202,7 @@ async function loadReservationLinks(){
 
 let reportSubmissionPending=false,newSpotPending=false;
 // Temporary screen choices. Save filters copies a preset into device data.
-const state={view:'explore',building:'HBLL',floor:'L3',zoom:1,selectedSpot:null,selectedRoom:null,roomLabels:true,selectedList:'favorites',study:'any',noise:'any',private:false,outlets:false,groupSize:4,buildings:new Set(['HBLL','WSC','JKB'])};
+const state={view:'explore',building:'HBLL',floor:'L3',zoom:1,selectedSpot:null,selectedRoom:null,roomLabels:true,resourcesVisible:false,selectedResource:null,selectedList:'favorites',study:'any',noise:'any',private:false,outlets:false,groupSize:4,buildings:new Set(['HBLL','WSC','JKB'])};
 // Pin positions use the original PDF page; rendering subtracts the crop offset.
 const WILK_STUDY_POINTS={
   'wsc-tables':[255,253],'wsc-lounge':[698,350],
@@ -220,6 +218,108 @@ const HBLL_STUDY_POINTS={
   'hbll-think':[604,422],'hbll-reading':[312,645],'hbll-single':[685,562],
   'hbll-upper':[349,536]
 };
+// HBLL resources listed by the library's Places and Help Desks pages.
+// Coordinates follow the matching floor drawing and mark the service area, not an exact counter.
+const HBLL_RESOURCES={
+  L1N:[
+    ['Social Sciences & Education',380,407],['Special Collections',341,405],['Government Document Reference',397,407],['Auditorium',711,653],['Auditorium Gallery',676,653]
+  ],
+  L1:[
+    ['Accounting Lab',406,285],['Atrium Gallery',566,285],['Business & Economics',395,320],['Juvenile Literature Collection',245,387],['Special Collections',485,404]
+  ],
+  L2N:[
+    ['American Heritage Lab',499,260],['Honors Theses',585,409],['Human Resources',767,630],['Library Administrative Offices',767,630],['Library Instruction & Information Literacy',742,297],['Library Information Technology',781,528],['North Gallery',300,389],['Religion & Family History',549,185]
+  ],
+  L2:[
+    ['Geospatial Services & Training',672,656],['Popular Reading',218,248],['Science & Engineering',587,324],['South Gallery',408,403],['Periodicals',214,708]
+  ],
+  L3N:[
+    ['Library Security',607,268],['Library Information Technology',514,235],['Library Delivery Services',602,332]
+  ],
+  L3:[
+    ['Center for Teaching and Learning',758,138],['Circulation / Course Reserve',251,386],['Copyright Licensing / Intellectual Property Services',540,506],['General Help Desk (Patron Services)',251,386],['Learning Commons',548,287],['Library Cafe',215,74],['Research & Writing Center',273,593],['Teaching and Learning Lab',637,624]
+  ],
+  L4:[
+    ['Asian Collection',211,52],['Audio Cassette Players',550,440],['Audio Transfer Equipment',573,440],['Digital Audio Recorders',550,435],['Equipment Checkout Desk',797,159],['Equipment Room',797,159],['Experiential Studio',574,159],['HD Viewing Room',753,88],['International Harp Archives',570,435],['Locked Case',570,435],['Makerspace / The Workshop',797,238],['Music & Dance',414,446],['Music & Dance Media Lab',550,440],['Music Recordings Archive',550,435],['Music Special Collections',570,435],['Primrose International Viola Archive',570,435],['Software Training Classes',748,267],['Software Training Lab',748,267],['Video Production Studio',797,198]
+  ],
+  L5:[
+    ['Accessibility Department',691,87],['Ancient Studies Collection',285,61],['Gallery on Five',525,440],['Humanities Help Desk',165,679],['Icelandic Collection',235,345],['Middle East Collection',132,340],['Welsh Collection',284,539]
+  ]
+};
+const resourceLetters=index=>{let label='';for(index++;index;index=Math.floor((index-1)/26))label=String.fromCharCode(65+(index-1)%26)+label;return label};
+const HBLL_RESOURCE_ROOMS={
+  'Auditorium':'1060 / 1080','Circulation / Course Reserve':'3446','General Help Desk (Patron Services)':'3446',
+  'Research & Writing Center':'3322','Library Security':'3032','Library Instruction & Information Literacy':'2227',
+  'HD Viewing Room':'4824','Software Training Lab':'4826','Makerspace / The Workshop':'4840',
+  'Accessibility Department':'5800','Library Cafe':'3400','Learning Commons':'3600','Teaching and Learning Lab':'3700S',
+  'Center for Teaching and Learning':'3800','Copyright Licensing / Intellectual Property Services':'3760','Gallery on Five':'5500','Humanities Help Desk':'5300'
+};
+const HBLL_SERVICE_ROOM_RESOURCES={
+  L3N:{'3032':'Library Security'},
+  L3:{'3400':'Library Cafe','3600':'Learning Commons','3700S':'Teaching and Learning Lab','3800':'Center for Teaching and Learning','3760':'Copyright Licensing / Intellectual Property Services'},
+  L5:{'5300':'Humanities Help Desk','5400':'Ancient Studies Collection','5500':'Gallery on Five','5800':'Accessibility Department'}
+};
+const HBLL_RESOURCE_DESCRIPTIONS={
+  'Social Sciences & Education':'Subject help and collections for social science and education research.',
+  'Special Collections':'Rare books, manuscripts, archives, and other primary sources for research.',
+  'Government Document Reference':'Help finding and using government publications and data.',
+  'Accounting Lab':'Accounting course support. The library currently offers this help virtually rather than in person.',
+  'Atrium Gallery':'Rotating art exhibits just outside the Reynolds Auditorium.',
+  'Auditorium':'A lecture and event venue for academic functions.','Auditorium Gallery':'Exhibits at the entrance to the Reynolds Auditorium.',
+  'Business & Economics':'Subject help and collections for business and economics research.',
+  'Juvenile Literature Collection':'Children’s and young adult literature for readers, teachers, and researchers.',
+  'American Heritage Lab':'A space for American Heritage course study and review.',
+  'Honors Theses':'Access and assistance for BYU honors theses and undergraduate research.',
+  'Human Resources':'Library employee services and administrative support.',
+  'Library Administrative Offices':'Library administration and departmental offices.',
+  'Library Instruction & Information Literacy':'Instruction rooms used for library research and information-literacy classes.',
+  'Library Information Technology':'Library technology services and support.',
+  'North Gallery':'Gallery space for library exhibits on the north side of Level 2.',
+  'Religion & Family History':'Subject help, collections, and family-history research tools.',
+  'Science & Engineering':'Subject help and collections for science and engineering research.',
+  'Periodicals':'Newspapers, magazines, journals, and the periodicals reading area.',
+  'Geospatial Services & Training':'GIS help with mapping, spatial data, cartography, and GPS.',
+  'Popular Reading':'A browsing collection of popular and leisure reading.',
+  'South Gallery':'Gallery space for library exhibits on the south side of Level 2.',
+  'Library Security':'Library safety and security assistance.',
+  'Library Delivery Services':'Pickup and delivery help for library materials requested by patrons.',
+  'Center for Teaching and Learning':'Teaching and learning support, technology, and collaborative learning services.',
+  'Circulation / Course Reserve':'Check out library materials and access course reserve items.',
+  'Copyright Licensing / Intellectual Property Services':'Guidance on copyright, licensing, and intellectual property questions.',
+  'General Help Desk (Patron Services)':'Ask library questions, get research help, and check out books, media, and equipment.',
+  'Learning Commons':'Collaborative study, computers, printing, research help, and equipment checkout; includes The Hub and Snack Zone.',
+  'Library Cafe':'Food and drink service in the library.',
+  'Research & Writing Center':'One-to-one help with writing, research, and citations.',
+  'Teaching and Learning Lab':'A hands-on space for teaching practice and technology-enhanced learning.',
+  'Asian Collection':'Books and research materials supporting Asian studies.',
+  'Audio Cassette Players':'Equipment for listening to audio cassette materials.',
+  'Audio Transfer Equipment':'Equipment for converting audio recordings to digital formats.',
+  'Digital Audio Recorders':'Portable recorders for capturing digital audio.',
+  'Equipment Checkout Desk':'Check out cameras, audio/video gear, and other library equipment.',
+  'Equipment Room':'Library equipment and media resources available through the Level 4 service area.',
+  'Experiential Studio':'Collaborative teaching space with breakout rooms and presentation technology.',
+  'HD Viewing Room':'A reservable theater-style room with a large screen and surround sound.',
+  'International Harp Archives':'Harp scores, manuscripts, recordings, and archival materials.',
+  'Locked Case':'A secured collection area; ask the Music & Dance desk for access.',
+  'Makerspace / The Workshop':'Prototyping and digital-imaging tools, including 3D printers, scanners, and fabrication equipment.',
+  'Music & Dance':'Music and dance collections, media, research help, and listening resources.',
+  'Music & Dance Media Lab':'Media workstations and technology for music and dance materials.',
+  'Music Recordings Archive':'Recorded music and archival audio materials.',
+  'Music Special Collections':'Specialized music collections and archival materials.',
+  'Primrose International Viola Archive':'A major collection of viola-related scores, manuscripts, and research materials.',
+  'Software Training Classes':'Free classes on creative, web, and digital-media software.',
+  'Software Training Lab':'Computers and software support for multimedia and digital projects.',
+  'Video Production Studio':'A production space with lighting, cameras, and backgrounds for video projects.',
+  'Accessibility Department':'Library assistance and services supporting patrons with disabilities.',
+  'Ancient Studies Collection':'Texts and research materials about the ancient Near East, Greece, and Rome.',
+  'Gallery on Five':'Rotating art exhibits across from the Humanities Help Desk.',
+  'Humanities Help Desk':'Subject research help for humanities topics.',
+  'Icelandic Collection':'Books and research materials related to Iceland and Icelandic studies.',
+  'Middle East Collection':'Books and research materials related to Middle Eastern studies.',
+  'Welsh Collection':'Books and research materials related to Wales and Welsh studies.'
+};
+function resourceDescription(name){return HBLL_RESOURCE_DESCRIPTIONS[name]||`Library services and information for ${name}.`}
+function resourceTooltip(name){const room=HBLL_RESOURCE_ROOMS[name];return `${name}${room?` · Room ${room}`:''}. ${resourceDescription(name)}`}
 const JKB_STUDY_POINTS={'jkb-tables':[520,177],'jkb-nook':[828,520],'jkb-group':[610,188]};
 function buildingPlans(building=state.building){return {WSC:window.WSC_PLANS,HBLL:window.HBLL_PLANS,JKB:window.JKB_PLANS}[building]||null}
 // Floor-plan bundles are several MB each, so each loads only when its building is first opened.
@@ -519,10 +619,15 @@ function renderFilters(){
   $('#groupSizeWrap').hidden=state.study!=='group';$('#groupSize').value=state.groupSize;$('#groupSizeValue').textContent=`${state.groupSize} people`;
   $('#privateFilter').checked=state.private;$('#outletFilter').checked=state.outlets;
 }
+function recommendationDescription(spot){
+  const atmosphere={low:'Quiet',medium:'Social',high:'Lively'}[currentNoise(spot)]||'Noise level not reported';
+  const study=spot.type==='group'?`group study for up to ${spot.capacity}`:spot.private?'private individual study':'individual study';
+  return `${atmosphere} ${study}, ${spot.outlets?'with outlets nearby':'outlets not listed'}.${spot.reserved?' Reservation required.':''}`;
+}
 // Render the three best matches, or a way to clear restrictive filters.
 function renderRecommendations(){
   const spots=allSpots().filter(matches).sort((a,b)=>rank(a)-rank(b)).slice(0,3);
-  $('#recommendationsList').innerHTML=spots.length?spots.map(s=>`<button type="button" class="recommendation-card" data-spot="${esc(s.id)}"><div class="rec-top"><span class="rec-building">${s.building} / ${esc(floorLabel(s))}</span><span class="availability ${badgeClass(s)}">${labelBusy(s)}</span></div><h3>${esc(s.name)}</h3><span class="rec-meta">${s.type==='group'?`Group up to ${s.capacity}`:'Individual'} · ${s.outlets?'Outlets':'No outlet listed'} ${s.reserved?'· Reservation required':''}</span></button>`).join(''):`<div class="empty-state"><h3>No spaces match these filters</h3><p>Try another building, a different noise level, or fewer requirements.</p><button class="secondary-button" type="button" data-action="clear">Clear filters</button></div>`;
+  $('#recommendationsList').innerHTML=spots.length?spots.map(s=>`<button type="button" class="recommendation-card" data-spot="${esc(s.id)}"><div class="rec-top"><span class="rec-building">${s.building} / ${esc(floorLabel(s))}</span><span class="availability ${badgeClass(s)}">${labelBusy(s)}</span></div><h3>${esc(recommendationDescription(s))}</h3><span class="rec-meta">Select to see the location</span></button>`).join(''):`<div class="empty-state"><h3>No spaces match these filters</h3><p>Try another building, a different noise level, or fewer requirements.</p><button class="secondary-button" type="button" data-action="clear">Clear filters</button></div>`;
 }
 // Select the drawing and controls for the active building, floor, and side.
 function renderBuilding(){
@@ -549,16 +654,31 @@ function renderBuilding(){
   $('#planAssetBar').hidden=!isDigital;
   $('#roomTools').hidden=!isDigital;$('#mapInstructions').hidden=!isDigital;
   $('#floorDisclaimer').hidden=isDigital;
+  $('#toggleResources').hidden=!(isDigital&&isHbll);
+  if(!isHbll){state.resourcesVisible=false;state.selectedResource=null}
+  $('#toggleResources').setAttribute('aria-pressed',String(state.resourcesVisible&&isHbll));
+  $('#resourceFilters').hidden=!(isDigital&&isHbll&&state.resourcesVisible);
   if(!isDigital)$('#selectedRoomPanel').hidden=true;
-  if(isDigital){$('#zoomValue').textContent=`${Math.round(state.zoom*100)}%`;$('#zoomOut').disabled=state.zoom<=1;$('#zoomIn').disabled=state.zoom>=8;$('#toggleRoomLabels').setAttribute('aria-pressed',state.roomLabels)}
+  if(isDigital){$('#zoomValue').textContent=`${Math.round(state.zoom*100)}%`;$('#zoomOut').disabled=state.zoom<=1;$('#zoomIn').disabled=state.zoom>=8;$('#toggleRoomLabels').setAttribute('aria-pressed',String(state.roomLabels&&!state.resourcesVisible))}
   const spots=allSpots().filter(s=>s.building===state.building&&s.floor===state.floor);
   const plan=$('#floorPlan');
   if(isDigital){
     plan.className=`floor-plan native-plan ${state.building.toLowerCase()}-plan ${state.roomLabels?'':'hide-room-labels'}`;plan.setAttribute('aria-label',`Interactive ${building.short} ${floor.label} map`);
     // Translate page-based pin positions into percentages of the cropped SVG.
     const studyPoints={WSC:WILK_STUDY_POINTS,HBLL:HBLL_STUDY_POINTS,JKB:JKB_STUDY_POINTS}[state.building]||{};
-    plan.innerHTML=`<div class="plan-scroll"><div class="plan-canvas"><div id="planStage" class="plan-stage">${digital.svg}${spots.map((s,i)=>{const point=studyPoints[s.id]||[s.x/100*1224,s.y/100*792];const x=(point[0]-digital.crop[0])/digital.width*100;const y=(point[1]-digital.crop[1])/digital.height*100;return `<button type="button" class="plan-pin ${s.reserved?'reserved':''} ${matches(s)?'':'is-dimmed'} ${state.selectedSpot===s.id?'is-selected':''}" style="left:${x}%;top:${y}%" data-spot="${esc(s.id)}" title="${esc(s.name)}" aria-label="Sample spot ${i+1}: ${esc(s.name)}">S${i+1}</button>`}).join('')}</div></div></div>`;
-    $('#floorLegend').innerHTML='<span><i class="map-key-swatch room"></i>Rooms</span><span><i class="map-key-swatch open"></i>Open areas</span><span><i class="map-key-swatch service"></i>Service cores</span><span><i class="legend-dot open"></i>Study spots</span>';
+    const resources=isHbll?(HBLL_RESOURCES[state.floor]||[]):[];
+    const selectedResource=state.selectedResource?.startsWith(`${state.floor}:`)?Number(state.selectedResource.split(':')[1]):null;
+    $('#resourceFilters').innerHTML=resources.length?`<span class="resource-filter-label">${esc(floor.label)} resources</span>${resources.map(([name],i)=>{const room=HBLL_RESOURCE_ROOMS[name];return `<button type="button" class="resource-filter ${selectedResource===i?'is-selected':''}" data-resource="${state.floor}:${i}" aria-pressed="${selectedResource===i}" title="${esc(resourceTooltip(name))}"><span class="resource-letter">${resourceLetters(i)}</span><span class="resource-filter-name">${esc(name)}${room?`<small>Room ${esc(room)}</small>`:''}</span></button>`}).join('')}`:'<span class="resource-filter-empty">No public resource locations are listed for this floor.</span>';
+    const markerOffsets=[[0,0],[36,0],[-36,0],[0,36],[0,-36],[28,28],[-28,28],[28,-28],[-28,-28],[48,0],[0,48],[-48,0],[0,-48]];
+    const resourcePoints=[];
+    resources.forEach(([,px,py])=>{const point=markerOffsets.map(([dx,dy])=>[px+dx,py+dy]).find(([x,y])=>resourcePoints.every(([prevX,prevY])=>Math.hypot(x-prevX,y-prevY)>=34))||[px,py];resourcePoints.push(point)});
+    plan.innerHTML=`<div class="plan-scroll"><div class="plan-canvas"><div id="planStage" class="plan-stage">${digital.svg}${spots.map((s,i)=>{const point=studyPoints[s.id]||[s.x/100*1224,s.y/100*792];const x=(point[0]-digital.crop[0])/digital.width*100;const y=(point[1]-digital.crop[1])/digital.height*100;return `<button type="button" class="plan-pin ${s.reserved?'reserved':''} ${matches(s)?'':'is-dimmed'} ${state.selectedSpot===s.id?'is-selected':''}" style="left:${x}%;top:${y}%" data-spot="${esc(s.id)}" title="${esc(s.name)}" aria-label="Sample spot ${i+1}: ${esc(s.name)}">S${i+1}</button>`}).join('')}${state.resourcesVisible&&isHbll?resources.map(([name],i)=>{const [px,py]=resourcePoints[i],x=(px-digital.crop[0])/digital.width*100,y=(py-digital.crop[1])/digital.height*100,selected=selectedResource===i;return `<button type="button" class="resource-pin ${selected?'is-selected':''} ${selectedResource!==null&&!selected?'is-dimmed':''}" style="left:${x}%;top:${y}%" data-resource="${state.floor}:${i}" title="${resourceLetters(i)} · ${esc(resourceTooltip(name))}" aria-label="Resource ${resourceLetters(i)}: ${esc(resourceTooltip(name))}">${resourceLetters(i)}</button>`}).join(''):''}</div></div></div>`;
+    if(isHbll){
+      const serviceResources=HBLL_SERVICE_ROOM_RESOURCES[state.floor]||{};
+      $$('#floorPlan .map-space-service[data-room]').forEach(area=>{const name=serviceResources[area.dataset.room],title=area.querySelector('title');if(name&&title)title.textContent=resourceTooltip(name)});
+    }
+    $('#floorLegend').innerHTML='<span><i class="map-key-swatch room"></i>Rooms</span><span><i class="map-key-swatch open"></i>Open areas</span><span><i class="map-key-swatch service"></i>Resources</span><span><i class="legend-dot open"></i>Study spots</span>';
+
     $('#mapNorth').innerHTML=`N <span style="display:inline-block;transform:rotate(${digital.north}deg)">↑</span>`;
     mapResizeObserver.disconnect();mapResizeObserver.observe(plan);
     setMapInteraction(!isCompactLayout());resizeDigitalMap();installMapPan();updateRoomHighlight();
@@ -687,7 +807,7 @@ function installMapPan(){
 function selectRoom(number){
   const floor=state.floor;
   const plan=buildingPlans()?.[floor],room=plan?.rooms.find(r=>r.number===number);if(!room)return;
-  state.selectedRoom={number,floor};state.roomLabels=true;$('#floorPlan').classList.remove('hide-room-labels');$('#toggleRoomLabels').setAttribute('aria-pressed','true');
+  state.selectedRoom={number,floor};state.roomLabels=true;state.resourcesVisible=false;state.selectedResource=null;$('#floorPlan').classList.remove('hide-room-labels');$('#floorPlan .resource-pin')?.remove();$('#resourceFilters').hidden=true;$('#toggleResources').setAttribute('aria-pressed','false');$('#toggleRoomLabels').setAttribute('aria-pressed','true');
   updateRoomHighlight();
 }
 // Keep the SVG highlight and selected-room panel in sync.
@@ -797,13 +917,19 @@ document.addEventListener('click',event=>{
   if(t.dataset.buildingPanel){setBuildingPanel(t.dataset.buildingPanel);return}
   if(t.id==='interactMap'){setMapInteraction(t.getAttribute('aria-pressed')!=='true');return}
   if(t.id==='campusInteractMap'){setCampusMapInteraction(t.getAttribute('aria-pressed')!=='true');return}
+  if(t.id==='toggleRoomLabels'||t.id==='toggleResources'||t.dataset.resource){
+    const viewport=$('.plan-scroll'),scrollLeft=viewport?.scrollLeft||0,scrollTop=viewport?.scrollTop||0;
+    if(t.id==='toggleRoomLabels'){state.roomLabels=true;state.resourcesVisible=false;state.selectedResource=null}
+    else if(t.id==='toggleResources'){state.roomLabels=true;state.resourcesVisible=true}
+    else state.selectedResource=state.selectedResource===t.dataset.resource?null:t.dataset.resource;
+    renderBuilding();const nextViewport=$('.plan-scroll');if(nextViewport){nextViewport.scrollLeft=scrollLeft;nextViewport.scrollTop=scrollTop}return
+  }
   if(t.dataset.campusBuilding){showCampusBuilding(t.dataset.campusBuilding);return}
   if(t.hasAttribute('data-dismiss-campus')){$('#campusComingSoon').hidden=true;$$('.campus-building').forEach(el=>el.classList.remove('is-selected'));return}
   if(t.id==='campusZoomIn'||t.id==='campusZoomOut'||t.id==='campusZoomFit'){if(t.id==='campusZoomFit')changeCampusZoom(0,true);else changeCampusZoom(t.id==='campusZoomIn'?.25:-.25);return}
   // Room selection, map labels, and zoom controls.
   if(t.dataset.room){selectRoom(t.dataset.room);return}
   if(t.hasAttribute('data-clear-room')){state.selectedRoom=null;updateRoomHighlight();return}
-  if(t.id==='toggleRoomLabels'){state.roomLabels=!state.roomLabels;$('#floorPlan').classList.toggle('hide-room-labels',!state.roomLabels);t.setAttribute('aria-pressed',state.roomLabels);return}
   if(t.id==='zoomFit'){changeZoom(1-state.zoom);$('.plan-scroll').scrollLeft=0;$('.plan-scroll').scrollTop=0;return}
   if(t.matches('[data-modal-close]')){closeModal();return}
   // Main navigation, filter actions, and building selection.
