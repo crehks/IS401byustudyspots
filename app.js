@@ -339,6 +339,16 @@ function showCampusBuilding(id){
   $('#campusComingSoon').innerHTML=`<div><strong>${esc(building.name||id)}${building.name?` (${esc(id)})`:''}</strong><p>This building is not yet supported. Study maps are coming soon.</p></div><button type="button" data-dismiss-campus aria-label="Dismiss building message">×</button>`;
   $('#campusComingSoon').hidden=false;
 }
+// Explain which buildings have study maps: a hint in the map's top bar and a color legend.
+function addCampusMapGuide(){
+  const north=$('.campus-north'),heading=$('.campus-map-heading');
+  if(heading&&!$('#campusMapHint')){
+    const hint='<p id="campusMapHint" class="campus-map-hint">Select a green building to explore its floors.</p>';
+    north?north.insertAdjacentHTML('beforebegin',hint):heading.insertAdjacentHTML('beforeend',hint);
+  }
+  const viewport=$('#campusMapViewport');
+  if(viewport&&!$('#campusMapLegend'))viewport.insertAdjacentHTML('afterend','<div id="campusMapLegend" class="campus-map-legend"><span><i class="campus-legend-swatch is-available" aria-hidden="true"></i>Study maps available</span><span><i class="campus-legend-swatch" aria-hidden="true"></i>Coming soon</span></div>');
+}
 // 4. Shared helpers. A failed local save returns false to prevent a success message.
 function save(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(data));return true}catch{showToast('Could not save on this device. Changes will last only until you refresh.');return false}}
 function allSpots(){return [...DEMO_SPOTS,...data.customSpots]}
@@ -842,7 +852,7 @@ document.addEventListener('submit',e=>{
 // 10. Startup. Render local UI first, then refresh after the connection check.
 const headerResizeObserver=new ResizeObserver(([entry])=>{document.documentElement.style.setProperty('--header-height',`${entry.target.offsetHeight}px`);if(campusZoomInitialized&&state.view==='explore')changeCampusZoom(0)});
 headerResizeObserver.observe($('.site-header'));
-renderCampusMap();
+renderCampusMap();addCampusMapGuide();
 window.addEventListener('resize',()=>changeCampusZoom(0));
 window.matchMedia?.(COMPACT_LAYOUT_QUERY).addEventListener('change',()=>{
   setMapInteraction(!isCompactLayout());
