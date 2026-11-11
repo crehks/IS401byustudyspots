@@ -88,6 +88,51 @@ test('coordinates outside the Provo box are rejected by the database', async () 
   assert.equal(good.status, 204);
 });
 
+test('floor-plan pin columns are validated by the database', async () => {
+  const admin = await login(...ADMIN);
+  await unlock(admin.access_token, CODE);
+  const spot = extra => call('/rest/v1/StudySpot', {method: 'POST', token: admin.access_token, body: {spot_location: 'Plan test', building_id: 1, ...extra}});
+  assert.equal((await spot({plan_key: 'L1', plan_x: 120, plan_y: 5})).status, 409);
+  assert.equal((await spot({plan_key: 'L1', plan_x: 10})).status, 409);
+  assert.equal((await spot({plan_x: 10, plan_y: 10})).status, 409);
+  assert.equal((await spot({plan_key: 'L1', plan_x: 10.5, plan_y: 42.25})).status, 409);
+  const full = {floor_id: 1, spot_type_id: 1, capacity: 4, group_type: 'group', outlets: true, reservable: false, is_private: false, noise_level: 'low'};
+  assert.equal((await spot({...full, noise_level: null, plan_key: 'L1', plan_x: 10.5, plan_y: 42.25})).status, 409);
+  assert.equal((await spot({...full, noise_level: 'loud', plan_key: 'L1', plan_x: 10.5, plan_y: 42.25})).status, 409);
+  for (const missing of ['capacity', 'group_type', 'spot_type_id', 'outlets', 'reservable', 'is_private']) assert.equal((await spot({...full, [missing]: null, plan_key: 'L1', plan_x: 10.5, plan_y: 42.25})).status, 409, `missing ${missing}`);
+  assert.equal((await spot({...full, plan_key: 'L1', plan_x: 10.5, plan_y: 42.25, capacity: 20})).status, 409);
+  assert.equal((await spot({...full, plan_key: 'L1', plan_x: 10.5, plan_y: 42.25})).status, 204);
+  const gone = await call('/rest/v1/StudySpot?spot_location=eq.Plan%20test&plan_key=eq.L1', {method: 'PATCH', token: admin.access_token, headers: {Prefer: 'return=representation'}, body: {deleted_at: new Date().toISOString()}});
+  assert.ok(gone.json[0].deleted_at);
+});
+
+test('floors are locked: no delete or re-key through the API, adding still works', async () => {
+  const admin = await login(...ADMIN);
+  await unlock(admin.access_token, CODE);
+  const req = (path, method, body) => call(path, {method, token: admin.access_token, headers: {Prefer: 'return=representation'}, body});
+  const floors = (await call('/rest/v1/Floors?order=floor_id.asc&limit=1', {token: admin.access_token})).json;
+  const removed = await req(`/rest/v1/Floors?floor_id=eq.${floors[0].floor_id}`, 'DELETE');
+  assert.equal(removed.status, 400);
+  assert.match(removed.json.message, /locked/i);
+  assert.equal((await req(`/rest/v1/Floors?floor_id=eq.${floors[0].floor_id}`, 'PATCH', {floor_number: 99})).status, 400);
+  assert.equal((await req(`/rest/v1/Floors?floor_id=eq.${floors[0].floor_id}`, 'PATCH', {building_id: 3})).status, 400);
+  const added = await req('/rest/v1/Floors', 'POST', {building_id: 1, floor_number: 7});
+  assert.equal(added.status, 201);
+  const still = await call(`/rest/v1/Floors?floor_id=eq.${floors[0].floor_id}`, {token: admin.access_token});
+  assert.equal(still.json.length, 1);
+});
+
+test('resource pins need every detail and a valid position', async () => {
+  const admin = await login(...ADMIN);
+  await unlock(admin.access_token, CODE);
+  const res = extra => call('/rest/v1/Resources', {method: 'POST', token: admin.access_token, body: {building_id: 1, floor_id: 1, ...extra}});
+  const full = {resource_type_id: 1, resource_info: 'Printer', resource_location: 'By the stairs'};
+  assert.equal((await res({...full, plan_key: 'L1', plan_x: 10})).status, 409);
+  assert.equal((await res({plan_key: 'L1', plan_x: 10, plan_y: 10, resource_info: 'Printer'})).status, 409);
+  assert.equal((await res({...full, plan_key: 'L1', plan_x: 10, plan_y: 140})).status, 409);
+  assert.equal((await res({...full, plan_key: 'L1', plan_x: 10, plan_y: 20})).status, 204);
+});
+
 test('admin-users function: 403 unless unlocked admin, with self and password guards', async () => {
   const member = await login(...MEMBER);
   assert.equal((await call('/functions/v1/admin-users', {method: 'POST', token: member.access_token, body: {action: 'list'}})).status, 403);

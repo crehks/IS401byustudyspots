@@ -22,29 +22,31 @@ const TABLES = [
     {key: 'closing_hrs', label: 'Closes', type: 'time'},
     {key: 'reservation_url', label: 'Reservation URL', type: 'url', list: false},
     ...COORDS]},
-  {table: 'Floors', label: 'Floors', pk: 'floor_id', title: r => `Floor ${r.floor_number ?? '?'}`, columns: [
+  {table: 'Floors', label: 'Floors', locked: true, pk: 'floor_id', title: r => `Floor ${r.floor_number ?? '?'}`, columns: [
     {key: 'building_id', label: 'Building', type: 'fk', ref: 'Buildings', required: true},
     {key: 'floor_number', label: 'Floor number', type: 'int', required: true}]},
-  {table: 'StudySpot', label: 'Study Spots', pk: 'spot_id', title: r => r.spot_location || `Spot ${r.spot_id}`, geo: true, columns: [
+  {table: 'StudySpot', label: 'Study Spots', pk: 'spot_id', title: r => r.spot_location || `Spot ${r.spot_id}`, geo: true, plan: true, soft: true, columns: [
     {key: 'spot_location', label: 'Spot / location', type: 'text', required: true},
     {key: 'building_id', label: 'Building', type: 'fk', ref: 'Buildings', required: true},
     {key: 'floor_id', label: 'Floor', type: 'fk', ref: 'Floors'},
-    {key: 'spot_type_id', label: 'Type', type: 'fk', ref: 'SpotType'},
-    {key: 'capacity', label: 'Capacity', type: 'int'},
-    {key: 'group_type', label: 'Group type', type: 'text', list: false},
+    {key: 'spot_type_id', label: 'Type', type: 'fk', ref: 'SpotType', required: true},
+    {key: 'capacity', label: 'Capacity', type: 'int', required: true, min: 1, max: 8},
+    {key: 'group_type', label: 'Solo or group', type: 'select', required: true, options: [{value: 'solo', label: 'Solo'}, {value: 'group', label: 'Group'}]},
     {key: 'outlets', label: 'Outlets', type: 'bool'},
     {key: 'reservable', label: 'Reservable', type: 'bool'},
+    {key: 'is_private', label: 'Private room', type: 'bool', list: false},
+    {key: 'noise_level', label: 'Typical noise', type: 'select', required: true, list: false, options: [{value: 'low', label: 'Low'}, {value: 'medium', label: 'Medium'}, {value: 'high', label: 'High'}]},
     ...COORDS]},
   {table: 'SpotType', label: 'Spot Types', pk: 'spot_type_id', title: r => r.type_name || `Type ${r.spot_type_id}`, columns: [
     {key: 'type_name', label: 'Name', type: 'text', required: true}]},
   {table: 'ResourceType', label: 'Resource Types', pk: 'resource_type_id', title: r => r.resource_name || `Type ${r.resource_type_id}`, columns: [
     {key: 'resource_name', label: 'Name', type: 'text', required: true}]},
-  {table: 'Resources', label: 'Resources', pk: 'resource_id', title: r => r.resource_info || `Resource ${r.resource_id}`, columns: [
+  {table: 'Resources', label: 'Resources', pk: 'resource_id', title: r => r.resource_info || `Resource ${r.resource_id}`, plan: true, soft: true, columns: [
     {key: 'resource_info', label: 'Description', type: 'text', required: true},
-    {key: 'resource_type_id', label: 'Type', type: 'fk', ref: 'ResourceType'},
-    {key: 'building_id', label: 'Building', type: 'fk', ref: 'Buildings'},
-    {key: 'floor_id', label: 'Floor', type: 'fk', ref: 'Floors'},
-    {key: 'resource_location', label: 'Where', type: 'text'}]},
+    {key: 'resource_type_id', label: 'Type', type: 'fk', ref: 'ResourceType', required: true},
+    {key: 'building_id', label: 'Building', type: 'fk', ref: 'Buildings', required: true},
+    {key: 'floor_id', label: 'Floor', type: 'fk', ref: 'Floors', required: true},
+    {key: 'resource_location', label: 'Where', type: 'text', required: true}]},
   {table: 'BuildingHours', label: 'Building Hours', pk: 'hours_id', title: r => `Hours ${r.hours_id}`, columns: [
     {key: 'building_id', label: 'Building', type: 'fk', ref: 'Buildings', required: true},
     {key: 'day_of_week', label: 'Day (0=Sun..6=Sat)', type: 'int', min: 0, max: 6},
@@ -70,10 +72,15 @@ const clearCookies = () => { for (const name of Object.values(COOKIES)) setCooki
 const state = {user: null, isAdmin: false, unlocked: false, notice: '', lookups: {}};
 let accessToken = '', refreshToken = '';
 
+// The main site keeps its sign-in in localStorage on this same origin. The dev page adopts it, so there is one login.
+const MAIN_SESSION_KEY = 'studybyu.auth.v1';
+const mainSession = () => { try { return JSON.parse(localStorage.getItem(MAIN_SESSION_KEY) || 'null'); } catch { return null; } };
 function storeSession(session) {
   accessToken = session.access_token; refreshToken = session.refresh_token;
   setCookie(COOKIES.access, accessToken, 3600);
   setCookie(COOKIES.refresh, refreshToken, 60 * 60 * 24 * 7);
+  // Keep the main site's copy current: refresh tokens rotate, so a stale copy there would stop working.
+  try { if (mainSession()) localStorage.setItem(MAIN_SESSION_KEY, JSON.stringify({access_token: accessToken, refresh_token: refreshToken, expires_at: Math.floor(Date.now() / 1000) + (session.expires_in || 3600)})); } catch {}
 }
 function dropSession() {
   accessToken = ''; refreshToken = '';
@@ -165,18 +172,27 @@ async function startSession(session) {
   state.user = session.user; state.isAdmin = session.user?.app_metadata?.role === 'admin';
   state.unlocked = state.isAdmin ? await checkUnlocked().catch(() => false) : false;
 }
+async function tryRestore(access, refreshValue) {
+  accessToken = access; refreshToken = refreshValue;
+  let result = await raw('/auth/v1/user');
+  if (!result.response.ok && !(await refresh())) throw new Error('expired');
+  if (!result.response.ok) result = await raw('/auth/v1/user');
+  if (!result.response.ok) throw new Error('expired');
+  setCookie(COOKIES.access, accessToken, 3600); setCookie(COOKIES.refresh, refreshToken, 60 * 60 * 24 * 7);
+  state.user = {id: result.json.id, email: result.json.email, app_metadata: result.json.app_metadata};
+  state.isAdmin = state.user.app_metadata?.role === 'admin';
+  state.unlocked = state.isAdmin ? await checkUnlocked().catch(() => false) : false;
+}
+// Prefer the main site's login (one sign-in for both pages), then this page's own cookie from a direct login.
 async function restore() {
-  accessToken = getCookie(COOKIES.access); refreshToken = getCookie(COOKIES.refresh);
-  if (!accessToken && !refreshToken) return;
-  try {
-    let result = await raw('/auth/v1/user');
-    if (!result.response.ok && !(await refresh())) throw new Error('expired');
-    if (!result.response.ok) result = await raw('/auth/v1/user');
-    if (!result.response.ok) throw new Error('expired');
-    state.user = {id: result.json.id, email: result.json.email, app_metadata: result.json.app_metadata};
-    state.isAdmin = state.user.app_metadata?.role === 'admin';
-    state.unlocked = state.isAdmin ? await checkUnlocked().catch(() => false) : false;
-  } catch { dropSession(); }
+  const main = mainSession(), own = {access: getCookie(COOKIES.access), refresh: getCookie(COOKIES.refresh)};
+  const candidates = [];
+  if (main?.access_token) candidates.push([main.access_token, main.refresh_token || '']);
+  if ((own.access || own.refresh) && own.access !== main?.access_token) candidates.push([own.access, own.refresh]);
+  for (const [access, refreshValue] of candidates) {
+    try { await tryRestore(access, refreshValue); return; } catch {}
+  }
+  dropSession();
 }
 function loginMessage(error) {
   if (error.code === 'invalid_credentials') return 'That email and password do not match an account.';
@@ -188,6 +204,7 @@ function loginMessage(error) {
 async function logout() {
   try { if (accessToken) await api('/rest/v1/rpc/lock_admin', {method: 'POST', body: {}}); } catch {}
   try { if (accessToken) await raw('/auth/v1/logout', {method: 'POST'}); } catch {}
+  try { localStorage.removeItem(MAIN_SESSION_KEY); } catch {}
   dropSession(); clearAdminViews(); state.notice = '';
   location.hash = '#/';
   render();
@@ -262,13 +279,14 @@ function cellText(col, value) {
 async function openTable(cfgTable) {
   const host = $('#view-table');
   show('table');
-  if (view.table !== cfgTable.table) Object.assign(view, {table: cfgTable.table, sort: null, dir: 'asc', page: 0, search: '', mode: 'table'});
+  if (view.table !== cfgTable.table) Object.assign(view, {table: cfgTable.table, sort: null, dir: 'asc', page: 0, search: '', mode: cfgTable.plan ? 'plan' : 'table'});
   host.innerHTML = `<p class="crumbs"><a href="#/">Dashboard</a> / <a href="#/records">Records</a> / ${esc(cfgTable.label)}</p>
     <h1>Maintain ${esc(cfgTable.label)}</h1>
+    ${cfgTable.locked ? '<p class="notice">Floors are locked. They can be added but never edited or deleted here, so existing spots and resources stay attached to the right floor.</p>' : ''}
     <div class="toolbar">
       <input type="search" id="search" placeholder="Search" aria-label="Search ${esc(cfgTable.label)}" value="${esc(view.search)}">
       <button class="btn btn-primary" id="add-btn" type="button">Add ${esc(cfgTable.label.replace(/s$/, ''))}</button>
-      ${cfgTable.geo ? `<span class="seg" role="group" aria-label="View"><button type="button" data-mode="table" aria-pressed="${view.mode === 'table'}">Table</button><button type="button" data-mode="map" aria-pressed="${view.mode === 'map'}">Map</button></span>` : ''}
+      ${cfgTable.geo || cfgTable.plan ? `<span class="seg" role="group" aria-label="View"><button type="button" data-mode="table" aria-pressed="${view.mode === 'table'}">Table</button>${cfgTable.geo ? `<button type="button" data-mode="map" aria-pressed="${view.mode === 'map'}">Map</button>` : ''}${cfgTable.plan ? `<button type="button" data-mode="plan" aria-pressed="${view.mode === 'plan'}">Floor plan</button>` : ''}</span>` : ''}
     </div>
     <p class="notice is-error" id="table-error" role="alert" hidden></p>
     <div id="table-body"><p class="loading">Loading...</p></div>`;
@@ -280,6 +298,7 @@ async function openTable(cfgTable) {
     if (cfgTable.table === 'Floors' || cfgTable.columns.some(c => c.ref === 'Floors')) await lookup('Buildings');
   } catch (error) { return tableError(error); }
   if (view.mode === 'map') return openMap(cfgTable);
+  if (view.mode === 'plan') return openPlan(cfgTable);
   destroyMap();
   loadRows(cfgTable);
 }
@@ -295,6 +314,7 @@ async function loadRows(cfgTable) {
   const cols = cfgTable.columns.filter(c => c.list !== false);
   const sort = view.sort || cfgTable.pk;
   const params = new URLSearchParams({select: '*', order: `${sort}.${view.dir}`, limit: String(PAGE_SIZE), offset: String(view.page * PAGE_SIZE)});
+  if (cfgTable.soft) params.set('deleted_at', 'is.null');
   if (view.search) {
     const texts = cfgTable.columns.filter(c => c.type === 'text' || c.type === 'url').map(c => `${c.key}.ilike.*${view.search.replace(/[,()*]/g, ' ')}*`);
     if (texts.length) params.set('or', `(${texts.join(',')})`);
@@ -305,7 +325,7 @@ async function loadRows(cfgTable) {
     if (!rows.length) { body.innerHTML = `<p class="empty">${view.search ? 'No records match that search.' : 'No records yet. Add the first one.'}</p>`; return; }
     const pages = Math.max(1, Math.ceil(count / PAGE_SIZE));
     body.innerHTML = `<div class="table-wrap"><table><thead><tr>${cols.map(c => `<th scope="col" aria-sort="${sort === c.key ? (view.dir === 'asc' ? 'ascending' : 'descending') : 'none'}"><button type="button" data-sort="${c.key}">${esc(c.label)}${sort === c.key ? (view.dir === 'asc' ? ' ▲' : ' ▼') : ''}</button></th>`).join('')}<th scope="col">Actions</th></tr></thead>
-      <tbody>${rows.map(r => `<tr>${cols.map(c => `<td>${esc(cellText(c, r[c.key]))}</td>`).join('')}<td class="actions"><button class="btn btn-sm" data-edit="${r[cfgTable.pk]}" type="button">Edit</button><button class="btn btn-sm btn-danger" data-del="${r[cfgTable.pk]}" type="button">Delete</button></td></tr>`).join('')}</tbody></table></div>
+      <tbody>${rows.map(r => `<tr>${cols.map(c => `<td>${esc(cellText(c, r[c.key]))}</td>`).join('')}<td class="actions">${cfgTable.locked ? '<span class="badge">Locked</span>' : `<button class="btn btn-sm" data-edit="${r[cfgTable.pk]}" type="button">Edit</button><button class="btn btn-sm btn-danger" data-del="${r[cfgTable.pk]}" type="button">Delete</button>`}</td></tr>`).join('')}</tbody></table></div>
       <div class="pager"><button class="btn btn-sm" id="prev" ${view.page === 0 ? 'disabled' : ''} type="button">Previous</button><span>Page ${view.page + 1} of ${pages} &middot; ${count} record${count === 1 ? '' : 's'}</span><button class="btn btn-sm" id="next" ${view.page + 1 >= pages ? 'disabled' : ''} type="button">Next</button></div>`;
     const byId = new Map(rows.map(r => [String(r[cfgTable.pk]), r]));
     for (const b of body.querySelectorAll('[data-sort]')) b.addEventListener('click', () => { view.dir = view.sort === b.dataset.sort && view.dir === 'asc' ? 'desc' : 'asc'; view.sort = b.dataset.sort; view.page = 0; loadRows(cfgTable); });
@@ -316,12 +336,16 @@ async function loadRows(cfgTable) {
   } catch (error) { tableError(error); }
 }
 async function removeRow(cfgTable, row) {
-  if (!await confirmDialog(`Delete ${cfgTable.title(row)}?`, 'This cannot be undone.')) return;
+  const text = cfgTable.soft ? 'It is hidden everywhere, including the main page. You can restore it from Recently deleted.' : 'This cannot be undone.';
+  if (!await confirmDialog(`Delete ${cfgTable.title(row)}?`, text)) return;
   try {
-    const {json} = await api(`/rest/v1/${encodeURIComponent(cfgTable.table)}?${cfgTable.pk}=eq.${row[cfgTable.pk]}`, {method: 'DELETE', headers: {Prefer: 'return=representation'}});
+    const target = `/rest/v1/${encodeURIComponent(cfgTable.table)}?${cfgTable.pk}=eq.${row[cfgTable.pk]}`;
+    const {json} = cfgTable.soft
+      ? await api(target, {method: 'PATCH', body: {deleted_at: new Date().toISOString()}, headers: {Prefer: 'return=representation'}})
+      : await api(target, {method: 'DELETE', headers: {Prefer: 'return=representation'}});
     if (!json?.length) return onDenied();
     delete state.lookups[cfgTable.table];
-    view.mode === 'map' ? openMap(cfgTable) : loadRows(cfgTable);
+    view.mode === 'map' ? openMap(cfgTable) : view.mode === 'plan' ? openPlan(cfgTable) : loadRows(cfgTable);
   } catch (error) {
     if (error.status === 409) { const el = $('#table-error'); el.textContent = 'This record is still used by other records. Remove or change those first.'; el.hidden = false; return; }
     tableError(error);
@@ -334,6 +358,7 @@ function fieldHtml(col, value) {
   const label = `<label for="${id}">${esc(col.label)}${col.required ? ' *' : ''}</label>`;
   const v = value ?? '';
   if (col.type === 'bool') return `<div class="check"><input type="checkbox" id="${id}" name="${col.key}" ${value ? 'checked' : ''}><label for="${id}">${esc(col.label)}</label></div>`;
+  if (col.type === 'select') return `${label}<select id="${id}" name="${col.key}"${req}><option value="">Choose...</option>${col.options.map(o => `<option value="${o.value}" ${o.value === value ? 'selected' : ''}>${esc(o.label)}</option>`).join('')}</select>`;
   if (col.type === 'fk') {
     const rows = state.lookups[col.ref] || [];
     return `${label}<select id="${id}" name="${col.key}"${req}><option value="">${col.required ? 'Choose...' : 'None'}</option>${rows.map(r => { const pk = r[byTable(col.ref).pk]; return `<option value="${pk}" ${pk === value ? 'selected' : ''}>${esc(fkLabel(col.ref, pk))}</option>`; }).join('')}</select>`;
@@ -368,10 +393,10 @@ function readForm(cfgTable, form) {
   return {values: out, problems};
 }
 // Renders the form into host. Returns {setCoords}. onSaved runs after a successful save.
-function buildForm(host, cfgTable, record, {onSaved, onCancel, onCoordsTyped} = {}) {
+function buildForm(host, cfgTable, record, {onSaved, onCancel, onCoordsTyped, prefill, extra} = {}) {
   const editing = !!record;
   host.innerHTML = `<form novalidate id="record-form"><h2 id="form-title">${editing ? 'Edit' : 'Add'} ${esc(cfgTable.label.replace(/s$/, ''))}</h2>
-    ${cfgTable.columns.map(c => fieldHtml(c, record?.[c.key])).join('')}
+    ${cfgTable.columns.map(c => fieldHtml(c, (record || prefill)?.[c.key])).join('')}
     <p class="error" id="form-error" role="alert" hidden></p>
     <div class="row"><button class="btn btn-primary" type="submit" id="form-save">Save</button><button class="btn" type="button" id="form-cancel">Cancel</button></div></form>`;
   const form = $('#record-form', host);
@@ -386,9 +411,10 @@ function buildForm(host, cfgTable, record, {onSaved, onCancel, onCoordsTyped} = 
     const save = $('#form-save', host); save.disabled = true;
     try {
       const table = encodeURIComponent(cfgTable.table);
+      const body = extra ? {...values, ...await extra()} : values;
       const request = editing
-        ? api(`/rest/v1/${table}?${cfgTable.pk}=eq.${record[cfgTable.pk]}`, {method: 'PATCH', body: values, headers: {Prefer: 'return=representation'}})
-        : api(`/rest/v1/${table}`, {method: 'POST', body: values, headers: {Prefer: 'return=representation'}});
+        ? api(`/rest/v1/${table}?${cfgTable.pk}=eq.${record[cfgTable.pk]}`, {method: 'PATCH', body, headers: {Prefer: 'return=representation'}})
+        : api(`/rest/v1/${table}`, {method: 'POST', body, headers: {Prefer: 'return=representation'}});
       const {json} = await request;
       if (!json?.length) { save.disabled = false; return onDenied(); }
       delete state.lookups[cfgTable.table];
@@ -407,7 +433,7 @@ function buildForm(host, cfgTable, record, {onSaved, onCancel, onCoordsTyped} = 
 function openForm(cfgTable, record) {
   const dialog = $('#form-dialog');
   const close = () => dialog.close();
-  const ctl = buildForm($('#form-host'), cfgTable, record, {onCancel: close, onSaved: () => { close(); view.mode === 'map' ? openMap(cfgTable) : loadRows(cfgTable); }});
+  const ctl = buildForm($('#form-host'), cfgTable, record, {onCancel: close, onSaved: () => { close(); view.mode === 'map' ? openMap(cfgTable) : view.mode === 'plan' ? openPlan(cfgTable) : loadRows(cfgTable); }});
   dialog.showModal(); ctl.focus();
 }
 
@@ -434,7 +460,7 @@ async function openMap(cfgTable) {
   try { await ensureLeaflet(); } catch (error) { return tableError(error); }
   destroyMap();
   let rows;
-  try { rows = (await api(`/rest/v1/${encodeURIComponent(cfgTable.table)}?select=*&order=${cfgTable.pk}.asc&limit=1000`)).json; } catch (error) { return tableError(error); }
+  try { rows = (await api(`/rest/v1/${encodeURIComponent(cfgTable.table)}?select=*&order=${cfgTable.pk}.asc&limit=1000`)).json.filter(r => !r.deleted_at); } catch (error) { return tableError(error); }
   body.innerHTML = `<div class="map-layout"><div><div id="map" role="application" aria-label="Campus map. Click to place a pin when zoomed in."></div>
     <p class="map-hint" id="map-hint"></p><div class="move-bar" id="move-bar" hidden></div></div><aside class="side-panel" id="side-panel" aria-live="polite"></aside></div>
     <p class="field-hint">Imagery can sit a few meters off the street map, and pins are 2D (no floors). Use floor and description fields to tell rooms in one building apart.</p>`;
@@ -489,6 +515,165 @@ async function openMap(cfgTable) {
     form.focus();
   });
   mapCtl = {map};
+}
+
+// =====================================================================================
+// Floor-plan pins: drop study spots on the digitized plans; position is stored as percent of the drawing
+// =====================================================================================
+const PLAN_SETS = [
+  {code: 'HBLL', match: /library|hbll/i, global: 'HBLL_PLANS', file: 'hbll-plans.js'},
+  {code: 'WSC', match: /wilkinson|wsc/i, global: 'WSC_PLANS', file: 'wsc-plans.js'},
+  {code: 'JKB', match: /knight|jkb/i, global: 'JKB_PLANS', file: 'jkb-plans.js'}
+];
+const planSetFor = building => PLAN_SETS.find(set => set.match.test(building?.building_name || ''));
+const planLoads = {};
+const loadPlanSet = set => window[set.global] ? Promise.resolve() : (planLoads[set.code] ??= loadScript(set.file).catch(() => { delete planLoads[set.code]; throw new Error('Could not load the floor plans. Check the connection and try again.'); }));
+const planFloorNumber = key => /^B/i.test(key) ? 0 : /^G/i.test(key) ? 1 : Number((key.match(/\d+/) || [1])[0]);
+const clampPct = value => Math.min(100, Math.max(0, value));
+const pct = value => Number(clampPct(value).toFixed(2));
+
+function nearestRoom(plan, xPct, yPct) {
+  const x = xPct / 100 * plan.width, y = yPct / 100 * plan.height;
+  let best = null, distance = Infinity;
+  for (const room of plan.rooms || []) {
+    const d = Math.hypot(room.x - x, room.y - y);
+    if (d < distance) { distance = d; best = room; }
+  }
+  return distance <= 70 ? best : null;
+}
+async function ensureFloor(buildingId, number) {
+  const found = (state.lookups.Floors || []).find(f => f.building_id === buildingId && f.floor_number === number);
+  if (found) return found.floor_id;
+  const {json} = await api('/rest/v1/Floors', {method: 'POST', body: {building_id: buildingId, floor_number: number}, headers: {Prefer: 'return=representation'}});
+  if (!json?.length) throw new ApiError(403, {});
+  (state.lookups.Floors ||= []).push(json[0]);
+  return json[0].floor_id;
+}
+function dragPin(pin, stage, {onTap, onMove, onDrop}) {
+  const point = event => { const r = stage.getBoundingClientRect(); return [pct((event.clientX - r.left) / r.width * 100), pct((event.clientY - r.top) / r.height * 100)]; };
+  pin.addEventListener('pointerdown', event => {
+    if (event.button !== 0) return;
+    event.preventDefault(); event.stopPropagation();
+    pin.setPointerCapture(event.pointerId);
+    const startX = event.clientX, startY = event.clientY;
+    let moved = false;
+    const move = e => {
+      if (!moved && Math.hypot(e.clientX - startX, e.clientY - startY) < 5) return;
+      moved = true;
+      const [x, y] = point(e);
+      pin.style.left = x + '%'; pin.style.top = y + '%';
+      onMove?.(x, y);
+    };
+    const up = e => {
+      pin.removeEventListener('pointermove', move); pin.removeEventListener('pointerup', up); pin.removeEventListener('pointercancel', up);
+      if (moved) onDrop?.(...point(e)); else onTap?.();
+    };
+    pin.addEventListener('pointermove', move); pin.addEventListener('pointerup', up); pin.addEventListener('pointercancel', up);
+  });
+  pin.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onTap?.(); } });
+}
+
+async function openPlan(cfgTable) {
+  const body = $('#table-body');
+  destroyMap();
+  body.innerHTML = '<p class="loading">Loading floor plans...</p>';
+  let spots;
+  try {
+    await Promise.all([lookup('Buildings', true), lookup('Floors', true), lookup('SpotType', true)]);
+    spots = (await api(`/rest/v1/${encodeURIComponent(cfgTable.table)}?select=*&order=${cfgTable.pk}.asc&limit=1000`)).json;
+    var deleted = spots.filter(s => s.deleted_at && s.plan_key);
+    spots = spots.filter(s => !s.deleted_at);
+  } catch (error) { return tableError(error); }
+  const buildings = state.lookups.Buildings.filter(planSetFor);
+  if (!buildings.length) { body.innerHTML = '<p class="empty">No building has a digitized floor plan yet. Floor plans exist for the Library, the Wilkinson Student Center and the Joseph Knight Building. Add one under Buildings first.</p>'; return; }
+  if (!buildings.some(b => b.building_id === view.planBuilding)) { view.planBuilding = buildings[0].building_id; view.planKey = null; }
+  view.planZoom ||= 1;
+  const spotForm = {...cfgTable, columns: cfgTable.columns.filter(c => !c.geo && c.key !== 'building_id' && c.key !== 'floor_id')};
+
+  body.innerHTML = `<div class="toolbar plan-toolbar">
+      <span class="inline-field"><label for="plan-building">Building</label><select id="plan-building">${buildings.map(b => `<option value="${b.building_id}" ${b.building_id === view.planBuilding ? 'selected' : ''}>${esc(b.building_name)}</option>`).join('')}</select></span>
+      <span class="inline-field"><label for="plan-sheet">Floor plan</label><select id="plan-sheet"></select></span>
+      <span class="seg" role="group" aria-label="Zoom"><button type="button" id="zoom-out" aria-label="Zoom out">-</button><button type="button" id="zoom-in" aria-label="Zoom in">+</button></span>
+    </div>
+    <div class="map-layout"><div><div class="plan-scroll" id="plan-scroll" tabindex="0"></div>
+    <p class="map-hint" id="plan-hint"></p><div class="move-bar" id="move-bar" hidden></div></div><aside class="side-panel" id="side-panel" aria-live="polite"></aside></div>
+    <details class="deleted-list" id="deleted-list"${deleted.length ? '' : ' hidden'}><summary>Recently deleted (${deleted.length})</summary><ul>${deleted.map(s => `<li><span>${esc(cfgTable.title(s))} <span class="muted">${esc(fkLabel('Buildings', s.building_id))}, ${esc(s.plan_key)}</span></span><button class="btn btn-sm" type="button" data-restore="${s[cfgTable.pk]}">Restore</button></li>`).join('')}</ul></details>`;
+  const scroll = $('#plan-scroll'), panel = $('#side-panel'), hint = $('#plan-hint'), moveBar = $('#move-bar');
+  const building = () => buildings.find(b => b.building_id === view.planBuilding);
+  const redraw = () => openPlan(cfgTable);
+
+  for (const b of body.querySelectorAll('[data-restore]')) b.addEventListener('click', async () => {
+    try {
+      const {json} = await api(`/rest/v1/${encodeURIComponent(cfgTable.table)}?${cfgTable.pk}=eq.${b.dataset.restore}`, {method: 'PATCH', body: {deleted_at: null}, headers: {Prefer: 'return=representation'}});
+      if (!json?.length) return onDenied();
+      redraw();
+    } catch (error) { if (isDenied(error)) return onDenied(); tableError(error); }
+  });
+  $('#plan-building').addEventListener('change', event => { view.planBuilding = Number(event.target.value); view.planKey = null; redraw(); });
+  $('#plan-sheet').addEventListener('change', event => { view.planKey = event.target.value; redraw(); });
+  $('#zoom-in').addEventListener('click', () => { view.planZoom = Math.min(3, view.planZoom + 0.5); redraw(); });
+  $('#zoom-out').addEventListener('click', () => { view.planZoom = Math.max(1, view.planZoom - 0.5); redraw(); });
+
+  const set = planSetFor(building());
+  try { await loadPlanSet(set); } catch (error) { scroll.innerHTML = ''; return tableError(error); }
+  const plans = window[set.global], keys = Object.keys(plans);
+  if (!plans[view.planKey]) view.planKey = keys[0];
+  const plan = plans[view.planKey];
+  $('#plan-sheet').innerHTML = keys.map(k => `<option value="${esc(k)}" ${k === view.planKey ? 'selected' : ''}>${esc(plans[k].label)}</option>`).join('');
+
+  const mine = spots.filter(s => s.building_id === view.planBuilding && s.plan_key === view.planKey && s.plan_x !== null && s.plan_y !== null);
+  scroll.innerHTML = `<div class="plan-stage" id="plan-stage" style="width:${view.planZoom * 100}%">${plan.svg}${mine.map((s, i) => `<button type="button" class="plan-pin" data-id="${s[cfgTable.pk]}" style="left:${s.plan_x}%;top:${s.plan_y}%" title="${esc(cfgTable.title(s))}" aria-label="${esc(cfgTable.title(s))}">${i + 1}</button>`).join('')}</div>`;
+  const stage = $('#plan-stage');
+  const noun = cfgTable.label.replace(/s$/, '').toLowerCase();
+  const idleHint = `${mine.length} ${noun}${mine.length === 1 ? '' : 's'} on this plan. Click the plan to drop a pin, drag a pin to move it, click a pin to edit.`;
+  hint.textContent = idleHint;
+  let temp = null;
+  const closePanel = () => { panel.innerHTML = ''; temp?.remove(); temp = null; moveBar.hidden = true; hint.textContent = idleHint; };
+
+  for (const pin of stage.querySelectorAll('.plan-pin')) {
+    const row = mine.find(s => String(s[cfgTable.pk]) === pin.dataset.id);
+    dragPin(pin, stage, {
+      onTap() {
+        closePanel(); moveBar.hidden = true;
+        buildForm(panel, spotForm, row, {onCancel: closePanel, onSaved: redraw});
+        const del = document.createElement('button'); del.type = 'button'; del.className = 'btn btn-danger'; del.textContent = 'Delete';
+        del.addEventListener('click', () => removeRow(cfgTable, row));
+        $('.row', panel).append(del);
+      },
+      onDrop(x, y) {
+        moveBar.hidden = false;
+        moveBar.innerHTML = `<span>Move <strong>${esc(cfgTable.title(row))}</strong> to this position?</span><button class="btn btn-primary btn-sm" id="move-save" type="button">Save new position</button><button class="btn btn-sm" id="move-undo" type="button">Undo</button>`;
+        $('#move-undo').onclick = () => { pin.style.left = row.plan_x + '%'; pin.style.top = row.plan_y + '%'; moveBar.hidden = true; };
+        $('#move-save').onclick = async () => {
+          try {
+            const {json} = await api(`/rest/v1/${encodeURIComponent(cfgTable.table)}?${cfgTable.pk}=eq.${row[cfgTable.pk]}`, {method: 'PATCH', body: {plan_x: x, plan_y: y}, headers: {Prefer: 'return=representation'}});
+            if (!json?.length) return onDenied();
+            redraw();
+          } catch (error) { if (isDenied(error)) return onDenied(); $('#move-undo').click(); setNotice(`Could not move the pin: ${error.message}`, true); }
+        };
+      }
+    });
+  }
+
+  stage.addEventListener('click', event => {
+    if (event.target.closest('.plan-pin')) return;
+    const r = stage.getBoundingClientRect();
+    let pos = [pct((event.clientX - r.left) / r.width * 100), pct((event.clientY - r.top) / r.height * 100)];
+    closePanel();
+    temp = document.createElement('button');
+    temp.type = 'button'; temp.className = 'plan-pin temp'; temp.textContent = '+'; temp.setAttribute('aria-label', 'New pin (drag to adjust)');
+    temp.style.left = pos[0] + '%'; temp.style.top = pos[1] + '%';
+    stage.append(temp);
+    dragPin(temp, stage, {onMove: (x, y) => { pos = [x, y]; }, onDrop: (x, y) => { pos = [x, y]; }});
+    const room = nearestRoom(plan, pos[0], pos[1]);
+    buildForm(panel, spotForm, null, {
+      prefill: room ? {spot_location: `Room ${room.number}`} : null,
+      extra: async () => ({building_id: view.planBuilding, floor_id: await ensureFloor(view.planBuilding, planFloorNumber(view.planKey)), plan_key: view.planKey, plan_x: pos[0], plan_y: pos[1]}),
+      onCancel: closePanel, onSaved: redraw
+    });
+    hint.textContent = room ? `Pin is next to room ${room.number}, so the name was prefilled. Drag the orange pin to adjust it.` : 'Drag the orange pin to adjust it, then fill in the details.';
+    $('#record-form input')?.focus();
+  });
 }
 
 // =====================================================================================

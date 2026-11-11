@@ -341,7 +341,10 @@ function showCampusBuilding(id){
 }
 // 4. Shared helpers. A failed local save returns false to prevent a success message.
 function save(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(data));return true}catch{showToast('Could not save on this device. Changes will last only until you refresh.');return false}}
-function allSpots(){return [...DEMO_SPOTS,...data.customSpots]}
+// Spots pinned from the dev page replace the built-in samples once any exist; until then the samples stay.
+function pinnedSpots(){return database.pinnedSpots.filter(s=>BUILDINGS[s.building]?.floors.some(f=>f.id===s.floor))}
+function allSpots(){const real=pinnedSpots();return [...(real.length?real:DEMO_SPOTS),...data.customSpots]}
+function floorResources(){return database.pinnedResources.filter(r=>r.building===state.building&&r.floor===state.floor&&BUILDINGS[r.building]?.floors.some(f=>f.id===r.floor))}
 function spotById(id){return allSpots().find(s=>s.id===id)}
 function floorLabel(spot){return BUILDINGS[spot.building].floors.find(f=>f.id===spot.floor)?.label||spot.floor}
 // Built-in reports use Supabase when configured; custom suggestions stay local.
@@ -362,7 +365,17 @@ function labelBusy(spot){if(spot.reserved)return 'Reserve ahead';const busy=curr
 function badgeClass(spot){return spot.reserved?'reserved':currentBusy(spot)==='high'?'high':currentBusy(spot)==='medium'?'medium':currentBusy(spot)?'':'unknown'}
 function showToast(message){const toast=$('#toast');toast.textContent=message;toast.hidden=false;clearTimeout(showToast.timer);showToast.timer=setTimeout(()=>toast.hidden=true,3500)}
 // 5. Reporting. Keep the connection banner short; show details in the dialog.
-function renderAuthNav(){const b=$('#navAuth');if(!b)return;b.innerHTML=auth.signedIn?`<span class="auth-label">Log out</span>${auth.displayName?`<span class="auth-name">(${esc(auth.displayName)})</span>`:''}`:'<span class="auth-label">Log in</span>';b.classList.toggle('is-signed-in',auth.signedIn);b.title=auth.signedIn?`Signed in as ${auth.displayName}. Select to log out.`:'';b.setAttribute('aria-label',auth.signedIn?`Log out ${auth.displayName}`.trim():'Log in or sign up')}
+function renderAuthNav(){const b=$('#navAuth');if(!b)return;const admin=auth.signedIn&&auth.isAdmin;b.innerHTML=auth.signedIn?`<span class="auth-label">Log out${admin?' ▾':''}</span>${auth.displayName?`<span class="auth-name">(${esc(auth.displayName)})</span>`:''}`:'<span class="auth-label">Log in</span>';b.classList.toggle('is-signed-in',auth.signedIn);b.title=auth.signedIn?`Signed in as ${auth.displayName}. ${admin?'Select for Dev tools or Log out.':'Select to log out.'}`:'';b.setAttribute('aria-label',auth.signedIn?(admin?`Account menu for ${auth.displayName}`:`Log out ${auth.displayName}`).trim():'Log in or sign up');
+  // Admins only: a small menu with the dev page and Log out. Showing it is cosmetic; the database still decides who may edit.
+  let menu=$('#navMenu');
+  if(admin){
+    if(!menu){menu=document.createElement('div');menu.id='navMenu';menu.className='nav-menu';menu.setAttribute('role','menu');menu.hidden=true;document.body.append(menu)}
+    menu.innerHTML='<a role="menuitem" class="nav-menu-item" href="admin.html">Dev tools</a><button role="menuitem" class="nav-menu-item" type="button" id="navLogout">Log out</button>';
+    b.setAttribute('aria-haspopup','menu');b.setAttribute('aria-expanded','false');
+  }else{menu?.remove();b.removeAttribute('aria-haspopup');b.removeAttribute('aria-expanded')}
+}
+function toggleNavMenu(open){const b=$('#navAuth'),menu=$('#navMenu');if(!b||!menu)return;const show=open??menu.hidden;if(show){const r=b.getBoundingClientRect();menu.style.top=`${r.bottom+6}px`;menu.style.right=`${Math.max(8,window.innerWidth-r.right)}px`}menu.hidden=!show;b.setAttribute('aria-expanded',String(show));if(show)menu.querySelector('a')?.focus()}
+function logOut(){void auth.signOut().then(()=>{showToast('Logged out.');render()})}
 // Saved lists follow the account when the database is connected. Device lists (data.lists) are used
 // only when no database is configured, so one person's lists never leak into another account.
 const cloud={lists:[],ready:false,error:'',userId:null,promise:null};
@@ -502,8 +515,8 @@ function renderBuilding(){
     plan.className=`floor-plan native-plan ${state.building.toLowerCase()}-plan ${state.roomLabels?'':'hide-room-labels'}`;plan.setAttribute('aria-label',`Interactive ${building.short} ${floor.label} map`);
     // Translate page-based pin positions into percentages of the cropped SVG.
     const studyPoints={WSC:WILK_STUDY_POINTS,HBLL:HBLL_STUDY_POINTS,JKB:JKB_STUDY_POINTS}[state.building]||{};
-    plan.innerHTML=`<div class="plan-scroll"><div class="plan-canvas"><div id="planStage" class="plan-stage">${digital.svg}${spots.map((s,i)=>{const point=studyPoints[s.id]||[s.x/100*1224,s.y/100*792];const x=(point[0]-digital.crop[0])/digital.width*100;const y=(point[1]-digital.crop[1])/digital.height*100;return `<button type="button" class="plan-pin ${s.reserved?'reserved':''} ${matches(s)?'':'is-dimmed'} ${state.selectedSpot===s.id?'is-selected':''}" style="left:${x}%;top:${y}%" data-spot="${esc(s.id)}" title="${esc(s.name)}" aria-label="Sample spot ${i+1}: ${esc(s.name)}">S${i+1}</button>`}).join('')}</div></div></div>`;
-    $('#floorLegend').innerHTML='<span><i class="map-key-swatch room"></i>Rooms</span><span><i class="map-key-swatch open"></i>Open areas</span><span><i class="map-key-swatch service"></i>Service cores</span><span><i class="legend-dot open"></i>Study spots</span>';
+    plan.innerHTML=`<div class="plan-scroll"><div class="plan-canvas"><div id="planStage" class="plan-stage">${digital.svg}${spots.map((s,i)=>{let x,y;if(s.pin)[x,y]=s.pin;else{const point=studyPoints[s.id]||[s.x/100*1224,s.y/100*792];x=(point[0]-digital.crop[0])/digital.width*100;y=(point[1]-digital.crop[1])/digital.height*100}return `<button type="button" class="plan-pin ${s.reserved?'reserved':''} ${matches(s)?'':'is-dimmed'} ${state.selectedSpot===s.id?'is-selected':''}" style="left:${x}%;top:${y}%" data-spot="${esc(s.id)}" title="${esc(s.name)}" aria-label="${s.pin?'Study spot':'Sample spot'} ${i+1}: ${esc(s.name)}">S${i+1}</button>`}).join('')}${floorResources().map(r=>`<button type="button" class="plan-pin resource-pin" style="left:${r.pin[0]}%;top:${r.pin[1]}%" data-resource="${esc(r.id)}" title="${esc(r.type)}: ${esc(r.info)}" aria-label="${esc(r.type)}: ${esc(r.info)}${r.where?`, ${esc(r.where)}`:''}">${esc(r.type.charAt(0).toUpperCase())}</button>`).join('')}</div></div></div>`;
+    $('#floorLegend').innerHTML='<span><i class="map-key-swatch room"></i>Rooms</span><span><i class="map-key-swatch open"></i>Open areas</span><span><i class="map-key-swatch service"></i>Service cores</span><span><i class="legend-dot open"></i>Study spots</span>'+(floorResources().length?'<span><i class="legend-dot resource"></i>Resources</span>':'');
     $('#floorDisclaimer').textContent='Study spot locations are approximate.';
 
     $('#mapNorth').innerHTML=`N <span style="display:inline-block;transform:rotate(${digital.north}deg)">↑</span>`;
@@ -751,7 +764,9 @@ function showMatches(){const match=allSpots().filter(matches).sort((a,b)=>rank(a
 
 // 9. Event routing. data-* attributes connect rebuilt controls to shared handlers.
 document.addEventListener('click',event=>{
-  const t=event.target.closest('button,a,[data-room],[data-campus-building]');if(!t)return;
+  const t=event.target.closest('button,a,[data-room],[data-campus-building]');
+  if(!t||(t.id!=='navAuth'&&!t.closest('#navMenu')))toggleNavMenu(false);
+  if(!t)return;
   if(t.id==='exploreMapButton'){const reducedMotion=window.matchMedia('(prefers-reduced-motion: reduce)').matches;$('#exploreMapSection').scrollIntoView({behavior:reducedMotion?'auto':'smooth'});return}
   if(t.dataset.buildingPanel){setBuildingPanel(t.dataset.buildingPanel);return}
   if(t.id==='interactMap'){setMapInteraction(t.getAttribute('aria-pressed')!=='true');return}
@@ -771,7 +786,8 @@ document.addEventListener('click',event=>{
   if(t.id==='navSaved'){setView('saved');return}
   if(t.id==='navReport'){openNewSpot();return}
     if(t.id==='rateUs'){event.preventDefault();openRating();return}
-  if(t.id==='navAuth'){if(auth.signedIn){void auth.signOut().then(()=>{showToast('Logged out.');render()})}else openAuth('login');return}
+  if(t.id==='navAuth'){if(!auth.signedIn)openAuth('login');else if(auth.isAdmin)toggleNavMenu();else logOut();return}
+  if(t.id==='navLogout'){toggleNavMenu(false);logOut();return}
   if(t.id==='resendConfirm'){const email=$('#authEmail')?.value.trim();if(!email){showToast('Enter your email first.');return}t.disabled=true;void auth.resendConfirmation(email).then(()=>showToast('Confirmation email sent. Check your inbox and spam.'),e=>showToast(e.message)).finally(()=>{t.disabled=false});return}
   if(t.dataset.authSwitch){const after=openAuth.after;openAuth(t.dataset.authSwitch,after);return}
   if(t.dataset.openReported){const s=spotById(t.dataset.openReported);if(s){openBuilding(s.building,s.floor);openSpot(s.id)}return}
@@ -791,6 +807,7 @@ document.addEventListener('click',event=>{
   if(t.dataset.jkbLevel){const floor=BUILDINGS.JKB.floors.find(f=>f.level===Number(t.dataset.jkbLevel));if(!floor)return;state.floor=floor.id;state.zoom=1;state.selectedSpot=null;state.selectedRoom=null;$('#roomSearchResults').hidden=true;renderBuilding();return}
   if(t.id==='zoomOut'||t.id==='zoomIn'){changeZoom(t.id==='zoomIn'?.25:-.25);return}
   // Spot details, reports, and saved-list changes.
+  if(t.dataset.resource){const r=database.pinnedResources.find(x=>x.id===t.dataset.resource);if(r)showToast(`${r.type}: ${r.info}${r.where?` (${r.where})`:''}`);return}
   if(t.dataset.spot){const s=spotById(t.dataset.spot);if(state.view==='explore'){openBuilding(s.building,s.floor)}openSpot(s.id);return}
   if(t.dataset.openSaved){const s=spotById(t.dataset.openSaved);openBuilding(s.building,s.floor);openSpot(s.id);return}
   if(t.dataset.confirmSpot){openArrival(t.dataset.confirmSpot);return}
@@ -817,6 +834,7 @@ $('#groupSize').addEventListener('input',e=>{state.groupSize=Number(e.target.val
 $('#roomSearch').addEventListener('input',renderRoomSearch);
 $('#roomSearch').addEventListener('keydown',event=>{if(event.key==='Enter'){const first=$('#roomSearchResults button');if(first){event.preventDefault();selectRoom(first.dataset.findRoom,first.dataset.roomFloor,true)}}else if(event.key==='Escape')$('#roomSearchResults').hidden=true});
 // SVG room and building controls need explicit Enter and Space handling.
+document.addEventListener('keydown',event=>{if(event.key==='Escape'&&$('#navMenu')&&!$('#navMenu').hidden){toggleNavMenu(false);$('#navAuth')?.focus()}});
 document.addEventListener('keydown',event=>{const campus=event.target.closest('[data-campus-building]');if(campus&&(event.key==='Enter'||event.key===' ')){event.preventDefault();showCampusBuilding(campus.dataset.campusBuilding);return}const room=event.target.closest('#floorPlan .map-room');if(room&&(event.key==='Enter'||event.key===' ')){event.preventDefault();selectRoom(room.dataset.room)}});
 document.addEventListener('pointerdown',event=>{if(!event.target.closest('.room-search-wrap'))$('#roomSearchResults').hidden=true});
 $('#modalBackdrop').addEventListener('click',e=>{if(e.target.id==='modalBackdrop')closeModal()});

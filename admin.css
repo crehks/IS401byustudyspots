@@ -87,3 +87,16 @@ td.actions{white-space:nowrap;display:flex;gap:6px}
   .map-layout .side-panel:empty{display:block;min-height:0;padding:0;border:0;background:none}
 }
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+.plan-toolbar{align-items:flex-end}
+.inline-field{display:inline-flex;flex-direction:column}
+.inline-field label{margin:0 0 4px;font-size:.85rem;color:var(--muted)}
+.plan-scroll{overflow:auto;max-height:72dvh;border:1px solid var(--line);border-radius:var(--radius);background:#f4f8fa}
+.plan-stage{position:relative;line-height:0;background:#f4f8fa;cursor:crosshair}
+.plan-stage svg{display:block;width:100%;height:auto}
+.plan-pin{position:absolute;transform:translate(-50%,-50%);width:28px;height:28px;border-radius:50%;border:3px solid #fff;background:var(--accent-strong);color:#fff;font:700 .8rem/1 system-ui,sans-serif;display:grid;place-items:center;padding:0;cursor:grab;touch-action:none;box-shadow:0 2px 6px rgba(0,0,0,.5)}
+.plan-pin.temp{background:#ffb347;color:#1a1a1a}
+.plan-pin:active{cursor:grabbing}
+.deleted-list{margin-top:16px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:12px 16px}
+.deleted-list summary{cursor:pointer;font-weight:600}
+.deleted-list ul{list-style:none;margin:12px 0 0;padding:0;display:grid;gap:8px}
+.deleted-list li{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}

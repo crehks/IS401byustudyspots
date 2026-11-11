@@ -12,6 +12,42 @@ const numericSpotIds=['hbll-commons','hbll-west','hbll-group','hbll-think','hbll
     // Tests inject a fake fetcher; the browser uses its normal fetch function.
     constructor(fetcher=(...args)=>fetch(...args)) {
       this.fetcher=fetcher;this.accessToken='';this.userId=null;this.config={configured:false,table:'user_reports'};this.reports={};this.ready=false;this.error='';this.loading=true;this.configLoaded=false;
+      this.pinnedSpots=[];this.pinnedResources=[];this.pinnedIds=new Set();
+    }
+    // Database number for a frontend spot id: sample spots by list position, pinned spots by their own id ("db-12").
+    numericOf(spotId) {
+      if (/^db-[1-9][0-9]*$/.test(String(spotId))) return Number(String(spotId).slice(3));
+      const index=numericSpotIds.indexOf(spotId);
+      return index<0?0:index+1001;
+    }
+    spotOf(numeric) {
+      const n=Number(numeric);
+      return this.pinnedIds.has(n)?`db-${n}`:numericSpotIds[n-1001];
+    }
+    // Spots and resources the team pinned on the floor plans from the dev page. Any failure (for example the
+    // pin columns are not in the database yet) leaves the built-in sample spots in place.
+    async loadPinned() {
+      this.pinnedSpots=[];this.pinnedResources=[];this.pinnedIds=new Set();
+      if (!this.config.configured) return;
+      const get=async(table,params)=>{
+        const response=await this.request(`${this.config.url}/rest/v1/${table}?${new URLSearchParams(params)}`,{headers:this.headers()});
+        if (!response.ok) throw await this.apiError(response);
+        const rows=await response.json();
+        if (!Array.isArray(rows)) throw new Error('Supabase returned an unexpected pinned-data response.');
+        return rows;
+      };
+      const buildings=await get('Buildings',{select:'building_id,building_name'});
+      const codeOf=id=>{const name=buildings.find(b=>b.building_id===id)?.building_name||'';return /library|hbll/i.test(name)?'HBLL':/wilkinson|wsc/i.test(name)?'WSC':/knight|jkb/i.test(name)?'JKB':null;};
+      const live={deleted_at:'is.null',plan_x:'gte.0'};
+      try {
+        const rows=await get('StudySpot',{select:'spot_id,building_id,spot_location,group_type,capacity,outlets,reservable,is_private,noise_level,plan_key,plan_x,plan_y',...live,order:'spot_id.asc'});
+        this.pinnedSpots=rows.map(r=>({id:`db-${r.spot_id}`,dbId:Number(r.spot_id),building:codeOf(r.building_id),floor:r.plan_key,name:String(r.spot_location||'').trim(),type:r.group_type==='group'?'group':'solo',capacity:Number(r.capacity)||1,private:!!r.is_private,outlets:!!r.outlets,noise:['low','medium','high'].includes(r.noise_level)?r.noise_level:'medium',busy:null,reserved:!!r.reservable,pin:[Number(r.plan_x),Number(r.plan_y)],typical:[]})).filter(s=>s.building&&s.name&&s.floor&&s.pin.every(Number.isFinite));
+        this.pinnedIds=new Set(this.pinnedSpots.map(s=>s.dbId));
+      } catch {}
+      try {
+        const [rows,types]=await Promise.all([get('Resources',{select:'resource_id,building_id,resource_type_id,resource_info,resource_location,plan_key,plan_x,plan_y',...live,order:'resource_id.asc'}),get('ResourceType',{select:'resource_type_id,resource_name'})]);
+        this.pinnedResources=rows.map(r=>({id:`res-${r.resource_id}`,building:codeOf(r.building_id),floor:r.plan_key,type:String(types.find(t=>t.resource_type_id===r.resource_type_id)?.resource_name||'Resource'),info:String(r.resource_info||'').trim(),where:String(r.resource_location||'').trim(),pin:[Number(r.plan_x),Number(r.plan_y)]})).filter(r=>r.building&&r.floor&&r.pin.every(Number.isFinite));
+      } catch {}
     }
     // Bound network waits and avoid cached configuration or report responses.
     async request(url,options={}) {
@@ -27,7 +63,7 @@ const numericSpotIds=['hbll-commons','hbll-west','hbll-group','hbll-think','hbll
       try {
         if (scope.location?.protocol==='file:') {this.configLoaded=true;return this;}
         this.config=await this.loadConfig();this.configLoaded=true;
-        if (this.config.configured) {await this.loadReports();this.ready=true;await this.loadConditions().catch(()=>{});}
+        if (this.config.configured) {await this.loadPinned().catch(()=>{});await this.loadReports();this.ready=true;await this.loadConditions().catch(()=>{});}
       } catch(error) {this.error=error.message;}
       finally {this.loading=false;this.configLoaded=true;}
       return this;
@@ -67,7 +103,7 @@ const numericSpotIds=['hbll-commons','hbll-west','hbll-group','hbll-think','hbll
     rowToReport(row) {
       if(this.config.table==='ReportSpotStatus'){
         const validId=value=>(Number.isSafeInteger(value)&&value>0)||(typeof value==='string'&&/^[1-9][0-9]*$/.test(value));
-        const spotId=numericSpotIds[Number(row?.spot_id)-1001],time=Date.parse(row?.created_at);
+        const spotId=this.spotOf(row?.spot_id),time=Date.parse(row?.created_at);
         if(!row || !spotId || !validId(row.report_id) || !validId(row.user_id) || ![1,2,3].includes(row.noise_level) || ![1,2,3].includes(row.crowd_level) || !(row.notes===null || typeof row.notes==='string') || !Number.isFinite(time))throw new Error('Supabase returned an unexpected report shape. Run the existing-table setup and check numeric levels 1, 2, 3.');
         return {id:String(row.report_id),spotId,userId:String(row.user_id),noise:['','low','medium','high'][row.noise_level],busy:['','low','medium','high'][row.crowd_level],note:row.notes||'',time,source:'supabase'};
       }
@@ -104,7 +140,7 @@ const numericSpotIds=['hbll-commons','hbll-west','hbll-group','hbll-think','hbll
       if (!Array.isArray(rows)) throw new Error('Supabase returned an unexpected conditions response.');
       const conditions={};
       for (const row of rows) {
-        const spotId=numericSpotIds[Number(row?.space_id)-1001];
+        const spotId=this.spotOf(row?.space_id);
         if (!spotId) continue;
         const ok=v=>['low','medium','high'].includes(v)?v:null;
         conditions[spotId]={noise:ok(row.noise_level),busy:ok(row.crowd_level),count:Number(row.report_count)||0};
@@ -115,12 +151,12 @@ const numericSpotIds=['hbll-commons','hbll-west','hbll-group','hbll-think','hbll
     // A failed or slow tagging call leaves the report pending; it is retried server-side.
     async submitAiReport(spotId,input) {
       if (!this.accessToken) throw new Error('Log in to submit a report.');
-      const index=numericSpotIds.indexOf(spotId);
-      if (index<0) throw new Error('This spot is not in the database sample inventory.');
+      const numeric=this.numericOf(spotId);
+      if (!numeric) throw new Error('This spot is not in the database inventory.');
       if (!['low','medium','high'].includes(input.noise) || !['low','medium','high'].includes(input.busy)) throw new Error('Choose a noise level and a crowding level.');
       const body=String(input.note||'').trim()||`Noise ${input.noise}, crowding ${input.busy}.`;
       if (body.length>240) throw new Error('Keep the report note to 240 characters.');
-      const response=await this.request(`${this.config.url}/rest/v1/spot_reports`,{method:'POST',headers:this.headers({'Content-Type':'application/json',Prefer:'return=representation'}),body:JSON.stringify({space_id:index+1001,body,self_noise:input.noise,self_crowd:input.busy})});
+      const response=await this.request(`${this.config.url}/rest/v1/spot_reports`,{method:'POST',headers:this.headers({'Content-Type':'application/json',Prefer:'return=representation'}),body:JSON.stringify({space_id:numeric,body,self_noise:input.noise,self_crowd:input.busy})});
       if (!response.ok) {
         const problem=await response.clone().json().catch(()=>({}));
         if (problem.code==='P0001'&&typeof problem.message==='string') throw new Error(problem.message);
@@ -178,8 +214,8 @@ const numericSpotIds=['hbll-commons','hbll-west','hbll-group','hbll-think','hbll
       if (note.length>240) throw new Error('Keep the report note to 240 characters.');
       // ReportSpotStatus is the team schema; user_reports is the fresh-schema variant.
       const numeric=this.config.table==='ReportSpotStatus';
-      const numericIndex=numericSpotIds.indexOf(spotId),numericId=numericIndex+1001;
-      if(numeric&&numericIndex<0)throw new Error('This spot is not in the database sample inventory.');
+      const numericId=this.numericOf(spotId);
+      if(numeric&&!numericId)throw new Error('This spot is not in the database inventory.');
       const payload=numeric?{spot_id:numericId,noise_level:levelNumber[input.noise],crowd_level:levelNumber[input.busy],notes:note}:{spot_id:spotId,noise_level:input.noise,crowd_levels:input.busy,notes:note};
       // Signed-in users post as themselves; guests fall back to the database default (demo user).
       if(numeric&&this.userId)payload.user_id=this.userId;
@@ -214,7 +250,7 @@ const numericSpotIds=['hbll-commons','hbll-west','hbll-group','hbll-think','hbll
       if (!response.ok) throw await this.listError(response);
       const rows=await response.json();
       if (!Array.isArray(rows)) throw new Error('Supabase returned an unexpected saved-list response.');
-      const lists=rows.map(row=>({dbId:Number(row.list_ID),name:String(row.list_name||''),spots:[...new Set((Array.isArray(row.Favorites)?row.Favorites:[]).map(f=>numericSpotIds[Number(f.spot_ID)-1001]).filter(Boolean))]}));
+      const lists=rows.map(row=>({dbId:Number(row.list_ID),name:String(row.list_name||''),spots:[...new Set((Array.isArray(row.Favorites)?row.Favorites:[]).map(f=>this.spotOf(f.spot_ID)).filter(Boolean))]}));
       if (!lists.some(l=>l.name.toLowerCase()==='favorites')) lists.unshift(await this.createList('Favorites'));
       return lists;
     }
@@ -231,8 +267,8 @@ const numericSpotIds=['hbll-commons','hbll-west','hbll-group','hbll-think','hbll
     // changes: [{dbId, has, want}] for one spot. Adds and removes only what differs.
     async setSpotLists(spotId,changes) {
       this.requireUser();
-      const numeric=numericSpotIds.indexOf(spotId)+1001;
-      if (numeric<1001) throw new Error('This spot is not in the database sample inventory.');
+      const numeric=this.numericOf(spotId);
+      if (!numeric) throw new Error('This spot is not in the database inventory.');
       const add=changes.filter(c=>c.want&&!c.has).map(c=>({list_ID:c.dbId,spot_ID:numeric}));
       const remove=changes.filter(c=>!c.want&&c.has).map(c=>c.dbId);
       if (add.length) {

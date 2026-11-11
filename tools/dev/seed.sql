@@ -13,14 +13,6 @@ insert into public."Buildings" (building_name, building_location, opening_hrs, c
 insert into public."Floors" (floor_number, building_id)
   select n, b.building_id from public."Buildings" b, generate_series(1,3) n;
 
-insert into public."StudySpot" (spot_type_id, building_id, floor_id, outlets, capacity, spot_location, reservable, group_type, lat, lng)
-  select 1, f.building_id, f.floor_id, true, 4, 'East hall tables', false, 'group',
-         case f.building_id when 1 then 40.2495 when 2 then 40.2491 else 40.2518 end,
-         case f.building_id when 1 then -111.6490 when 2 then -111.6484 else -111.6499 end
-  from public."Floors" f where f.floor_number = 1;
-insert into public."StudySpot" (spot_type_id, building_id, floor_id, outlets, capacity, spot_location, reservable, group_type)
-  select 2, f.building_id, f.floor_id, true, 6, 'Reservable study room', true, 'group'
-  from public."Floors" f where f.floor_number = 2;
 
 insert into public."ResourceType" (resource_name) values ('Printer'), ('Water fountain'), ('Vending');
 insert into public."Resources" (resource_type_id, floor_id, building_id, resource_info, resource_location)
@@ -32,6 +24,9 @@ insert into public."BuildingHours" (building_id, day_of_week, open_time, close_t
 insert into auth.users (email, encrypted_password, raw_app_meta_data, email_confirmed_at) values
   ('admin@nook.test', extensions.crypt('DevAdmin#2026', extensions.gen_salt('bf')), '{"role":"admin"}', now()),
   ('member@nook.test', extensions.crypt('DevMember#2026', extensions.gen_salt('bf')), '{}', now());
+
+insert into public."User" (auth_id, first_name, last_name)
+  select id, case email when 'admin@nook.test' then 'Dev' else 'Member' end, case email when 'admin@nook.test' then 'Admin' else 'Tester' end from auth.users;
 
 insert into public.admin_codes (user_id, code_hash)
   select id, extensions.crypt('314159', extensions.gen_salt('bf')) from auth.users where email = 'admin@nook.test';

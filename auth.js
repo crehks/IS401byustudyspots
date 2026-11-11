@@ -11,6 +11,10 @@
     get signedIn() {return !!(this.session&&this.profile);}
     get userId() {return this.profile?.user_id??null;}
     get displayName() {return this.profile?.first_name||'';}
+    // Shows the Dev tools menu only. Cosmetic: every admin action is still checked by the database.
+    get isAdmin() {
+      try{const part=String(this.session?.access_token||'').split('.')[1];return JSON.parse(atob(part.replace(/-/g,'+').replace(/_/g,'/')))?.app_metadata?.role==='admin'}catch{return false}
+    }
     onChange(fn) {this.listeners.add(fn);}
     emit() {for(const fn of this.listeners){try{fn(this)}catch{}}}
     store() {try{if(this.session)this.storage?.setItem(SESSION_KEY,JSON.stringify(this.session));else this.storage?.removeItem(SESSION_KEY)}catch{}}
@@ -93,6 +97,11 @@
     }
     async signOut() {
       const token=this.session?.access_token;
+      // An admin's dev-page unlock would otherwise last up to two hours after logging out here.
+      if(token&&this.isAdmin&&this.db.config.configured){
+        try{await this.db.request(`${this.db.config.url}/rest/v1/rpc/lock_admin`,{method:'POST',headers:this.db.headers({Authorization:`Bearer ${token}`,'Content-Type':'application/json'}),body:'{}'})}catch{}
+        try{for(const name of ['nook_admin_at','nook_admin_rt'])scope.document.cookie=`${name}=; Path=/; Max-Age=0; SameSite=Lax`}catch{}
+      }
       try{if(token&&this.db.config.configured)await this.db.request(this.authUrl('logout'),{method:'POST',headers:this.db.headers({Authorization:`Bearer ${token}`})});}catch{}
       this.setSession(null);this.db.userId=null;this.emit();
     }
