@@ -961,3 +961,10 @@ html.explore-snap .site-footer{scroll-snap-align:end}
 .ground-floor-badge{display:inline-block;margin-left:10px;padding:4px 8px;border-radius:6px;background:var(--sage);color:var(--accent-ink);font-size:11px;font-weight:800;letter-spacing:.02em;vertical-align:middle}
 .floor-tab.is-ground{position:relative}
 .floor-tab.is-ground::after{content:"";position:absolute;left:50%;bottom:3px;width:5px;height:5px;margin-left:-2.5px;border-radius:50%;background:var(--terracotta)}
+/* Campus map guide: a hint in the top bar and a legend for building colors. */
+.campus-map-hint{margin:0 0 0 6px;font-size:12px;font-weight:700;color:var(--muted)}
+.campus-map-legend{position:absolute;left:14px;bottom:22px;z-index:4;display:flex;flex-direction:column;gap:6px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);box-shadow:0 4px 14px #3d383222;font-size:12px;font-weight:700;color:var(--espresso);pointer-events:none}
+.campus-map-legend span{display:flex;align-items:center;gap:8px}
+.campus-legend-swatch{width:16px;height:12px;flex:none;border-radius:3px;background:var(--campus-roof);border:1.5px solid var(--campus-wall)}
+.campus-legend-swatch.is-available{background:var(--campus-available);border-color:var(--campus-available-wall)}
+@media(max-width:560px){.campus-map-hint{flex-basis:100%;order:3;margin:2px 0 0}}
