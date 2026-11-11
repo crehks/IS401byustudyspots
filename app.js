@@ -358,13 +358,15 @@ function usesDatabase(spot){return database.config.configured&&!spot.id.startsWi
 function currentReport(spot){return usesDatabase(spot)?(database.reports[spot.id]||[])[0]||null:(data.reports[spot.id]||[])[0]||null}
 // When live conditions loaded, pins and filters use only recent approved reports; null means "no recent data".
 function liveConditions(spot){return usesDatabase(spot)&&database.conditions?(database.conditions[spot.id]||{noise:null,busy:null}):null}
-function currentBusy(spot){const live=liveConditions(spot);return live?live.busy:(currentReport(spot)?.busy||spot.busy)}
-function currentNoise(spot){const live=liveConditions(spot);return live?live.noise:(currentReport(spot)?.noise||spot.noise)}
+// With no recent live report, fall back to the spot's typical value (labeled "Typically ...") rather than an old report.
+function currentBusy(spot){const live=liveConditions(spot);return live?(live.busy||spot.busy):(currentReport(spot)?.busy||spot.busy)}
+function currentNoise(spot){const live=liveConditions(spot);return live?(live.noise||spot.noise):(currentReport(spot)?.noise||spot.noise)}
+function isTypical(spot){const live=liveConditions(spot);return !!live&&!live.busy}
 // Apply all filters together. The medium noise filter includes quiet and medium-noise spots.
 function matches(spot){if(!state.buildings.has(spot.building))return false;if(state.study==='solo'&&spot.type!=='solo')return false;if(state.study==='group'&&(spot.type!=='group'||spot.capacity<state.groupSize))return false;if(state.private&&!spot.private)return false;if(state.outlets&&!spot.outlets)return false;if(state.noise==='low'&&currentNoise(spot)!=='low')return false;if(state.noise==='medium'&&currentNoise(spot)==='high')return false;return true}
 // Lower scores rank first: prefer quieter, less crowded, non-reservable spaces.
 function rank(spot){return (spot.reserved?8:0)+(currentBusy(spot)==='low'?0:currentBusy(spot)==='medium'?2:currentBusy(spot)==='high'?5:3)+(currentNoise(spot)==='low'?0:1)}
-function labelBusy(spot){if(spot.reserved)return 'Reserve ahead';const busy=currentBusy(spot);return busy==='low'?'Less busy':busy==='medium'?'Moderate':busy==='high'?'Busy':liveConditions(spot)?'No recent data':'No report yet'}
+function labelBusy(spot){if(spot.reserved)return 'Reserve ahead';const busy=currentBusy(spot),text=busy==='low'?'Less busy':busy==='medium'?'Moderate':busy==='high'?'Busy':'';if(!text)return liveConditions(spot)?'No recent data':'No report yet';return isTypical(spot)?`Typically ${text.toLowerCase()}`:text}
 function badgeClass(spot){return spot.reserved?'reserved':currentBusy(spot)==='high'?'high':currentBusy(spot)==='medium'?'medium':currentBusy(spot)?'':'unknown'}
 function showToast(message){const toast=$('#toast');toast.textContent=message;toast.hidden=false;clearTimeout(showToast.timer);showToast.timer=setTimeout(()=>toast.hidden=true,3500)}
 // 5. Reporting. Keep the connection banner short; show details in the dialog.

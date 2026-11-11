@@ -128,11 +128,15 @@ const numericSpotIds=['hbll-commons','hbll-west','hbll-group','hbll-think','hbll
       }
       const rows=await response.json();
       if (!Array.isArray(rows)||rows.length!==1||!Number.isSafeInteger(rows[0].id)) throw new Error('The insert did not return its saved row.');
-      let status='pending';
-      try {
-        const tagged=await this.request(`${this.config.url}/functions/v1/tag-report`,{method:'POST',headers:this.headers({'Content-Type':'application/json'}),body:JSON.stringify({report_id:rows[0].id})});
-        if (tagged.ok) {const result=await tagged.json();if (['approved','rejected'].includes(result?.status)) status=result.status;}
-      } catch {}
+      // Up to 3 tagging tries (2s apart, stopping after ~15s); the server-side retry job covers anything left.
+      let status='pending';const started=Date.now();
+      for (let attempt=0;attempt<3&&status==='pending'&&Date.now()-started<15000;attempt++) {
+        if (attempt) await new Promise(resolve=>setTimeout(resolve,2000));
+        try {
+          const tagged=await this.request(`${this.config.url}/functions/v1/tag-report`,{method:'POST',headers:this.headers({'Content-Type':'application/json'}),body:JSON.stringify({report_id:rows[0].id})});
+          if (tagged.ok) {const result=await tagged.json();if (['approved','rejected'].includes(result?.status)) status=result.status;}
+        } catch {}
+      }
       if (status==='approved') await this.loadConditions().catch(()=>{});
       return {id:rows[0].id,status,spotId,noise:input.noise,busy:input.busy,note:body};
     }

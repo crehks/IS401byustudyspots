@@ -1,7 +1,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { classify } from './llm.ts';
 
-const MAX_ATTEMPTS = 5;
+const MAX_ATTEMPTS = 8;
 const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
 
 async function tag(id: number): Promise<string> {
@@ -46,7 +46,7 @@ async function handle(req: Request): Promise<Response> {
     const { data } = await db.from('spot_reports').select('id')
       .eq('status', 'pending').lt('attempts', MAX_ATTEMPTS)
       .lt('created_at', new Date(Date.now() - 60_000).toISOString())
-      .order('created_at').limit(10);
+      .order('created_at').limit(5);
     const results: Record<number, string> = {};
     for (const r of data ?? []) results[r.id] = await tag(r.id);
     return Response.json(results);
