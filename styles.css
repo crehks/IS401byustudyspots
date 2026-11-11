@@ -956,3 +956,8 @@ html.explore-snap .site-footer{scroll-snap-align:end}
 .nav-auth .auth-label{flex:none}
 .nav-auth .auth-name{min-width:0;max-width:10ch;overflow:hidden;text-overflow:ellipsis;font-weight:400}
 @media(max-width:560px){.nav-auth .auth-name{display:none}}
+
+/* Ground-floor badge next to the floor title, and a dot on its floor tab. */
+.ground-floor-badge{display:inline-block;margin-left:10px;padding:4px 8px;border-radius:6px;background:var(--sage);color:var(--accent-ink);font-size:11px;font-weight:800;letter-spacing:.02em;vertical-align:middle}
+.floor-tab.is-ground{position:relative}
+.floor-tab.is-ground::after{content:"";position:absolute;left:50%;bottom:3px;width:5px;height:5px;margin-left:-2.5px;border-radius:50%;background:var(--terracotta)}
