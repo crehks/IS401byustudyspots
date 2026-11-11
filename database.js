@@ -27,7 +27,7 @@ const numericSpotIds=['hbll-commons','hbll-west','hbll-group','hbll-think','hbll
       try {
         if (scope.location?.protocol==='file:') {this.configLoaded=true;return this;}
         this.config=await this.loadConfig();this.configLoaded=true;
-        if (this.config.configured) {await this.loadReports();this.ready=true;}
+        if (this.config.configured) {await this.loadReports();this.ready=true;await this.loadConditions().catch(()=>{});}
       } catch(error) {this.error=error.message;}
       finally {this.loading=false;this.configLoaded=true;}
       return this;
@@ -94,6 +94,47 @@ const numericSpotIds=['hbll-commons','hbll-west','hbll-group','hbll-think','hbll
       const reports={};
       for (const row of rows) {const report=this.rowToReport(row);(reports[report.spotId]??=[]).push(report);}
       this.reports=reports;return reports;
+    }
+    // Live noise/crowd per spot from approved AI-tagged reports in the last 45 minutes. null = no recent data.
+    async loadConditions() {
+      this.conditions=null;
+      const response=await this.request(`${this.config.url}/rest/v1/rpc/space_conditions?p_window_minutes=45`,{headers:this.headers()});
+      if (!response.ok) throw await this.apiError(response);
+      const rows=await response.json();
+      if (!Array.isArray(rows)) throw new Error('Supabase returned an unexpected conditions response.');
+      const conditions={};
+      for (const row of rows) {
+        const spotId=numericSpotIds[Number(row?.space_id)-1001];
+        if (!spotId) continue;
+        const ok=v=>['low','medium','high'].includes(v)?v:null;
+        conditions[spotId]={noise:ok(row.noise_level),busy:ok(row.crowd_level),count:Number(row.report_count)||0};
+      }
+      this.conditions=conditions;return conditions;
+    }
+    // Signed-in report: insert as pending, then ask the tag-report function to judge it.
+    // A failed or slow tagging call leaves the report pending; it is retried server-side.
+    async submitAiReport(spotId,input) {
+      if (!this.accessToken) throw new Error('Log in to submit a report.');
+      const index=numericSpotIds.indexOf(spotId);
+      if (index<0) throw new Error('This spot is not in the database sample inventory.');
+      if (!['low','medium','high'].includes(input.noise) || !['low','medium','high'].includes(input.busy)) throw new Error('Choose a noise level and a crowding level.');
+      const body=String(input.note||'').trim()||`Noise ${input.noise}, crowding ${input.busy}.`;
+      if (body.length>240) throw new Error('Keep the report note to 240 characters.');
+      const response=await this.request(`${this.config.url}/rest/v1/spot_reports`,{method:'POST',headers:this.headers({'Content-Type':'application/json',Prefer:'return=representation'}),body:JSON.stringify({space_id:index+1001,body,self_noise:input.noise,self_crowd:input.busy})});
+      if (!response.ok) {
+        const problem=await response.clone().json().catch(()=>({}));
+        if (problem.code==='P0001'&&typeof problem.message==='string') throw new Error(problem.message);
+        throw await this.apiError(response);
+      }
+      const rows=await response.json();
+      if (!Array.isArray(rows)||rows.length!==1||!Number.isSafeInteger(rows[0].id)) throw new Error('The insert did not return its saved row.');
+      let status='pending';
+      try {
+        const tagged=await this.request(`${this.config.url}/functions/v1/tag-report`,{method:'POST',headers:this.headers({'Content-Type':'application/json'}),body:JSON.stringify({report_id:rows[0].id})});
+        if (tagged.ok) {const result=await tagged.json();if (['approved','rejected'].includes(result?.status)) status=result.status;}
+      } catch {}
+      if (status==='approved') await this.loadConditions().catch(()=>{});
+      return {id:rows[0].id,status,spotId,noise:input.noise,busy:input.busy,note:body};
     }
         // Building hours live in their own table and do not affect reports.
     // Buildings IDs map to the codes the UI uses: 1001 HBLL, 1002 WSC, 1003 JKB.

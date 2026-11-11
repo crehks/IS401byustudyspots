@@ -356,13 +356,15 @@ function floorLabel(spot){return BUILDINGS[spot.building].floors.find(f=>f.id===
 function usesDatabase(spot){return database.config.configured&&!spot.id.startsWith('custom-')}
 // Read the newest report from the chosen store before falling back to sample status.
 function currentReport(spot){return usesDatabase(spot)?(database.reports[spot.id]||[])[0]||null:(data.reports[spot.id]||[])[0]||null}
-function currentBusy(spot){return currentReport(spot)?.busy||spot.busy}
-function currentNoise(spot){return currentReport(spot)?.noise||spot.noise}
+// When live conditions loaded, pins and filters use only recent approved reports; null means "no recent data".
+function liveConditions(spot){return usesDatabase(spot)&&database.conditions?(database.conditions[spot.id]||{noise:null,busy:null}):null}
+function currentBusy(spot){const live=liveConditions(spot);return live?live.busy:(currentReport(spot)?.busy||spot.busy)}
+function currentNoise(spot){const live=liveConditions(spot);return live?live.noise:(currentReport(spot)?.noise||spot.noise)}
 // Apply all filters together. The medium noise filter includes quiet and medium-noise spots.
 function matches(spot){if(!state.buildings.has(spot.building))return false;if(state.study==='solo'&&spot.type!=='solo')return false;if(state.study==='group'&&(spot.type!=='group'||spot.capacity<state.groupSize))return false;if(state.private&&!spot.private)return false;if(state.outlets&&!spot.outlets)return false;if(state.noise==='low'&&currentNoise(spot)!=='low')return false;if(state.noise==='medium'&&currentNoise(spot)==='high')return false;return true}
 // Lower scores rank first: prefer quieter, less crowded, non-reservable spaces.
 function rank(spot){return (spot.reserved?8:0)+(currentBusy(spot)==='low'?0:currentBusy(spot)==='medium'?2:currentBusy(spot)==='high'?5:3)+(currentNoise(spot)==='low'?0:1)}
-function labelBusy(spot){if(spot.reserved)return 'Reserve ahead';const busy=currentBusy(spot);return busy==='low'?'Less busy':busy==='medium'?'Moderate':busy==='high'?'Busy':'No report yet'}
+function labelBusy(spot){if(spot.reserved)return 'Reserve ahead';const busy=currentBusy(spot);return busy==='low'?'Less busy':busy==='medium'?'Moderate':busy==='high'?'Busy':liveConditions(spot)?'No recent data':'No report yet'}
 function badgeClass(spot){return spot.reserved?'reserved':currentBusy(spot)==='high'?'high':currentBusy(spot)==='medium'?'medium':currentBusy(spot)?'':'unknown'}
 function showToast(message){const toast=$('#toast');toast.textContent=message;toast.hidden=false;clearTimeout(showToast.timer);showToast.timer=setTimeout(()=>toast.hidden=true,3500)}
 // 5. Reporting. Keep the connection banner short; show details in the dialog.
@@ -438,7 +440,8 @@ async function submitArrival(form){
   reportSubmissionPending=true;button.disabled=true;button.textContent=remote?'Saving to Supabase…':'Saving locally…';error.hidden=true;
   try{
     // Show remote success only after the adapter validates the returned row.
-    if(remote){const report=await database.submitReport(id,input);closeModal(true);render();renderDatabaseStatus();renderDatabaseReceipt(report);showToast('Thanks! Your report was submitted.');}
+    if(remote&&auth.signedIn){const report=await database.submitAiReport(id,input);closeModal(true);render();renderDatabaseStatus();renderDatabaseReceipt(report);showToast(report.status==='approved'?'Thanks! Your report is live.':report.status==='rejected'?'Your report was not accepted as a valid conditions report.':'Thanks! Your report is saved and will appear once it is checked.');}
+    else if(remote){const report=await database.submitReport(id,input);closeModal(true);render();renderDatabaseStatus();renderDatabaseReceipt(report);showToast('Thanks! Your report was submitted.');}
     else{const report={...input,time:Date.now(),source:'local'};(data.reports[id]??=[]).unshift(report);data.reports[id]=data.reports[id].slice(0,10);const saved=save();closeModal(true);render();if(saved)showToast('Local preview: report saved only on this device.');}
   }catch(problem){error.textContent=problem.message;error.hidden=false;database.error=problem.message;renderDatabaseStatus();}
   finally{reportSubmissionPending=false;button.disabled=false;button.textContent='Confirm report';}
@@ -840,4 +843,5 @@ window.matchMedia?.(COMPACT_LAYOUT_QUERY).addEventListener('change',()=>{
 render();
 renderDatabaseStatus();
 renderAuthNav();
+setInterval(()=>{if(database.ready)database.loadConditions().then(render).catch(()=>{})},120000);
 void database.initialize().then(()=>auth.restore()).then(()=>{if(auth.notice)showToast(auth.notice);renderDatabaseStatus();render();loadBuildingHours();loadReservationLinks()}).catch(()=>{database.error='The database connection could not initialize. Check .env and refresh to retry.';renderDatabaseStatus()});
