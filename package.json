@@ -11,7 +11,9 @@
     "check:db": "node tools/check-database.mjs",
     "test": "node --test tests/catalogue.test.mjs tests/database.test.mjs tests/server.test.mjs tests/storage.test.mjs tests/auth.test.mjs tests/favorites.test.mjs tests/mobile.test.mjs",
     "package": "node tools/package.mjs",
-    "test:integration": "node tools/test-integration.mjs && node tools/test-existing-schema.mjs && node tools/test-actual-schema.mjs && node tools/test-preserve-existing.mjs"
+    "test:integration": "node tools/test-integration.mjs && node tools/test-existing-schema.mjs && node tools/test-actual-schema.mjs && node tools/test-preserve-existing.mjs",
+    "dev:backend": "node tools/dev-backend.mjs",
+    "test:admin": "node --test tests/admin-gate.test.mjs"
   },
   "devDependencies": {
     "@electric-sql/pglite": "0.5.8",

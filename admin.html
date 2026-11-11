@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nook Admin</title>
+<meta name="description" content="Nook admin area: maintain study spots, buildings and users. Dev page, test branch.">
+<link rel="icon" href="assets/nook-logo.png">
+<link rel="stylesheet" href="admin.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="topbar">
+  <a class="brand" href="#/" aria-label="Nook admin home"><img src="assets/nook-logo.png" alt="" width="40" height="34"><span>Nook <em>Admin</em></span></a>
+  <nav aria-label="Primary">
+    <a class="nav-anchor" id="nav-features" href="#features">Features</a>
+    <button type="button" class="btn btn-primary" id="nav-login">Log in</button>
+    <span id="nav-user" hidden>
+      <span class="nav-email" id="nav-email"></span>
+      <button type="button" class="btn" id="nav-logout">Log out</button>
+    </span>
+  </nav>
+</header>
+
+<main id="main" tabindex="-1">
+  <p class="notice" id="notice" role="status" hidden></p>
+
+  <section id="view-landing">
+    <div class="hero">
+      <div class="hero-copy">
+        <p class="kicker">Nook for BYU &middot; Admin area</p>
+        <h1>Keep every study spot accurate.</h1>
+        <p class="lead">Manage buildings, floors, study spots and team access in one place, then drop pins on the campus map so students walk to the right door.</p>
+        <p><button type="button" class="btn btn-primary btn-lg" id="hero-login">Log in to manage</button></p>
+      </div>
+      <img class="hero-img" src="assets/admin-hero.jpg" alt="The Nook campus map showing the Lee Library, Wilkinson Student Center and Joseph Knight Building highlighted among other BYU buildings" width="1366" height="900">
+    </div>
+    <div class="features" id="features">
+      <article class="card"><h2>Maintain records</h2><p>Create, edit and delete rows for every table the app uses, with validation and clear errors.</p></article>
+      <article class="card"><h2>Drop a pin</h2><p>Click the satellite map to set a building or spot location. Drag to fine-tune it.</p></article>
+      <article class="card"><h2>Protected access</h2><p>Admins sign in, then unlock with a personal code. The database enforces it, not just this page.</p></article>
+    </div>
+  </section>
+
+  <section id="view-code" hidden>
+    <div class="panel narrow">
+      <h1>Enter your admin code</h1>
+      <p class="muted">Signed in as <strong id="code-email"></strong>. Admin tools unlock for two hours after a correct code.</p>
+      <form id="code-form" novalidate>
+        <label for="admin_code">Admin code</label>
+        <input id="admin_code" name="admin_code" type="password" autocomplete="off" required>
+        <p class="error" id="code-error" role="alert" hidden></p>
+        <div class="row"><button class="btn btn-primary" type="submit">Unlock</button><button class="btn" type="button" id="code-logout">Log out</button></div>
+      </form>
+    </div>
+  </section>
+
+  <section id="view-dash" hidden></section>
+  <section id="view-records" hidden></section>
+  <section id="view-users" hidden></section>
+  <section id="view-table" hidden></section>
+</main>
+
+<footer class="footer"><p>Nook admin &middot; dev page on a test branch. Data shown here comes from the local dev backend, not the live site.</p></footer>
+
+<dialog id="login-dialog" aria-labelledby="login-title">
+  <form id="login-form" method="dialog" novalidate>
+    <h2 id="login-title">Log in</h2>
+    <label for="user_email">Email</label>
+    <input id="user_email" name="user_email" type="email" autocomplete="username" required>
+    <label for="user_password">Password</label>
+    <input id="user_password" name="user_password" type="password" autocomplete="current-password" required>
+    <p class="error" id="login-error" role="alert" hidden></p>
+    <div class="row"><button class="btn btn-primary" type="submit" id="login-submit">Log in</button><button class="btn" type="button" data-close>Cancel</button></div>
+  </form>
+</dialog>
+
+<dialog id="form-dialog" aria-labelledby="form-title"><div id="form-host"></div></dialog>
+<dialog id="confirm-dialog" aria-labelledby="confirm-title">
+  <form method="dialog">
+    <h2 id="confirm-title">Are you sure?</h2>
+    <p id="confirm-text"></p>
+    <div class="row"><button class="btn btn-danger" value="yes" id="confirm-yes">Delete</button><button class="btn" value="no">Cancel</button></div>
+  </form>
+</dialog>
+
+<script src="admin-config.js"></script>
+<script type="module" src="admin.js"></script>
+</body>
+</html>
