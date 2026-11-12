@@ -6,7 +6,7 @@
 // 1. Building catalogue. Floor IDs select drawings; level is the physical floor.
 // JKB's G key displays Floor 1 but must keep matching existing spot references.
 const BUILDINGS = {
-  HBLL: { name: 'Harold B. Lee Library', short: 'Library', description: 'Explore the library floor by floor, or find a room by number.', floors: [
+  HBLL: { name: 'Harold B. Lee Library', short: 'Library', groundFloor: 'L3', description: '', floors: [
     {id:'L3',label:'Floor 3 South / Entry',file:'hbll-3s',level:3,side:'South',defaultX:43,defaultY:52},
     {id:'L3N',label:'Floor 3 North',file:'hbll-3ns',level:3,side:'North',defaultX:64,defaultY:49},
     {id:'L2',label:'Floor 2 South',file:'hbll-2s',level:2,side:'South',defaultX:25,defaultY:73},
@@ -15,10 +15,8 @@ const BUILDINGS = {
     {id:'L1N',label:'Floor 1 North',file:'hbll-1ns',level:1,side:'North',defaultX:31,defaultY:74},
     {id:'L4',label:'Floor 4',file:'hbll-4s',level:4,defaultX:26,defaultY:68},
     {id:'L5',label:'Floor 5',file:'hbll-5s',level:5,defaultX:67,defaultY:50},
-    {id:'L6',label:'Floor 6',file:'hbll-6s',level:6,defaultX:74,defaultY:52},
-    {id:'B',label:'Basement North',file:'hbll-bns',level:0,side:'North',defaultX:39,defaultY:66}
   ], map:'https://map.byu.edu/', floorsUrl:'https://lib.byu.edu/floormaps/' },
-  WSC: { name: 'Wilkinson Student Center', short: 'The Wilk', description: 'Explore the Wilk, room by room. Find a room or browse study ideas on each floor.', floors: [
+  WSC: { name: 'Wilkinson Student Center', short: 'The Wilk', groundFloor: '2E', description: '', floors: [
     {id:'1E',label:'Floor 1 East',file:'wsc-1s',level:1,side:'East',defaultX:25,defaultY:43},
     {id:'1W',label:'Floor 1 West',file:'wsc-1ws',level:1,side:'West',defaultX:31,defaultY:48},
     {id:'2E',label:'Floor 2 East',file:'wsc-2s',level:2,side:'East',defaultX:21,defaultY:43},
@@ -29,12 +27,12 @@ const BUILDINGS = {
     {id:'5E',label:'Floor 5',file:'wsc-5s',level:5,side:'East',defaultX:33,defaultY:43},
     {id:'6E',label:'Floor 6',file:'wsc-6s',level:6,side:'East',defaultX:34,defaultY:53}
   ], map:'https://map.byu.edu/', floorsUrl:'https://wscmaps.byu.edu/map' },
-  JKB: { name: 'Jesse Knight Building', short: 'JKB', description: '', floors: [
+  JKB: { name: 'Jesse Knight Building', short: 'JKB', groundFloor: 'L2', description: '', floors: [
     {id:'G',label:'Floor 1',file:'jkb-1s',level:1,defaultX:43,defaultY:22},
     {id:'L2',label:'Floor 2',file:'jkb-2s',level:2,defaultX:50,defaultY:24},
     {id:'L3',label:'Floor 3',file:'jkb-3s',level:3,defaultX:48,defaultY:20},
     {id:'L4',label:'Floor 4',file:'jkb-4s',level:4,defaultX:66,defaultY:43}
-  ], map:'https://map.byu.edu/', floorsUrl:'https://pf.byu.edu/space/floor-plans/master' }
+  ] }
 };
 
 // Spot IDs also appear in database.js and the SQL samples. Keep them aligned.
@@ -204,7 +202,7 @@ async function loadReservationLinks(){
 
 let reportSubmissionPending=false,newSpotPending=false;
 // Temporary screen choices. Save filters copies a preset into device data.
-const state={view:'explore',building:'HBLL',floor:'L3',zoom:1,selectedSpot:null,selectedRoom:null,roomLabels:true,selectedList:'favorites',study:'any',noise:'any',private:false,outlets:false,groupSize:4,buildings:new Set(['HBLL','WSC','JKB'])};
+const state={view:'explore',building:'HBLL',floor:'L3',zoom:1,selectedSpot:null,selectedRoom:null,roomLabels:true,resourcesVisible:false,selectedResource:null,selectedList:'favorites',study:'any',noise:'any',private:false,outlets:false,groupSize:4,buildings:new Set(['HBLL','WSC','JKB'])};
 // Pin positions use the original PDF page; rendering subtracts the crop offset.
 const WILK_STUDY_POINTS={
   'wsc-tables':[255,253],'wsc-lounge':[698,350],
@@ -220,6 +218,108 @@ const HBLL_STUDY_POINTS={
   'hbll-think':[604,422],'hbll-reading':[312,645],'hbll-single':[685,562],
   'hbll-upper':[349,536]
 };
+// HBLL resources listed by the library's Places and Help Desks pages.
+// Coordinates follow the matching floor drawing and mark the service area, not an exact counter.
+const HBLL_RESOURCES={
+  L1N:[
+    ['Social Sciences & Education',380,407],['Special Collections',341,405],['Government Document Reference',397,407],['Auditorium',711,653],['Auditorium Gallery',676,653]
+  ],
+  L1:[
+    ['Accounting Lab',406,285],['Atrium Gallery',566,285],['Business & Economics',395,320],['Juvenile Literature Collection',245,387],['Special Collections',485,404]
+  ],
+  L2N:[
+    ['American Heritage Lab',499,260],['Honors Theses',585,409],['Human Resources',767,630],['Library Administrative Offices',767,630],['Library Instruction & Information Literacy',742,297],['Library Information Technology',781,528],['North Gallery',300,389],['Religion & Family History',549,185]
+  ],
+  L2:[
+    ['Geospatial Services & Training',672,656],['Popular Reading',218,248],['Science & Engineering',587,324],['South Gallery',408,403],['Periodicals',214,708]
+  ],
+  L3N:[
+    ['Library Security',607,268],['Library Information Technology',514,235],['Library Delivery Services',602,332]
+  ],
+  L3:[
+    ['Center for Teaching and Learning',758,138],['Circulation / Course Reserve',251,386],['Copyright Licensing / Intellectual Property Services',540,506],['General Help Desk (Patron Services)',251,386],['Learning Commons',548,287],['Library Cafe',215,74],['Research & Writing Center',273,593],['Teaching and Learning Lab',637,624]
+  ],
+  L4:[
+    ['Asian Collection',211,52],['Audio Cassette Players',550,440],['Audio Transfer Equipment',573,440],['Digital Audio Recorders',550,435],['Equipment Checkout Desk',797,159],['Equipment Room',797,159],['Experiential Studio',574,159],['HD Viewing Room',753,88],['International Harp Archives',570,435],['Locked Case',570,435],['Makerspace / The Workshop',797,238],['Music & Dance',414,446],['Music & Dance Media Lab',550,440],['Music Recordings Archive',550,435],['Music Special Collections',570,435],['Primrose International Viola Archive',570,435],['Software Training Classes',748,267],['Software Training Lab',748,267],['Video Production Studio',797,198]
+  ],
+  L5:[
+    ['Accessibility Department',691,87],['Ancient Studies Collection',285,61],['Gallery on Five',525,440],['Humanities Help Desk',165,679],['Icelandic Collection',235,345],['Middle East Collection',132,340],['Welsh Collection',284,539]
+  ]
+};
+const resourceLetters=index=>{let label='';for(index++;index;index=Math.floor((index-1)/26))label=String.fromCharCode(65+(index-1)%26)+label;return label};
+const HBLL_RESOURCE_ROOMS={
+  'Auditorium':'1060 / 1080','Circulation / Course Reserve':'3446','General Help Desk (Patron Services)':'3446',
+  'Research & Writing Center':'3322','Library Security':'3032','Library Instruction & Information Literacy':'2227',
+  'HD Viewing Room':'4824','Software Training Lab':'4826','Makerspace / The Workshop':'4840',
+  'Accessibility Department':'5800','Library Cafe':'3400','Learning Commons':'3600','Teaching and Learning Lab':'3700S',
+  'Center for Teaching and Learning':'3800','Copyright Licensing / Intellectual Property Services':'3760','Gallery on Five':'5500','Humanities Help Desk':'5300'
+};
+const HBLL_SERVICE_ROOM_RESOURCES={
+  L3N:{'3032':'Library Security'},
+  L3:{'3400':'Library Cafe','3600':'Learning Commons','3700S':'Teaching and Learning Lab','3800':'Center for Teaching and Learning','3760':'Copyright Licensing / Intellectual Property Services'},
+  L5:{'5300':'Humanities Help Desk','5400':'Ancient Studies Collection','5500':'Gallery on Five','5800':'Accessibility Department'}
+};
+const HBLL_RESOURCE_DESCRIPTIONS={
+  'Social Sciences & Education':'Subject help and collections for social science and education research.',
+  'Special Collections':'Rare books, manuscripts, archives, and other primary sources for research.',
+  'Government Document Reference':'Help finding and using government publications and data.',
+  'Accounting Lab':'Accounting course support. The library currently offers this help virtually rather than in person.',
+  'Atrium Gallery':'Rotating art exhibits just outside the Reynolds Auditorium.',
+  'Auditorium':'A lecture and event venue for academic functions.','Auditorium Gallery':'Exhibits at the entrance to the Reynolds Auditorium.',
+  'Business & Economics':'Subject help and collections for business and economics research.',
+  'Juvenile Literature Collection':'Children’s and young adult literature for readers, teachers, and researchers.',
+  'American Heritage Lab':'A space for American Heritage course study and review.',
+  'Honors Theses':'Access and assistance for BYU honors theses and undergraduate research.',
+  'Human Resources':'Library employee services and administrative support.',
+  'Library Administrative Offices':'Library administration and departmental offices.',
+  'Library Instruction & Information Literacy':'Instruction rooms used for library research and information-literacy classes.',
+  'Library Information Technology':'Library technology services and support.',
+  'North Gallery':'Gallery space for library exhibits on the north side of Level 2.',
+  'Religion & Family History':'Subject help, collections, and family-history research tools.',
+  'Science & Engineering':'Subject help and collections for science and engineering research.',
+  'Periodicals':'Newspapers, magazines, journals, and the periodicals reading area.',
+  'Geospatial Services & Training':'GIS help with mapping, spatial data, cartography, and GPS.',
+  'Popular Reading':'A browsing collection of popular and leisure reading.',
+  'South Gallery':'Gallery space for library exhibits on the south side of Level 2.',
+  'Library Security':'Library safety and security assistance.',
+  'Library Delivery Services':'Pickup and delivery help for library materials requested by patrons.',
+  'Center for Teaching and Learning':'Teaching and learning support, technology, and collaborative learning services.',
+  'Circulation / Course Reserve':'Check out library materials and access course reserve items.',
+  'Copyright Licensing / Intellectual Property Services':'Guidance on copyright, licensing, and intellectual property questions.',
+  'General Help Desk (Patron Services)':'Ask library questions, get research help, and check out books, media, and equipment.',
+  'Learning Commons':'Collaborative study, computers, printing, research help, and equipment checkout; includes The Hub and Snack Zone.',
+  'Library Cafe':'Food and drink service in the library.',
+  'Research & Writing Center':'One-to-one help with writing, research, and citations.',
+  'Teaching and Learning Lab':'A hands-on space for teaching practice and technology-enhanced learning.',
+  'Asian Collection':'Books and research materials supporting Asian studies.',
+  'Audio Cassette Players':'Equipment for listening to audio cassette materials.',
+  'Audio Transfer Equipment':'Equipment for converting audio recordings to digital formats.',
+  'Digital Audio Recorders':'Portable recorders for capturing digital audio.',
+  'Equipment Checkout Desk':'Check out cameras, audio/video gear, and other library equipment.',
+  'Equipment Room':'Library equipment and media resources available through the Level 4 service area.',
+  'Experiential Studio':'Collaborative teaching space with breakout rooms and presentation technology.',
+  'HD Viewing Room':'A reservable theater-style room with a large screen and surround sound.',
+  'International Harp Archives':'Harp scores, manuscripts, recordings, and archival materials.',
+  'Locked Case':'A secured collection area; ask the Music & Dance desk for access.',
+  'Makerspace / The Workshop':'Prototyping and digital-imaging tools, including 3D printers, scanners, and fabrication equipment.',
+  'Music & Dance':'Music and dance collections, media, research help, and listening resources.',
+  'Music & Dance Media Lab':'Media workstations and technology for music and dance materials.',
+  'Music Recordings Archive':'Recorded music and archival audio materials.',
+  'Music Special Collections':'Specialized music collections and archival materials.',
+  'Primrose International Viola Archive':'A major collection of viola-related scores, manuscripts, and research materials.',
+  'Software Training Classes':'Free classes on creative, web, and digital-media software.',
+  'Software Training Lab':'Computers and software support for multimedia and digital projects.',
+  'Video Production Studio':'A production space with lighting, cameras, and backgrounds for video projects.',
+  'Accessibility Department':'Library assistance and services supporting patrons with disabilities.',
+  'Ancient Studies Collection':'Texts and research materials about the ancient Near East, Greece, and Rome.',
+  'Gallery on Five':'Rotating art exhibits across from the Humanities Help Desk.',
+  'Humanities Help Desk':'Subject research help for humanities topics.',
+  'Icelandic Collection':'Books and research materials related to Iceland and Icelandic studies.',
+  'Middle East Collection':'Books and research materials related to Middle Eastern studies.',
+  'Welsh Collection':'Books and research materials related to Wales and Welsh studies.'
+};
+function resourceDescription(name){return HBLL_RESOURCE_DESCRIPTIONS[name]||`Library services and information for ${name}.`}
+function resourceTooltip(name){const room=HBLL_RESOURCE_ROOMS[name];return `${name}${room?` · Room ${room}`:''}. ${resourceDescription(name)}`}
 const JKB_STUDY_POINTS={'jkb-tables':[520,177],'jkb-nook':[828,520],'jkb-group':[610,188]};
 function buildingPlans(building=state.building){return {WSC:window.WSC_PLANS,HBLL:window.HBLL_PLANS,JKB:window.JKB_PLANS}[building]||null}
 // Floor-plan bundles are several MB each, so each loads only when its building is first opened.
@@ -299,11 +399,7 @@ function renderCampusMap(){
   <g class="campus-plaza"><path d="M627 94L657 94L656 159L625 159Z M672 171L739 170L739 197L672 197Z M786 173L851 171L852 190L786 191Z M842 540L889 540L889 568L842 568Z"/></g>
   <g class="campus-context-labels"><text x="88" y="138">RB Fields</text><text x="80" y="513">South Field</text><text x="71" y="688">Tennis courts</text><text x="721" y="187">Brigham Square</text><text x="899" y="183">Lee Lane</text><text x="970" y="241">Cougar Quad</text><text x="750" y="388">Cougar Crossing</text><text x="660" y="540">South Campus Quad</text><text x="344" y="603">Maeser Quad</text><text x="470" y="494">Kimball Quad</text><text x="188" y="355">Richards Quad</text><text x="501" y="753">Arboretum &amp; Botany Pond</text><text x="122" y="721">South Campus Trail</text></g>
   <g class="campus-road-labels"><text x="366" y="367" transform="rotate(-78 366 367)">Campus Drive</text><text x="820" y="366">1060 N</text><text x="455" y="672" transform="rotate(-12 455 672)">Campus Drive</text><text x="1069" y="610">900 N</text><text x="450" y="799">800 N</text><text x="1089" y="738">820 North Street</text><text x="980" y="467" transform="rotate(90 980 467)">750 East</text></g>${trees}</g>${blocks}</svg>`;
-  const viewport=$('#campusMapViewport');let drag=null;
-  viewport.onpointerdown=event=>{if(event.pointerType==='touch'||event.button!==0||event.target.closest('button'))return;drag={x:event.clientX,y:event.clientY,left:viewport.scrollLeft,top:viewport.scrollTop,moved:false};};
-  viewport.onpointermove=event=>{if(!drag)return;const dx=event.clientX-drag.x,dy=event.clientY-drag.y;if(Math.hypot(dx,dy)>6){drag.moved=true;viewport.classList.add('is-panning');viewport.setPointerCapture?.(event.pointerId);viewport.scrollLeft=drag.left-dx;viewport.scrollTop=drag.top-dy;}};
-  const endDrag=()=>{if(drag?.moved){campusSuppressClick=true;setTimeout(()=>campusSuppressClick=false,0);}drag=null;viewport.classList.remove('is-panning');};
-  viewport.onpointerup=endDrag;viewport.onpointercancel=endDrag;
+  installCampusMapInteraction($('#campusMapViewport'));
 }
 // Preserve the map center on zoom; Reset centers the supported buildings.
 function changeCampusZoom(delta,initial=false){
@@ -330,6 +426,58 @@ function changeCampusZoom(delta,initial=false){
   $('#campusZoomOut').disabled=campusZoom===1;$('#campusZoomIn').disabled=campusZoom===3;
   viewport.scrollLeft=centerX*width-viewport.clientWidth/2;viewport.scrollTop=centerY*height-viewport.clientHeight/2;
 }
+function setCampusMapInteraction(active){
+  const viewport=$('#campusMapViewport'),button=$('#campusInteractMap');
+  viewport.classList.toggle('is-interactive',active);
+  button.setAttribute('aria-pressed',active);
+  button.textContent=active?'Done moving map':'Interact with map';
+}
+function installCampusMapInteraction(viewport){
+  const drawing=$('#campusMapDrawing'),pointers=new Map();
+  let start=null,pinch=null,dragging=false,gestureMoved=false;
+  const beginPan=point=>{start={x:point.x,y:point.y,left:viewport.scrollLeft,top:viewport.scrollTop};dragging=false};
+  const beginPinch=()=>{
+    const [a,b]=[...pointers.values()],rect=viewport.getBoundingClientRect();
+    const width=parseFloat(drawing.style.width)||Math.max(viewport.clientWidth,760)*campusZoom;
+    const midpointX=(a.x+b.x)/2,midpointY=(a.y+b.y)/2;
+    pinch={distance:Math.max(1,Math.hypot(a.x-b.x,a.y-b.y)),zoom:campusZoom,x:(viewport.scrollLeft+midpointX-rect.left)/width,y:(viewport.scrollTop+midpointY-rect.top)/(width*845/1238)};
+    for(const id of pointers.keys())viewport.setPointerCapture?.(id);
+    gestureMoved=true;dragging=true;
+  };
+  viewport.addEventListener('pointerdown',event=>{
+    const active=viewport.classList.contains('is-interactive');
+    if((event.pointerType==='touch'&&!active)||event.button!==0||event.target.closest('button'))return;
+    const point={x:event.clientX,y:event.clientY};pointers.set(event.pointerId,point);
+    if(pointers.size===1){beginPan(point);pinch=null;gestureMoved=false}
+    else if(pointers.size===2)beginPinch();
+  });
+  viewport.addEventListener('pointermove',event=>{
+    if(!pointers.has(event.pointerId))return;
+    pointers.set(event.pointerId,{x:event.clientX,y:event.clientY});
+    if(pointers.size>=2&&pinch){
+      const [a,b]=[...pointers.values()],midpointX=(a.x+b.x)/2,midpointY=(a.y+b.y)/2;
+      const zoom=Math.max(1,Math.min(3,pinch.zoom*Math.hypot(a.x-b.x,a.y-b.y)/pinch.distance));
+      changeCampusZoom(zoom-campusZoom);
+      const rect=viewport.getBoundingClientRect(),width=parseFloat(drawing.style.width),height=width*845/1238;
+      viewport.scrollLeft=pinch.x*width-(midpointX-rect.left);viewport.scrollTop=pinch.y*height-(midpointY-rect.top);
+      return;
+    }
+    if(!start)return;
+    const dx=event.clientX-start.x,dy=event.clientY-start.y;
+    if(!dragging&&Math.hypot(dx,dy)>6){dragging=true;gestureMoved=true;viewport.setPointerCapture?.(event.pointerId);viewport.classList.add('is-panning')}
+    if(dragging){viewport.scrollLeft=start.left-dx;viewport.scrollTop=start.top-dy}
+  });
+  const finish=event=>{
+    if(!pointers.delete(event.pointerId))return;
+    pinch=null;
+    if(pointers.size>=2){beginPinch();return}
+    if(pointers.size){beginPan([...pointers.values()][0]);return}
+    if(gestureMoved){campusSuppressClick=true;setTimeout(()=>campusSuppressClick=false,0)}
+    gestureMoved=false;
+    start=null;dragging=false;viewport.classList.remove('is-panning');
+  };
+  viewport.addEventListener('pointerup',finish);viewport.addEventListener('pointercancel',finish);viewport.addEventListener('lostpointercapture',finish);
+}
 // Open supported maps or explain why another building is not yet available.
 function showCampusBuilding(id){
   const building=CAMPUS_BUILDINGS.find(b=>b.id===id);if(!building||campusSuppressClick)return;
@@ -338,6 +486,16 @@ function showCampusBuilding(id){
   if(BUILDINGS[id]){openBuilding(id);return;}
   $('#campusComingSoon').innerHTML=`<div><strong>${esc(building.name||id)}${building.name?` (${esc(id)})`:''}</strong><p>This building is not yet supported. Study maps are coming soon.</p></div><button type="button" data-dismiss-campus aria-label="Dismiss building message">×</button>`;
   $('#campusComingSoon').hidden=false;
+}
+// Explain which buildings have study maps: a hint in the map's top bar and a color legend.
+function addCampusMapGuide(){
+  const north=$('.campus-north'),heading=$('.campus-map-heading');
+  if(heading&&!$('#campusMapHint')){
+    const hint='<p id="campusMapHint" class="campus-map-hint">Select a green building to explore its floors.</p>';
+    north?north.insertAdjacentHTML('beforebegin',hint):heading.insertAdjacentHTML('beforeend',hint);
+  }
+  const viewport=$('#campusMapViewport');
+  if(viewport&&!$('#campusMapLegend'))viewport.insertAdjacentHTML('afterend','<div id="campusMapLegend" class="campus-map-legend"><span><i class="campus-legend-swatch is-available" aria-hidden="true"></i>Study maps available</span><span><i class="campus-legend-swatch" aria-hidden="true"></i>Coming soon</span></div>');
 }
 // 4. Shared helpers. A failed local save returns false to prevent a success message.
 function save(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(data));return true}catch{showToast('Could not save on this device. Changes will last only until you refresh.');return false}}
@@ -470,9 +628,6 @@ function setMapInteraction(active){
   $('#floorPlan').classList.toggle('is-interactive',active);
   $('#interactMap').setAttribute('aria-pressed',active);
   $('#interactMap').textContent=active?'Done moving map':'Interact with map';
-  $('#mapTouchHint').textContent=active?'Drag to pan. Pinch to zoom. Choose Done to scroll the page.':'Swipe to scroll the page. Activate the map to pan and pinch to zoom.';
-  const instructions=$('#mapInstructions>span');
-  if(instructions)instructions.textContent=isCompactLayout()?(active?'Drag to pan · Pinch to zoom':'Select a room · Activate map to move'):'Drag to move · Select a room to locate it';
 }
 function renderFilters(){
   if(!$('#buildingFilters').children.length)$('#buildingFilters').innerHTML=Object.entries(BUILDINGS).map(([id,b])=>`<label class="building-check"><input type="checkbox" value="${id}"><span>${id}</span><small>${esc(b.short)}</small></label>`).join('');
@@ -493,7 +648,6 @@ function renderBuilding(){
   const building=BUILDINGS[state.building];if(!building)return;
   $('#buildingTitle').textContent=building.name;$('#buildingSummary').textContent=building.description;renderHours();
   $('#buildingSelect').innerHTML=Object.entries(BUILDINGS).map(([id,b])=>`<option value="${id}" ${id===state.building?'selected':''}>${id}</option>`).join('');
-  $('#officialFloorLink').href=building.floorsUrl;$('#buildingMapLink').href=building.map;
   const floor=building.floors.find(f=>f.id===state.floor)||building.floors[0];state.floor=floor.id;
   const isWsc=state.building==='WSC',isHbll=state.building==='HBLL';
   const digital=buildingPlans()?.[state.floor],isDigital=!!digital;
@@ -503,26 +657,40 @@ function renderBuilding(){
   const sides=isWsc?['East','West']:['North','South'];
   const hasSides=isDigital&&building.floors.filter(f=>f.level===floor.level).length>1;
   const levels=[...new Set(building.floors.map(f=>f.level))].sort((a,b)=>a-b);
-  $('#floorTitle').textContent=floor.label;
-  $('#floorSubtitle').textContent=isDigital?'Choose a room on the map, or search for its number.':loadingPlans?'Loading floor map…':`${building.short} · schematic study area guide`;
-  $('#floorTabs').innerHTML=loadingPlans?'':isDigital?levels.map(level=>`<button class="floor-tab ${floor.level===level?'is-selected':''}" data-${state.building.toLowerCase()}-level="${level}" type="button" aria-label="${level===0?'Basement':`Floor ${level}`}">${level===0?'B':level}</button>`).join(''):building.floors.map(f=>`<button class="floor-tab ${f.id===state.floor?'is-selected':''}" data-floor="${f.id}" type="button">${esc(f.label)}</button>`).join('');
+    const groundLevel=building.floors.find(f=>f.id===building.groundFloor)?.level;
+  $('#floorTitle').innerHTML=`${esc(floor.label)}${floor.level===groundLevel?' <span class="ground-floor-badge">Ground floor</span>':''}`;
+  $('#floorSubtitle').hidden=isDigital;
+  $('#floorSubtitle').textContent=loadingPlans?'Loading floor map…':`${building.short} · schematic study area guide`;
+  $('#floorTabs').innerHTML=loadingPlans?'':isDigital?levels.map(level=>`<button class="floor-tab ${floor.level===level?'is-selected':''} ${level===groundLevel?'is-ground':''}" data-${state.building.toLowerCase()}-level="${level}" type="button" aria-label="${level===0?'Basement':`Floor ${level}`}${level===groundLevel?', ground floor':''}" title="${level===groundLevel?'Ground floor':''}">${level===0?'B':level}</button>`).join(''):building.floors.map(f=>`<button class="floor-tab ${f.id===state.floor?'is-selected':''}" data-floor="${f.id}" type="button">${esc(f.label)}</button>`).join('');
   $('#floorSideTabs').hidden=!hasSides;
   $('#floorSideTabs').innerHTML=hasSides?sides.map(side=>`<button class="floor-tab ${floor.side===side?'is-selected':''}" data-${isHbll?'hbll':'wsc'}-side="${side}" type="button">${side}</button>`).join(''):'';
   $('#planAssetBar').hidden=!isDigital;
   $('#roomTools').hidden=!isDigital;$('#mapInstructions').hidden=!isDigital;
-  $('#roomSearch').previousElementSibling.textContent=`Find a room in ${isHbll?'the HBLL':isWsc?'the Wilk':'JKB'}`;
-  $('#roomSearch').placeholder=`Room number, e.g. ${isHbll?'4732':isWsc?'2050':'4057'}`;
+  $('#floorDisclaimer').hidden=isDigital;
+  $('#toggleResources').hidden=!(isDigital&&isHbll);
+  if(!isHbll){state.resourcesVisible=false;state.selectedResource=null}
+  $('#toggleResources').setAttribute('aria-pressed',String(state.resourcesVisible&&isHbll));
+  $('#resourceFilters').hidden=!(isDigital&&isHbll&&state.resourcesVisible);
   if(!isDigital)$('#selectedRoomPanel').hidden=true;
-  if(isDigital){$('#sourcePdfLink').href=`assets/${state.building.toLowerCase()}/${floor.file}.pdf`;$('#zoomValue').textContent=`${Math.round(state.zoom*100)}%`;$('#zoomOut').disabled=state.zoom<=1;$('#zoomIn').disabled=state.zoom>=8;$('#toggleRoomLabels').setAttribute('aria-pressed',state.roomLabels)}
+  if(isDigital){$('#zoomValue').textContent=`${Math.round(state.zoom*100)}%`;$('#zoomOut').disabled=state.zoom<=1;$('#zoomIn').disabled=state.zoom>=8;$('#toggleRoomLabels').setAttribute('aria-pressed',String(state.roomLabels&&!state.resourcesVisible))}
   const spots=allSpots().filter(s=>s.building===state.building&&s.floor===state.floor);
   const plan=$('#floorPlan');
   if(isDigital){
     plan.className=`floor-plan native-plan ${state.building.toLowerCase()}-plan ${state.roomLabels?'':'hide-room-labels'}`;plan.setAttribute('aria-label',`Interactive ${building.short} ${floor.label} map`);
     // Translate page-based pin positions into percentages of the cropped SVG.
     const studyPoints={WSC:WILK_STUDY_POINTS,HBLL:HBLL_STUDY_POINTS,JKB:JKB_STUDY_POINTS}[state.building]||{};let sampleCount=0;
-    plan.innerHTML=`<div class="plan-scroll"><div class="plan-canvas"><div id="planStage" class="plan-stage">${digital.svg}${spots.map((s,i)=>{let x,y;const label=s.pin?String(s.capacity):'S'+(++sampleCount);if(s.pin)[x,y]=s.pin;else{const point=studyPoints[s.id]||[s.x/100*1224,s.y/100*792];x=(point[0]-digital.crop[0])/digital.width*100;y=(point[1]-digital.crop[1])/digital.height*100}return `<button type="button" class="plan-pin ${s.reserved?'reserved':''} ${matches(s)?'':'is-dimmed'} ${state.selectedSpot===s.id?'is-selected':''}" style="left:${x}%;top:${y}%" data-spot="${esc(s.id)}" title="${esc(s.name)}" aria-label="${s.pin?`Study spot for ${s.capacity}`:`Sample spot ${label}`}: ${esc(s.name)}">${label}</button>`}).join('')}${floorResources().map(r=>`<button type="button" class="plan-pin resource-pin" style="left:${r.pin[0]}%;top:${r.pin[1]}%" data-resource="${esc(r.id)}" title="${esc(r.type)}: ${esc(r.info)}" aria-label="${esc(r.type)}: ${esc(r.info)}${r.where?`, ${esc(r.where)}`:''}">${esc(r.type.charAt(0).toUpperCase())}</button>`).join('')}</div></div></div>`;
-    $('#floorLegend').innerHTML='<span><i class="map-key-swatch room"></i>Rooms</span><span><i class="map-key-swatch open"></i>Open areas</span><span><i class="map-key-swatch service"></i>Service cores</span><span><i class="legend-dot open"></i>Study spots</span>'+(floorResources().length?'<span><i class="legend-dot resource"></i>Resources</span>':'');
-    $('#floorDisclaimer').textContent='Study spot locations are approximate.';
+    const resources=isHbll?(HBLL_RESOURCES[state.floor]||[]):[];
+    const selectedResource=state.selectedResource?.startsWith(`${state.floor}:`)?Number(state.selectedResource.split(':')[1]):null;
+    $('#resourceFilters').innerHTML=resources.length?`<span class="resource-filter-label">${esc(floor.label)} resources</span>${resources.map(([name],i)=>{const room=HBLL_RESOURCE_ROOMS[name];return `<button type="button" class="resource-filter ${selectedResource===i?'is-selected':''}" data-resource="${state.floor}:${i}" aria-pressed="${selectedResource===i}" title="${esc(resourceTooltip(name))}"><span class="resource-letter">${resourceLetters(i)}</span><span class="resource-filter-name">${esc(name)}${room?`<small>Room ${esc(room)}</small>`:''}</span></button>`}).join('')}`:'<span class="resource-filter-empty">No public resource locations are listed for this floor.</span>';
+    const markerOffsets=[[0,0],[36,0],[-36,0],[0,36],[0,-36],[28,28],[-28,28],[28,-28],[-28,-28],[48,0],[0,48],[-48,0],[0,-48]];
+    const resourcePoints=[];
+    resources.forEach(([,px,py])=>{const point=markerOffsets.map(([dx,dy])=>[px+dx,py+dy]).find(([x,y])=>resourcePoints.every(([prevX,prevY])=>Math.hypot(x-prevX,y-prevY)>=34))||[px,py];resourcePoints.push(point)});
+    plan.innerHTML=`<div class="plan-scroll"><div class="plan-canvas"><div id="planStage" class="plan-stage">${digital.svg}${spots.map((s,i)=>{let x,y;const label=s.pin?String(s.capacity):'S'+(++sampleCount);if(s.pin)[x,y]=s.pin;else{const point=studyPoints[s.id]||[s.x/100*1224,s.y/100*792];x=(point[0]-digital.crop[0])/digital.width*100;y=(point[1]-digital.crop[1])/digital.height*100}return `<button type="button" class="plan-pin ${s.reserved?'reserved':''} ${matches(s)?'':'is-dimmed'} ${state.selectedSpot===s.id?'is-selected':''}" style="left:${x}%;top:${y}%" data-spot="${esc(s.id)}" title="${esc(s.name)}" aria-label="${s.pin?`Study spot for ${s.capacity}`:`Sample spot ${label}`}: ${esc(s.name)}">${label}</button>`}).join('')}${state.resourcesVisible&&isHbll?resources.map(([name],i)=>{const [px,py]=resourcePoints[i],x=(px-digital.crop[0])/digital.width*100,y=(py-digital.crop[1])/digital.height*100,selected=selectedResource===i;return `<button type="button" class="resource-pin ${selected?'is-selected':''} ${selectedResource!==null&&!selected?'is-dimmed':''}" style="left:${x}%;top:${y}%" data-resource="${state.floor}:${i}" title="${resourceLetters(i)} · ${esc(resourceTooltip(name))}" aria-label="Resource ${resourceLetters(i)}: ${esc(resourceTooltip(name))}">${resourceLetters(i)}</button>`}).join(''):''}${floorResources().map(r=>`<button type="button" class="plan-pin pinned-resource-pin" style="left:${r.pin[0]}%;top:${r.pin[1]}%" data-pinned-resource="${esc(r.id)}" title="${esc(r.type)}: ${esc(r.info)}" aria-label="${esc(r.type)}: ${esc(r.info)}${r.where?`, ${esc(r.where)}`:''}">${esc(r.type.charAt(0).toUpperCase())}</button>`).join('')}</div></div></div>`;
+    if(isHbll){
+      const serviceResources=HBLL_SERVICE_ROOM_RESOURCES[state.floor]||{};
+      $$('#floorPlan .map-space-service[data-room]').forEach(area=>{const name=serviceResources[area.dataset.room],title=area.querySelector('title');if(name&&title)title.textContent=resourceTooltip(name)});
+    }
+    $('#floorLegend').innerHTML='<span><i class="map-key-swatch room"></i>Rooms</span><span><i class="map-key-swatch open"></i>Open areas</span><span><i class="map-key-swatch service"></i>Resources</span><span><i class="legend-dot open"></i>Study spots</span>'+(floorResources().length?'<span><i class="legend-dot resource"></i>Added resources</span>':'');
 
     $('#mapNorth').innerHTML=`N <span style="display:inline-block;transform:rotate(${digital.north}deg)">↑</span>`;
     mapResizeObserver.disconnect();mapResizeObserver.observe(plan);
@@ -536,7 +704,7 @@ function renderBuilding(){
     plan.className='floor-plan';plan.setAttribute('aria-label','Illustrative floor view of study spots');
     plan.innerHTML=`<div class="floor-wing wing-a">Study zone</div><div class="floor-wing wing-b">Study zone</div><div class="floor-wing wing-c">Rooms & seating</div><div class="floor-wing wing-d">Rooms & seating</div><div class="floor-center" aria-label="Central corridor">+</div>${spots.map(s=>`<button type="button" class="floor-spot ${s.reserved?'reserved':''} ${matches(s)?'':'is-dimmed'} ${state.selectedSpot===s.id?'is-selected':''}" style="left:${s.x}%;top:${s.y}%;transform:translate(-50%,-50%)" data-spot="${esc(s.id)}" aria-label="${esc(s.name)}, ${s.reserved?'reservation required':labelBusy(s)}"><i aria-hidden="true"></i><span>${esc(s.name)}</span></button>`).join('')}${amenities.map(a=>`<span class="amenity-marker" style="left:${a.x}%;top:${a.y}%" aria-label="Illustrative ${a.name.toLowerCase()} position"><b>${a.symbol}</b>${a.name}</span>`).join('')}`;
     $('#floorLegend').innerHTML='<span><i class="legend-dot open"></i>Open study area</span><span><i class="legend-dot reserved"></i>Reservation required</span><span><i class="legend-dot amenity"></i>Amenity</span>';
-    $('#floorDisclaimer').innerHTML='This is a schematic guide, not an architectural floor plan. Check the <a href="https://pf.byu.edu/space/floor-plans/master" target="_blank" rel="noopener noreferrer">BYU master floor plans</a> for exact room locations (BYU sign-in may be required).';
+    $('#floorDisclaimer').textContent='This is a schematic guide, not an architectural floor plan.';
   }
   const matched=spots.filter(matches).sort((a,b)=>rank(a)-rank(b));
   $('#mobileSpotCount').textContent=matched.length;
@@ -584,8 +752,8 @@ function render(){renderFilters();renderRecommendations();if(state.view==='build
 function focusView(){const heading=$(`#${state.view}View h1`);heading?.setAttribute('tabindex','-1');heading?.focus({preventScroll:true})}
 function setView(view){const changed=state.view!==view;if(changed)viewHistory.push(state.view);state.view=view;render();if(changed)focusView();if(!isCompactLayout())window.scrollTo({top:0,behavior:'smooth'})}
 function goBack(){state.view=viewHistory.pop()||'explore';render();focusView();if(!isCompactLayout())window.scrollTo({top:0,behavior:'smooth'})}
-// Changing drawings clears the previous room, spot selection, and search results.
-function openBuilding(id,floor){if(!BUILDINGS[id])return;$('#campusComingSoon').hidden=true;state.building=id;state.floor=floor||BUILDINGS[id].floors[0].id;state.zoom=1;state.selectedSpot=null;state.selectedRoom=null;$('#roomSearch').value='';$('#roomSearchResults').hidden=true;setBuildingPanel('map');setView('building');if(!buildingPlans(id))loadPlans(id).then(()=>{if(state.view==='building'&&state.building===id)renderBuilding()}).catch(()=>showToast('Floor map could not load. Check your connection and try again.'))}
+// Changing drawings clears the previous room and spot selection.
+function openBuilding(id,floor,panel='map'){if(!BUILDINGS[id])return;$('#campusComingSoon').hidden=true;state.building=id;state.floor=floor||BUILDINGS[id].groundFloor||BUILDINGS[id].floors[0].id;state.zoom=1;state.selectedSpot=null;state.selectedRoom=null;setBuildingPanel(panel);setView('building');if(!buildingPlans(id))loadPlans(id).then(()=>{if(state.view==='building'&&state.building===id)renderBuilding()}).catch(()=>showToast('Floor map could not load. Check your connection and try again.'))}
 // 7. Floor tools. Fit preserves aspect ratio; zoom multiplies the fitted size.
 function resizeDigitalMap(){
   const plan=buildingPlans()?.[state.floor];if(!plan||!$('#planStage'))return;
@@ -648,24 +816,12 @@ function installMapPan(){
   viewport.addEventListener('pointerup',finish);viewport.addEventListener('pointercancel',finish);viewport.addEventListener('lostpointercapture',finish);
   viewport.addEventListener('click',event=>{if(ignoreClick){event.preventDefault();event.stopPropagation()}},true);
 }
-// Search every drawing in this building; exact room numbers rank first.
-function renderRoomSearch(){
-  const query=$('#roomSearch').value.trim().toUpperCase(),results=$('#roomSearchResults');
-  if(!query){results.hidden=true;results.innerHTML='';return}
-  const matches=Object.entries(buildingPlans()||{}).flatMap(([floor,plan])=>plan.rooms.filter(r=>r.number.includes(query)).map(room=>({floor,plan,room}))).sort((a,b)=>(a.room.number===query?-1:0)-(b.room.number===query?-1:0)||a.room.number.localeCompare(b.room.number)).slice(0,8);
-  results.innerHTML=matches.length?matches.map(({floor,plan,room})=>`<button type="button" data-find-room="${room.number}" data-room-floor="${floor}"><strong>Room ${room.number}</strong><span>${esc(plan.label)}</span></button>`).join(''):'<p>No matching room number in the supplied plans.</p>';
-  results.hidden=false;
-}
-// Search results can switch floors; locate also zooms and centers the room.
-function selectRoom(number,floor=state.floor,locate=false){
+// Select a room directly on the current floor map.
+function selectRoom(number){
+  const floor=state.floor;
   const plan=buildingPlans()?.[floor],room=plan?.rooms.find(r=>r.number===number);if(!room)return;
-  setBuildingPanel('map');
-  if(state.floor!==floor){state.floor=floor;state.zoom=1;state.selectedSpot=null;renderBuilding()}
-  state.selectedRoom={number,floor};state.roomLabels=true;$('#floorPlan').classList.remove('hide-room-labels');$('#toggleRoomLabels').setAttribute('aria-pressed','true');
-  $('#roomSearchResults').hidden=true;$('#roomSearch').value='';updateRoomHighlight();
-  if(locate){const viewport=$('.plan-scroll'),stage=$('#planStage');const fitWidth=stage.offsetWidth/state.zoom;const locateZoom=Math.min(8,Math.max(2.5,Math.ceil(plan.width*2/fitWidth*4)/4));if(state.zoom<locateZoom)changeZoom(locateZoom-state.zoom);viewport.scrollLeft=stage.offsetLeft+room.x/plan.width*stage.offsetWidth-viewport.clientWidth/2;viewport.scrollTop=stage.offsetTop+room.y/plan.height*stage.offsetHeight-viewport.clientHeight/2;
-    if(isCompactLayout()){$('#roomSearch').blur();$('#selectedRoomPanel').scrollIntoView({behavior:'smooth',block:'start'})}
-  }
+  state.selectedRoom={number,floor};state.roomLabels=true;state.resourcesVisible=false;state.selectedResource=null;$('#floorPlan').classList.remove('hide-room-labels');$('#floorPlan .resource-pin')?.remove();$('#resourceFilters').hidden=true;$('#toggleResources').setAttribute('aria-pressed','false');$('#toggleRoomLabels').setAttribute('aria-pressed','true');
+  updateRoomHighlight();
 }
 // Keep the SVG highlight and selected-room panel in sync.
 function updateRoomHighlight(){
@@ -765,7 +921,7 @@ function openCreateList(){if(activeLists().length>=3){showToast('You can have Fa
 function resetFilters(){state.buildings=new Set(['HBLL','WSC','JKB']);state.study='any';state.groupSize=4;state.noise='any';state.private=false;state.outlets=false;data.savedFilters=null;save();render()}
 function updateFilter(){renderFilters();renderRecommendations();if(state.view==='building')renderBuilding()}
 // Open the best matching floor while retaining the current filters.
-function showMatches(){const match=allSpots().filter(matches).sort((a,b)=>rank(a)-rank(b));if(!state.buildings.size){showToast('Choose at least one building.');return}if(!match.length){openBuilding([...state.buildings][0]);showToast('No spaces match. Try changing a filter.');return}openBuilding(match[0].building,match[0].floor)}
+function showMatches(){const match=allSpots().filter(matches).sort((a,b)=>rank(a)-rank(b));if(!state.buildings.size){showToast('Choose at least one building.');return}if(!match.length){openBuilding([...state.buildings][0]);showToast('No spaces match. Try changing a filter.');return}openBuilding(match[0].building,match[0].floor,isCompactLayout()?'spots':'map')}
 
 // 9. Event routing. data-* attributes connect rebuilt controls to shared handlers.
 document.addEventListener('click',event=>{
@@ -775,14 +931,20 @@ document.addEventListener('click',event=>{
   if(t.id==='exploreMapButton'){const reducedMotion=window.matchMedia('(prefers-reduced-motion: reduce)').matches;$('#exploreMapSection').scrollIntoView({behavior:reducedMotion?'auto':'smooth'});return}
   if(t.dataset.buildingPanel){setBuildingPanel(t.dataset.buildingPanel);return}
   if(t.id==='interactMap'){setMapInteraction(t.getAttribute('aria-pressed')!=='true');return}
+  if(t.id==='campusInteractMap'){setCampusMapInteraction(t.getAttribute('aria-pressed')!=='true');return}
+  if(t.id==='toggleRoomLabels'||t.id==='toggleResources'||t.dataset.resource){
+    const viewport=$('.plan-scroll'),scrollLeft=viewport?.scrollLeft||0,scrollTop=viewport?.scrollTop||0;
+    if(t.id==='toggleRoomLabels'){state.roomLabels=true;state.resourcesVisible=false;state.selectedResource=null}
+    else if(t.id==='toggleResources'){state.roomLabels=true;state.resourcesVisible=true}
+    else state.selectedResource=state.selectedResource===t.dataset.resource?null:t.dataset.resource;
+    renderBuilding();const nextViewport=$('.plan-scroll');if(nextViewport){nextViewport.scrollLeft=scrollLeft;nextViewport.scrollTop=scrollTop}return
+  }
   if(t.dataset.campusBuilding){showCampusBuilding(t.dataset.campusBuilding);return}
   if(t.hasAttribute('data-dismiss-campus')){$('#campusComingSoon').hidden=true;$$('.campus-building').forEach(el=>el.classList.remove('is-selected'));return}
   if(t.id==='campusZoomIn'||t.id==='campusZoomOut'||t.id==='campusZoomFit'){if(t.id==='campusZoomFit')changeCampusZoom(0,true);else changeCampusZoom(t.id==='campusZoomIn'?.25:-.25);return}
   // Room selection, map labels, and zoom controls.
-  if(t.dataset.findRoom){selectRoom(t.dataset.findRoom,t.dataset.roomFloor,true);return}
   if(t.dataset.room){selectRoom(t.dataset.room);return}
   if(t.hasAttribute('data-clear-room')){state.selectedRoom=null;updateRoomHighlight();return}
-  if(t.id==='toggleRoomLabels'){state.roomLabels=!state.roomLabels;$('#floorPlan').classList.toggle('hide-room-labels',!state.roomLabels);t.setAttribute('aria-pressed',state.roomLabels);return}
   if(t.id==='zoomFit'){changeZoom(1-state.zoom);$('.plan-scroll').scrollLeft=0;$('.plan-scroll').scrollTop=0;return}
   if(t.matches('[data-modal-close]')){closeModal();return}
   // Main navigation, filter actions, and building selection.
@@ -804,15 +966,15 @@ document.addEventListener('click',event=>{
   if(t.dataset.study){state.study=t.dataset.study;updateFilter();return}
   if(t.dataset.noise){state.noise=t.dataset.noise;updateFilter();return}
   // Each building has its own floor keys; retain the side when changing levels.
-  if(t.dataset.floor){state.floor=t.dataset.floor;state.zoom=1;state.selectedSpot=null;state.selectedRoom=null;$('#roomSearchResults').hidden=true;renderBuilding();return}
-  if(t.dataset.wscLevel){const level=Number(t.dataset.wscLevel);state.floor=level<=3?`${level}${state.floor.endsWith('W')?'W':'E'}`:`${level}E`;state.zoom=1;state.selectedSpot=null;state.selectedRoom=null;$('#roomSearchResults').hidden=true;renderBuilding();return}
+  if(t.dataset.floor){state.floor=t.dataset.floor;state.zoom=1;state.selectedSpot=null;state.selectedRoom=null;renderBuilding();return}
+  if(t.dataset.wscLevel){const level=Number(t.dataset.wscLevel);state.floor=level<=3?`${level}${state.floor.endsWith('W')?'W':'E'}`:`${level}E`;state.zoom=1;state.selectedSpot=null;state.selectedRoom=null;renderBuilding();return}
   if(t.dataset.wscSide){state.floor=`${state.floor[0]}${t.dataset.wscSide==='West'?'W':'E'}`;state.zoom=1;state.selectedSpot=null;state.selectedRoom=null;renderBuilding();return}
-  if(t.hasAttribute('data-hbll-level')){const level=Number(t.dataset.hbllLevel);state.floor=level===0?'B':`L${level}${level<=3&&state.floor.endsWith('N')?'N':''}`;state.zoom=1;state.selectedSpot=null;state.selectedRoom=null;$('#roomSearchResults').hidden=true;renderBuilding();return}
-  if(t.dataset.hbllSide){const floor=BUILDINGS.HBLL.floors.find(f=>f.id===state.floor);state.floor=`L${floor.level}${t.dataset.hbllSide==='North'?'N':''}`;state.zoom=1;state.selectedSpot=null;state.selectedRoom=null;$('#roomSearchResults').hidden=true;renderBuilding();return}
-  if(t.dataset.jkbLevel){const floor=BUILDINGS.JKB.floors.find(f=>f.level===Number(t.dataset.jkbLevel));if(!floor)return;state.floor=floor.id;state.zoom=1;state.selectedSpot=null;state.selectedRoom=null;$('#roomSearchResults').hidden=true;renderBuilding();return}
+  if(t.hasAttribute('data-hbll-level')){const level=Number(t.dataset.hbllLevel);state.floor=level===0?'B':`L${level}${level<=3&&state.floor.endsWith('N')?'N':''}`;state.zoom=1;state.selectedSpot=null;state.selectedRoom=null;renderBuilding();return}
+  if(t.dataset.hbllSide){const floor=BUILDINGS.HBLL.floors.find(f=>f.id===state.floor);state.floor=`L${floor.level}${t.dataset.hbllSide==='North'?'N':''}`;state.zoom=1;state.selectedSpot=null;state.selectedRoom=null;renderBuilding();return}
+  if(t.dataset.jkbLevel){const floor=BUILDINGS.JKB.floors.find(f=>f.level===Number(t.dataset.jkbLevel));if(!floor)return;state.floor=floor.id;state.zoom=1;state.selectedSpot=null;state.selectedRoom=null;renderBuilding();return}
   if(t.id==='zoomOut'||t.id==='zoomIn'){changeZoom(t.id==='zoomIn'?.25:-.25);return}
   // Spot details, reports, and saved-list changes.
-  if(t.dataset.resource){const r=database.pinnedResources.find(x=>x.id===t.dataset.resource);if(r)showToast(`${r.type}: ${r.info}${r.where?` (${r.where})`:''}`);return}
+  if(t.dataset.pinnedResource){const r=database.pinnedResources.find(x=>x.id===t.dataset.pinnedResource);if(r)showToast(`${r.type}: ${r.info}${r.where?` (${r.where})`:''}`);return}
   if(t.dataset.spot){const s=spotById(t.dataset.spot);if(state.view==='explore'){openBuilding(s.building,s.floor)}openSpot(s.id);return}
   if(t.dataset.openSaved){const s=spotById(t.dataset.openSaved);openBuilding(s.building,s.floor);openSpot(s.id);return}
   if(t.dataset.confirmSpot){openArrival(t.dataset.confirmSpot);return}
@@ -834,14 +996,11 @@ document.addEventListener('change',event=>{
   if(t.id==='buildingSelect'){openBuilding(t.value)}
   if(t.id==='newBuilding'||t.id==='newType')updateNewSpotFloors();
 });
-// Update the slider/search immediately; Enter chooses the first room result.
+// Update the group-size slider immediately.
 $('#groupSize').addEventListener('input',e=>{state.groupSize=Number(e.target.value);updateFilter()});
-$('#roomSearch').addEventListener('input',renderRoomSearch);
-$('#roomSearch').addEventListener('keydown',event=>{if(event.key==='Enter'){const first=$('#roomSearchResults button');if(first){event.preventDefault();selectRoom(first.dataset.findRoom,first.dataset.roomFloor,true)}}else if(event.key==='Escape')$('#roomSearchResults').hidden=true});
 // SVG room and building controls need explicit Enter and Space handling.
 document.addEventListener('keydown',event=>{if(event.key==='Escape'&&$('#navMenu')&&!$('#navMenu').hidden){toggleNavMenu(false);$('#navAuth')?.focus()}});
 document.addEventListener('keydown',event=>{const campus=event.target.closest('[data-campus-building]');if(campus&&(event.key==='Enter'||event.key===' ')){event.preventDefault();showCampusBuilding(campus.dataset.campusBuilding);return}const room=event.target.closest('#floorPlan .map-room');if(room&&(event.key==='Enter'||event.key===' ')){event.preventDefault();selectRoom(room.dataset.room)}});
-document.addEventListener('pointerdown',event=>{if(!event.target.closest('.room-search-wrap'))$('#roomSearchResults').hidden=true});
 $('#modalBackdrop').addEventListener('click',e=>{if(e.target.id==='modalBackdrop')closeModal()});
 // Wrap Tab within the open dialog; Escape uses the guarded close action.
 document.addEventListener('keydown',e=>{
@@ -864,10 +1023,11 @@ document.addEventListener('submit',e=>{
 // 10. Startup. Render local UI first, then refresh after the connection check.
 const headerResizeObserver=new ResizeObserver(([entry])=>{document.documentElement.style.setProperty('--header-height',`${entry.target.offsetHeight}px`);if(campusZoomInitialized&&state.view==='explore')changeCampusZoom(0)});
 headerResizeObserver.observe($('.site-header'));
-renderCampusMap();
+renderCampusMap();addCampusMapGuide();
 window.addEventListener('resize',()=>changeCampusZoom(0));
 window.matchMedia?.(COMPACT_LAYOUT_QUERY).addEventListener('change',()=>{
   setMapInteraction(!isCompactLayout());
+  if(!isCompactLayout())setCampusMapInteraction(false);
   if(isCompactLayout()){
     if($('#floorMain').contains(document.activeElement)&&$('.building-layout').dataset.panel==='spots')$('[data-building-panel="spots"]').focus();
     if($('#studyResults').contains(document.activeElement)&&$('.building-layout').dataset.panel==='map')$('[data-building-panel="map"]').focus();
