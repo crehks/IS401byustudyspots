@@ -1,8 +1,14 @@
--- Reverses every live change made for the dev portal (migrations 001-006). NOT run automatically.
+-- Reverses every live change made for the dev portal (migrations 001-007). NOT run automatically.
 -- WARNING: dropping the pin/soft-delete columns deletes any pins and soft-delete marks made since go-live.
 -- Left alone on purpose: the "extensions" schema and pgcrypto (they existed before), tag-report, existing data.
 -- Remove the edge function separately (Supabase dashboard > Edge Functions > admin-users > delete).
 begin;
+
+-- 007: restore the original report view (sample ids 1001-1025 only).
+create or replace view public.latest_report_spot_status with (security_invoker = true) as
+  select distinct on (spot_id) report_id, created_at, spot_id, user_id, noise_level, crowd_level, notes
+  from "ReportSpotStatus" where spot_id >= 1001 and spot_id <= 1025
+  order by spot_id, created_at desc, report_id desc;
 
 -- 006: restore the original report policies (verbatim from the pre-change snapshot).
 drop policy if exists studybyu_read_reports on public."ReportSpotStatus";

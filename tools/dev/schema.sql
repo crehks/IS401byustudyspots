@@ -130,8 +130,9 @@ create policy studybyu_submit_report_user on public."ReportSpotStatus" for inser
     select 1 from public."StudySpot" s where ((s.spot_id = "ReportSpotStatus".spot_id) and (s.reservable = false)))));
 
 create view public.latest_report_spot_status with (security_invoker = true) as
-  select distinct on (spot_id) report_id, spot_id, user_id, noise_level, crowd_level, notes, created_at
-  from public."ReportSpotStatus" order by spot_id, created_at desc, report_id desc;
+  select distinct on (spot_id) report_id, created_at, spot_id, user_id, noise_level, crowd_level, notes
+  from public."ReportSpotStatus" where spot_id >= 1001 and spot_id <= 1025
+  order by spot_id, created_at desc, report_id desc;
 
 grant select, insert, update, delete on all tables in schema public to anon, authenticated;
 
