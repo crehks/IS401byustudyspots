@@ -1,0 +1,7 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {"name": "dev-backend", "runtimeExecutable": "node", "runtimeArgs": ["tools/dev-backend.mjs"], "port": 54321},
+    {"name": "app", "runtimeExecutable": "node", "runtimeArgs": ["tools/dev-app.mjs"], "port": 3000}
+  ]
+}
