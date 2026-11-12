@@ -15,9 +15,11 @@ test('existing numeric schema posts 1/2/3 and reloads the returned identity repo
     assert.ok(url.includes('/latest_report_spot_status?'));return Response.json(rows);
   };
   const first=new globalThis.StudyDatabase(fetcher);await first.initialize();
-  const saved=await first.submitReport('wsc-tables',{noise:'high',busy:'medium',note:'Numeric refresh proof'});
-  assert.deepEqual(posted,{spot_id:1008,noise_level:3,crowd_level:2,notes:'Numeric refresh proof'});
-  assert.equal(saved.id,'4');assert.equal(saved.noise,'high');
+  const saved=await first.submitReport('wsc-tables',{noise:'medium',busy:'high',note:'Numeric refresh proof'});
+  assert.deepEqual(posted,{spot_id:1008,noise_level:2,crowd_level:3,notes:'Numeric refresh proof'});
+  assert.equal(saved.id,'4');assert.equal(saved.noise,'medium');
+  // Only Quiet (low) and Social (medium) can be submitted; there is no third noise level.
+  await assert.rejects(first.submitReport('wsc-tables',{noise:'high',busy:'low',note:''}),/Choose a noise level \(Quiet or Social\)/);
   const fresh=new globalThis.StudyDatabase(fetcher);await fresh.initialize();
   assert.equal(fresh.reports['wsc-tables'][0].id,saved.id);
   assert.equal(fresh.reports['wsc-tables'][0].note,'Numeric refresh proof');

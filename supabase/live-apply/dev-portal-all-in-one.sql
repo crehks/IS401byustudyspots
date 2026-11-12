@@ -3,7 +3,7 @@
 -- Safe to re-run: every statement is idempotent. If anything fails, the whole transaction rolls back.
 begin;
 
--- ===================== dev-page\20261111_001_admin_gate.sql =====================
+-- ===================== 20261111_001_admin_gate.sql =====================
 -- DEV PAGE. Tested on local PGlite first (tests/admin-gate.test.mjs, tests/pinned-spots.test.mjs), then applied to the live project on 2026-11-11.
 --
 -- Admin gate: an admin (app_metadata.role = 'admin') must also enter a personal code, which opens a
@@ -89,7 +89,7 @@ end $$;
 --   values ('<auth user uuid>', extensions.crypt('<code>', extensions.gen_salt('bf')))
 --   on conflict (user_id) do update set code_hash = excluded.code_hash, failed = 0, locked_until = null;
 
--- ===================== dev-page\20261111_002_coordinates.sql =====================
+-- ===================== 20261111_002_coordinates.sql =====================
 -- DEV PAGE. Tested on local PGlite first, then applied to the live project on 2026-11-11.
 -- Map pins: plain lat/lng on buildings and spots, constrained to a BYU/Provo bounding box.
 
@@ -111,7 +111,7 @@ begin
   end loop;
 end $$;
 
--- ===================== dev-page\20261111_003_floor_plan_pins.sql =====================
+-- ===================== 20261111_003_floor_plan_pins.sql =====================
 -- DEV PAGE. Tested on local PGlite first, then applied to the live project on 2026-11-11.
 -- Floor-plan pins: which digitized plan sheet a study spot sits on, and where (percent of the drawing).
 
@@ -131,7 +131,7 @@ begin
   end if;
 end $$;
 
--- ===================== dev-page\20261111_004_spot_soft_delete_and_required.sql =====================
+-- ===================== 20261111_004_spot_soft_delete_and_required.sql =====================
 -- DEV PAGE. Tested on local PGlite first, then applied to the live project on 2026-11-11.
 -- Soft delete for study spots, and "all details required" for any spot placed on a floor plan.
 
@@ -161,7 +161,7 @@ end $$;
 
 create index if not exists studyspot_active_idx on public."StudySpot" (building_id) where deleted_at is null;
 
--- ===================== dev-page\20261111_005_resource_pins_and_floor_lock.sql =====================
+-- ===================== 20261111_005_resource_pins_and_floor_lock.sql =====================
 -- DEV PAGE. Tested on local PGlite first, then applied to the live project on 2026-11-11.
 -- 1) Floor-plan pins and soft delete for Resources (same model as study spots).
 -- 2) Floors are locked: nobody going through the API (admins, TAs, testers) can delete or re-key a floor.
@@ -226,7 +226,7 @@ drop trigger if exists protect_floors_trg on public."Floors";
 create trigger protect_floors_trg before update or delete on public."Floors"
   for each row execute function public.protect_floors();
 
--- ===================== dev-page\20261111_006_live_grants_and_reports.sql =====================
+-- ===================== 20261111_006_live_grants_and_reports.sql =====================
 -- DEV PAGE. Privileges and report rules the dev portal needs on the real project.
 -- Additive for the live main site: it only reads Buildings, BuildingHours and StudySpot, and the 25 sample spots keep reporting as before.
 -- Reverse with supabase/rollback/dev-page-rollback.sql.
@@ -275,7 +275,7 @@ create policy studybyu_submit_report_user on public."ReportSpotStatus"
                   and ((s.spot_id >= 1001 and s.spot_id <= 1025) or (s.plan_key is not null and s.deleted_at is null)))
   );
 
--- ===================== dev-page\20261111_007_report_view.sql =====================
+-- ===================== 20261111_007_report_view.sql =====================
 -- DEV PAGE. The main site reads each spot's latest report through this view, and the live definition
 -- hard-codes spot ids 1001-1025, so a report on a newly pinned spot would save but never be shown.
 -- Same columns and ordering; the 1001-1025 rows are unchanged, live pinned spots are added.
@@ -288,5 +288,95 @@ create or replace view public.latest_report_spot_status with (security_invoker =
      or exists (select 1 from public."StudySpot" s
                 where s.spot_id = r.spot_id and s.plan_key is not null and s.deleted_at is null)
   order by r.spot_id, r.created_at desc, r.report_id desc;
+
+-- ===================== 20261111_008_noise_quiet_social.sql =====================
+-- DEV PAGE. The site has two noise levels, Quiet (stored low / 1) and Social (stored medium / 2).
+-- This removes the third level so erroneous values cannot be stored, without breaking the site that is live today.
+--
+-- Transition note: the deployed site's old report form may still send "high" / 3 until the new site code is merged.
+-- The coercion triggers below turn that into Social instead of rejecting it. Drop them once the new code is live:
+--   drop trigger noise_quiet_social_trg on public."ReportSpotStatus"; (same for "SpotSubmission", public.spot_reports)
+
+-- 1) Existing rows: anything above Social becomes Social.
+update public."ReportSpotStatus" set noise_level = 2 where noise_level > 2;
+update public."SpotSubmission"   set noise_level = 2 where noise_level > 2;
+update public.spot_reports set noise_level = 'medium' where noise_level = 'high';
+update public.spot_reports set self_noise  = 'medium' where self_noise  = 'high';
+update public."StudySpot"  set noise_level = 'medium' where noise_level = 'high';
+
+-- 2) Coercion triggers (legacy clients keep working; stored data is always Quiet or Social).
+create or replace function public.noise_quiet_social() returns trigger
+language plpgsql set search_path = '' as $$
+begin
+  if tg_table_name in ('ReportSpotStatus', 'SpotSubmission') then
+    if new.noise_level > 2 then new.noise_level := 2; end if;
+  else
+    if new.noise_level = 'high' then new.noise_level := 'medium'; end if;
+    if new.self_noise  = 'high' then new.self_noise  := 'medium'; end if;
+  end if;
+  return new;
+end $$;
+
+drop trigger if exists noise_quiet_social_trg on public."ReportSpotStatus";
+create trigger noise_quiet_social_trg before insert or update on public."ReportSpotStatus"
+  for each row execute function public.noise_quiet_social();
+drop trigger if exists noise_quiet_social_trg on public."SpotSubmission";
+create trigger noise_quiet_social_trg before insert or update on public."SpotSubmission"
+  for each row execute function public.noise_quiet_social();
+drop trigger if exists noise_quiet_social_trg on public.spot_reports;
+create trigger noise_quiet_social_trg before insert or update on public.spot_reports
+  for each row execute function public.noise_quiet_social();
+
+-- 3) Constraints. Added next to the existing 1-3 / low-medium-high checks, so nothing is dropped.
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'ReportSpotStatus_noise_quiet_social') then
+    alter table public."ReportSpotStatus" add constraint "ReportSpotStatus_noise_quiet_social" check (noise_level in (1, 2));
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'SpotSubmission_noise_quiet_social') then
+    alter table public."SpotSubmission" add constraint "SpotSubmission_noise_quiet_social" check (noise_level in (1, 2));
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'spot_reports_noise_quiet_social') then
+    alter table public.spot_reports add constraint spot_reports_noise_quiet_social
+      check ((noise_level is null or noise_level in ('low', 'medium')) and (self_noise is null or self_noise in ('low', 'medium')));
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'StudySpot_noise_quiet_social') then
+    alter table public."StudySpot" add constraint "StudySpot_noise_quiet_social" check (noise_level is null or noise_level in ('low', 'medium'));
+  end if;
+end $$;
+
+-- 4) The "all details required" rule for pinned spots now accepts only Quiet or Social.
+alter table public."StudySpot" drop constraint if exists "StudySpot_plan_pin_complete";
+alter table public."StudySpot" add constraint "StudySpot_plan_pin_complete"
+  check (
+    plan_key is null or coalesce(
+      building_id is not null and floor_id is not null
+      and btrim(coalesce(spot_location, '')) <> ''
+      and spot_type_id is not null
+      and capacity between 1 and 8
+      and group_type in ('solo', 'group')
+      and outlets is not null and reservable is not null
+      and is_private is not null
+      and noise_level in ('low', 'medium'),
+      false)
+  );
+
+-- ===================== 20261111_009_protected_accounts.sql =====================
+-- DEV PAGE. Protected accounts cannot be deleted (the grading account is one).
+-- An account is protected when its app_metadata has "protected": true. The database refuses the delete no matter
+-- where it comes from (the dev portal, the Supabase dashboard, the API). To delete one on purpose, first clear the flag:
+--   update auth.users set raw_app_meta_data = raw_app_meta_data - 'protected' where email = '...';
+create or replace function public.protect_accounts() returns trigger
+language plpgsql set search_path = '' as $$
+begin
+  if coalesce(old.raw_app_meta_data ->> 'protected', '') = 'true' then
+    raise exception 'This account is protected and cannot be deleted.' using errcode = 'P0001';
+  end if;
+  return old;
+end $$;
+
+drop trigger if exists protect_accounts_trg on auth.users;
+create trigger protect_accounts_trg before delete on auth.users
+  for each row execute function public.protect_accounts();
 
 commit;

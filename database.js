@@ -41,7 +41,7 @@ const numericSpotIds=['hbll-commons','hbll-west','hbll-group','hbll-think','hbll
       const live={deleted_at:'is.null',plan_x:'gte.0'};
       try {
         const rows=await get('StudySpot',{select:'spot_id,building_id,spot_location,group_type,capacity,outlets,reservable,is_private,noise_level,plan_key,plan_x,plan_y',...live,order:'spot_id.asc'});
-        this.pinnedSpots=rows.map(r=>({id:`db-${r.spot_id}`,dbId:Number(r.spot_id),building:codeOf(r.building_id),floor:r.plan_key,name:String(r.spot_location||'').trim(),type:r.group_type==='group'?'group':'solo',capacity:Number(r.capacity)||1,private:!!r.is_private,outlets:!!r.outlets,noise:['low','medium','high'].includes(r.noise_level)?r.noise_level:'medium',busy:null,reserved:!!r.reservable,pin:[Number(r.plan_x),Number(r.plan_y)],typical:[]})).filter(s=>s.building&&s.name&&s.floor&&s.pin.every(Number.isFinite));
+        this.pinnedSpots=rows.map(r=>({id:`db-${r.spot_id}`,dbId:Number(r.spot_id),building:codeOf(r.building_id),floor:r.plan_key,name:String(r.spot_location||'').trim(),type:r.group_type==='group'?'group':'solo',capacity:Number(r.capacity)||1,private:!!r.is_private,outlets:!!r.outlets,noise:r.noise_level==='low'?'low':'medium',busy:null,reserved:!!r.reservable,pin:[Number(r.plan_x),Number(r.plan_y)],typical:[]})).filter(s=>s.building&&s.name&&s.floor&&s.pin.every(Number.isFinite));
         this.pinnedIds=new Set(this.pinnedSpots.map(s=>s.dbId));
       } catch {}
       try {
@@ -153,7 +153,7 @@ const numericSpotIds=['hbll-commons','hbll-west','hbll-group','hbll-think','hbll
       if (!this.accessToken) throw new Error('Log in to submit a report.');
       const numeric=this.numericOf(spotId);
       if (!numeric) throw new Error('This spot is not in the database inventory.');
-      if (!['low','medium','high'].includes(input.noise) || !['low','medium','high'].includes(input.busy)) throw new Error('Choose a noise level and a crowding level.');
+      if (!['low','medium'].includes(input.noise) || !['low','medium','high'].includes(input.busy)) throw new Error('Choose a noise level (Quiet or Social) and a crowding level.');
       const body=String(input.note||'').trim()||`Noise ${input.noise}, crowding ${input.busy}.`;
       if (body.length>240) throw new Error('Keep the report note to 240 characters.');
       const response=await this.request(`${this.config.url}/rest/v1/spot_reports`,{method:'POST',headers:this.headers({'Content-Type':'application/json',Prefer:'return=representation'}),body:JSON.stringify({space_id:numeric,body,self_noise:input.noise,self_crowd:input.busy})});
@@ -209,7 +209,7 @@ const numericSpotIds=['hbll-commons','hbll-west','hbll-group','hbll-think','hbll
       if (!this.config.configured) throw new Error('Configure Supabase in .env before saving a database report.');
       if(this.loading)throw new Error('Wait for the connection check to finish.');
       if(!['user_reports','ReportSpotStatus'].includes(this.config.table))throw new Error('Set SUPABASE_REPORTS_TABLE=ReportSpotStatus in .env for your existing tables.');
-      if (!['low','medium','high'].includes(input.noise) || !['low','medium','high'].includes(input.busy)) throw new Error('Choose a noise level and a crowding level.');
+      if (!['low','medium'].includes(input.noise) || !['low','medium','high'].includes(input.busy)) throw new Error('Choose a noise level (Quiet or Social) and a crowding level.');
       const note=String(input.note || '').trim();
       if (note.length>240) throw new Error('Keep the report note to 240 characters.');
       // ReportSpotStatus is the team schema; user_reports is the fresh-schema variant.
@@ -300,7 +300,7 @@ const numericSpotIds=['hbll-commons','hbll-west','hbll-group','hbll-think','hbll
       const name=String(input.name||'').trim(),detail=String(input.detail||'').trim();
       if (name.length<3||name.length>60) throw new Error('Enter a spot name from 3 to 60 characters.');
       if (detail.length>160) throw new Error('Keep location details to 160 characters.');
-      if (!['low','medium','high'].includes(input.noise)) throw new Error('Choose the usual noise level.');
+      if (!['low','medium'].includes(input.noise)) throw new Error('Choose the usual noise level (Quiet or Social).');
       const group=input.type==='group',capacity=group?Math.round(Number(input.capacity)):1;
       if (group&&!(capacity>=2&&capacity<=6)) throw new Error('Enter a group size from 2 to 6.');
       const payload={building_id:buildingId,floor_number:Number.isInteger(input.floorNumber)?input.floorNumber:null,floor_label:String(input.floorLabel||'').trim().slice(0,60),spot_name:name,spot_type_id:group?1002:input.private?1003:1001,capacity,noise_level:levelNumber[input.noise],outlets:!!input.outlets,is_private:!!input.private,location_details:detail||null};

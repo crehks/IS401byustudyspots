@@ -65,7 +65,8 @@ th{background:var(--surface-2);white-space:nowrap}
 th button{all:unset;cursor:pointer;font-weight:700}
 th button:focus-visible{outline:3px solid #7cc4f0}
 tr:last-child td{border-bottom:0}
-td.actions{white-space:nowrap;display:flex;gap:6px}
+td.actions{white-space:nowrap;width:1%}
+.actions-row{display:flex;gap:6px;align-items:center}
 .empty,.loading{padding:28px;text-align:center;color:var(--muted)}
 .pager{display:flex;gap:10px;align-items:center;margin-top:12px;color:var(--muted)}
 .badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:.8rem;background:var(--surface-2);border:1px solid var(--line)}

@@ -52,7 +52,7 @@ Deno.serve(async (req) => {
     case 'list': {
       const users = (await listAll()).map((u) => ({
         id: u.id, email: u.email, role: roleOf(u), email_confirmed_at: u.email_confirmed_at,
-        last_sign_in_at: u.last_sign_in_at, created_at: u.created_at, disabled: !isActive(u),
+        last_sign_in_at: u.last_sign_in_at, created_at: u.created_at, disabled: !isActive(u), protected: u.app_metadata?.protected === true,
       }));
       return reply(200, { users });
     }
@@ -78,6 +78,7 @@ Deno.serve(async (req) => {
       const wasActiveAdmin = roleOf(target) === 'admin' && isActive(target);
       if (body.action === 'delete') {
         if (id === selfId) return reply(400, { error: 'You cannot delete your own account.' });
+        if (target.app_metadata?.protected === true) return reply(409, { error: 'This account is protected and cannot be deleted.' });
         if (wasActiveAdmin && (await otherActiveAdmins(id)) < 1) return reply(400, { error: 'You cannot remove the last admin.' });
         if (await ownsRecords(id)) return reply(409, { error: 'This account has reports or submissions, so it cannot be deleted. Disable it instead.' });
         const { error } = await admin.auth.admin.deleteUser(id);

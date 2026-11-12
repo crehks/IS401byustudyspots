@@ -128,3 +128,37 @@ test('guests read reports only for sample ids and live pinned spots', async () =
   const after = (await call('/rest/v1/latest_report_spot_status?select=spot_id')).json;
   assert.ok(!after.some(r => r.spot_id === pinned));
 });
+
+test('noise has two levels: legacy High is stored as Social and nothing else is accepted', async () => {
+  const q = text => backend.pg.query(text);
+  await q(`insert into public."ReportSpotStatus"(spot_id, noise_level, crowd_level) values (1002, 3, 3)`);
+  assert.equal((await q(`select noise_level from public."ReportSpotStatus" where spot_id = 1002`)).rows[0].noise_level, 2);
+  await assert.rejects(() => q(`insert into public."ReportSpotStatus"(spot_id, noise_level, crowd_level) values (1002, 0, 1)`), /check/i);
+  await q(`insert into public."SpotSubmission"(noise_level) values (3)`);
+  assert.equal((await q(`select noise_level from public."SpotSubmission" order by submission_id desc limit 1`)).rows[0].noise_level, 2);
+  await q(`insert into public.spot_reports(space_id, self_noise, noise_level) values (1002, 'high', 'high')`);
+  const row = (await q(`select self_noise, noise_level from public.spot_reports order by id desc limit 1`)).rows[0];
+  assert.deepEqual(row, {self_noise: 'medium', noise_level: 'medium'});
+  await q(`update public.spot_reports set noise_level = 'high' where space_id = 1002`);
+  assert.equal((await q(`select noise_level from public.spot_reports where space_id = 1002`)).rows[0].noise_level, 'medium');
+  const pinned = noise => call('/rest/v1/StudySpot', {method: 'POST', token: admin, body: {spot_location: 'Noise test', building_id: 1, floor_id: 1, spot_type_id: 1, capacity: 2, group_type: 'group', outlets: true, reservable: false, is_private: false, noise_level: noise, plan_key: 'L3', plan_x: 5, plan_y: 5}});
+  assert.equal((await pinned('high')).status, 409);
+  assert.equal((await pinned('loud')).status, 409);
+  assert.equal((await pinned('medium')).status, 204);
+});
+
+test('a protected account cannot be deleted by the portal or the database, other edits still work', async () => {
+  const fn = body => call('/functions/v1/admin-users', {method: 'POST', token: admin, body});
+  const made = await fn({action: 'create', email: 'protected@nook.test', password: 'Protected#2026pw'});
+  const id = made.json.user.id;
+  await backend.pg.query(`update auth.users set raw_app_meta_data = raw_app_meta_data || '{"protected":true}'::jsonb where id = $1`, [id]);
+  assert.equal((await fn({action: 'list'})).json.users.find(u => u.id === id).protected, true);
+  const refused = await fn({action: 'delete', id});
+  assert.equal(refused.status, 409);
+  assert.match(refused.json.error, /protected/i);
+  await assert.rejects(() => backend.pg.query('delete from auth.users where id = $1', [id]), /protected/i);
+  assert.equal((await fn({action: 'update', id, role: 'user', email: 'protected2@nook.test'})).status, 200);
+  assert.equal((await fn({action: 'list'})).json.users.find(u => u.id === id).protected, true);
+  await backend.pg.query(`update auth.users set raw_app_meta_data = raw_app_meta_data - 'protected' where id = $1`, [id]);
+  assert.equal((await fn({action: 'delete', id})).status, 200);
+});

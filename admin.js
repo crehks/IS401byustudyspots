@@ -36,7 +36,7 @@ const TABLES = [
   {table: 'Floors', label: 'Floors', locked: true, pk: 'floor_id', title: r => `Floor ${r.floor_number ?? '?'}`, columns: [
     {key: 'building_id', label: 'Building', type: 'fk', ref: 'Buildings', required: true},
     {key: 'floor_number', label: 'Floor number', type: 'int', required: true}]},
-  {table: 'StudySpot', label: 'Study Spots', pk: 'spot_id', title: r => r.spot_location || `Spot ${r.spot_id}`, geo: true, plan: true, soft: true, columns: [
+  {table: 'StudySpot', label: 'Study Spots', pk: 'spot_id', title: r => r.spot_location || `Spot ${r.spot_id}`, plan: true, soft: true, columns: [
     {key: 'spot_location', label: 'Spot / location', type: 'text', required: true},
     {key: 'building_id', label: 'Building', type: 'fk', ref: 'Buildings', required: true},
     {key: 'floor_id', label: 'Floor', type: 'fk', ref: 'Floors'},
@@ -46,8 +46,7 @@ const TABLES = [
     {key: 'outlets', label: 'Outlets', type: 'bool'},
     {key: 'reservable', label: 'Reservable', type: 'bool'},
     {key: 'is_private', label: 'Private room', type: 'bool', list: false},
-    {key: 'noise_level', label: 'Typical noise', type: 'select', required: true, list: false, options: [{value: 'low', label: 'Low'}, {value: 'medium', label: 'Medium'}, {value: 'high', label: 'High'}]},
-    ...COORDS]},
+    {key: 'noise_level', label: 'Typical noise', type: 'select', required: true, list: false, options: [{value: 'low', label: 'Quiet'}, {value: 'medium', label: 'Social'}]}]},
   {table: 'SpotType', label: 'Spot Types', pk: 'spot_type_id', title: r => r.type_name || `Type ${r.spot_type_id}`, columns: [
     {key: 'type_name', label: 'Name', type: 'text', required: true}]},
   {table: 'ResourceType', label: 'Resource Types', pk: 'resource_type_id', title: r => r.resource_name || `Type ${r.resource_type_id}`, columns: [
@@ -297,13 +296,14 @@ async function openTable(cfgTable) {
     ${cfgTable.locked ? '<p class="notice">Floors are locked. They can be added but never edited or deleted here, so existing spots and resources stay attached to the right floor.</p>' : ''}
     <div class="toolbar">
       <input type="search" id="search" placeholder="Search" aria-label="Search ${esc(cfgTable.label)}" value="${esc(view.search)}">
-      <button class="btn btn-primary" id="add-btn" type="button">Add ${esc(cfgTable.label.replace(/s$/, ''))}</button>
-      ${cfgTable.geo || cfgTable.plan ? `<span class="seg" role="group" aria-label="View"><button type="button" data-mode="table" aria-pressed="${view.mode === 'table'}">Table</button>${cfgTable.geo ? `<button type="button" data-mode="map" aria-pressed="${view.mode === 'map'}">Map</button>` : ''}${cfgTable.plan ? `<button type="button" data-mode="plan" aria-pressed="${view.mode === 'plan'}">Floor plan</button>` : ''}</span>` : ''}
+      ${cfgTable.plan && view.mode === 'plan' ? '' : `<button class="btn btn-primary" id="add-btn" type="button">${cfgTable.plan ? 'Add on floor plan' : `Add ${esc(cfgTable.label.replace(/s$/, ''))}`}</button>`}
+      ${cfgTable.geo || cfgTable.plan ? `<span class="seg" role="group" aria-label="View">${cfgTable.plan ? `<button type="button" data-mode="plan" aria-pressed="${view.mode === 'plan'}">Floor plan</button>` : ''}<button type="button" data-mode="table" aria-pressed="${view.mode === 'table'}">Table</button>${cfgTable.geo && !cfgTable.plan ? `<button type="button" data-mode="map" aria-pressed="${view.mode === 'map'}">Map</button>` : ''}</span>` : ''}
     </div>
     <p class="notice is-error" id="table-error" role="alert" hidden></p>
     <div id="table-body"><p class="loading">Loading...</p></div>`;
   $('#search').addEventListener('input', debounce(event => { view.search = event.target.value.trim(); view.page = 0; loadRows(cfgTable); }, 250));
-  $('#add-btn').addEventListener('click', () => openForm(cfgTable, null));
+  // Spots and resources are added by dropping a pin, so the Add button takes you to the floor plan instead of a form.
+  $('#add-btn')?.addEventListener('click', () => { if (cfgTable.plan) { view.mode = 'plan'; openTable(cfgTable); } else openForm(cfgTable, null); });
   for (const btn of host.querySelectorAll('[data-mode]')) btn.addEventListener('click', () => { view.mode = btn.dataset.mode; openTable(cfgTable); });
   try {
     for (const ref of new Set(cfgTable.columns.filter(c => c.type === 'fk').map(c => c.ref))) await lookup(ref, true);
@@ -337,7 +337,7 @@ async function loadRows(cfgTable) {
     if (!rows.length) { body.innerHTML = `<p class="empty">${view.search ? 'No records match that search.' : 'No records yet. Add the first one.'}</p>`; return; }
     const pages = Math.max(1, Math.ceil(count / PAGE_SIZE));
     body.innerHTML = `<div class="table-wrap"><table><thead><tr>${cols.map(c => `<th scope="col" aria-sort="${sort === c.key ? (view.dir === 'asc' ? 'ascending' : 'descending') : 'none'}"><button type="button" data-sort="${c.key}">${esc(c.label)}${sort === c.key ? (view.dir === 'asc' ? ' ▲' : ' ▼') : ''}</button></th>`).join('')}<th scope="col">Actions</th></tr></thead>
-      <tbody>${rows.map(r => `<tr>${cols.map(c => `<td>${esc(cellText(c, r[c.key]))}</td>`).join('')}<td class="actions">${cfgTable.locked ? '<span class="badge">Locked</span>' : `<button class="btn btn-sm" data-edit="${r[cfgTable.pk]}" type="button">Edit</button><button class="btn btn-sm btn-danger" data-del="${r[cfgTable.pk]}" type="button">Delete</button>`}</td></tr>`).join('')}</tbody></table></div>
+      <tbody>${rows.map(r => `<tr>${cols.map(c => `<td>${esc(cellText(c, r[c.key]))}</td>`).join('')}<td class="actions"><div class="actions-row">${cfgTable.locked ? '<span class="badge">Locked</span>' : `<button class="btn btn-sm" data-edit="${r[cfgTable.pk]}" type="button">Edit</button><button class="btn btn-sm btn-danger" data-del="${r[cfgTable.pk]}" type="button">Delete</button>`}</div></td></tr>`).join('')}</tbody></table></div>
       <div class="pager"><button class="btn btn-sm" id="prev" ${view.page === 0 ? 'disabled' : ''} type="button">Previous</button><span>Page ${view.page + 1} of ${pages} &middot; ${count} record${count === 1 ? '' : 's'}</span><button class="btn btn-sm" id="next" ${view.page + 1 >= pages ? 'disabled' : ''} type="button">Next</button></div>`;
     const byId = new Map(rows.map(r => [String(r[cfgTable.pk]), r]));
     for (const b of body.querySelectorAll('[data-sort]')) b.addEventListener('click', () => { view.dir = view.sort === b.dataset.sort && view.dir === 'asc' ? 'desc' : 'asc'; view.sort = b.dataset.sort; view.page = 0; loadRows(cfgTable); });
@@ -716,8 +716,8 @@ function drawUsers() {
   const body = $('#users-body');
   if (!list.length) { body.innerHTML = `<p class="empty">${q ? 'No users match that search.' : 'No users yet.'}</p>`; return; }
   body.innerHTML = `<div class="table-wrap"><table><thead><tr><th scope="col">Email</th><th scope="col">Role</th><th scope="col">Confirmed</th><th scope="col">Last sign-in</th><th scope="col">Created</th><th scope="col">Actions</th></tr></thead><tbody>
-    ${list.map(u => `<tr><td>${esc(u.email)}${u.id === state.user.id ? ' <span class="badge">you</span>' : ''}${u.disabled ? ' <span class="badge off">disabled</span>' : ''}</td><td><span class="badge ${u.role === 'admin' ? 'admin' : ''}">${esc(u.role)}</span></td><td>${u.email_confirmed_at ? 'Yes' : 'No'}</td><td>${esc(fmtDate(u.last_sign_in_at))}</td><td>${esc(fmtDate(u.created_at))}</td>
-    <td class="actions"><button class="btn btn-sm" data-uedit="${u.id}" type="button">Edit</button><button class="btn btn-sm btn-danger" data-udel="${u.id}" type="button" ${u.id === state.user.id ? 'disabled title="You cannot delete your own account"' : ''}>Delete</button></td></tr>`).join('')}</tbody></table></div>`;
+    ${list.map(u => `<tr><td>${esc(u.email)}${u.id === state.user.id ? ' <span class="badge">you</span>' : ''}${u.disabled ? ' <span class="badge off">disabled</span>' : ''}${u.protected ? ' <span class="badge">protected</span>' : ''}</td><td><span class="badge ${u.role === 'admin' ? 'admin' : ''}">${esc(u.role)}</span></td><td>${u.email_confirmed_at ? 'Yes' : 'No'}</td><td>${esc(fmtDate(u.last_sign_in_at))}</td><td>${esc(fmtDate(u.created_at))}</td>
+    <td class="actions"><div class="actions-row"><button class="btn btn-sm" data-uedit="${u.id}" type="button">Edit</button><button class="btn btn-sm btn-danger" data-udel="${u.id}" type="button" ${u.id === state.user.id ? 'disabled title="You cannot delete your own account"' : u.protected ? 'disabled title="This account is protected and cannot be deleted"' : ''}>Delete</button></div></td></tr>`).join('')}</tbody></table></div>`;
   for (const b of body.querySelectorAll('[data-uedit]')) b.addEventListener('click', () => userForm(users.find(u => u.id === b.dataset.uedit)));
   for (const b of body.querySelectorAll('[data-udel]')) b.addEventListener('click', () => deleteUser(users.find(u => u.id === b.dataset.udel)));
 }

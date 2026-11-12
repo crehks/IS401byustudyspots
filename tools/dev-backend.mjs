@@ -188,7 +188,7 @@ export async function createBackend({port = 54321} = {}) {
     const fail = (status, error) => send(res, status, {error});
     const action = body?.action;
     if (action === 'list') {
-      const rows = (await asService(() => pg.query("select id, email, coalesce(raw_app_meta_data->>'role','user') as role, email_confirmed_at, last_sign_in_at, created_at, (banned_until is not null and banned_until > now()) as disabled from auth.users order by created_at"))).rows;
+      const rows = (await asService(() => pg.query("select id, email, coalesce(raw_app_meta_data->>'role','user') as role, email_confirmed_at, last_sign_in_at, created_at, (banned_until is not null and banned_until > now()) as disabled, coalesce(raw_app_meta_data->>'protected','') = 'true' as protected from auth.users order by created_at"))).rows;
       return send(res, 200, {users: rows});
     }
     if (action === 'create') {
@@ -214,6 +214,7 @@ export async function createBackend({port = 54321} = {}) {
       const wasActiveAdmin = target.role === 'admin' && !target.disabled;
       if (action === 'delete') {
         if (id === self) return fail(400, 'You cannot delete your own account.');
+        if ((await pg.query("select coalesce(raw_app_meta_data->>'protected','') = 'true' as p from auth.users where id=$1", [id])).rows[0]?.p) return fail(409, 'This account is protected and cannot be deleted.');
         if (wasActiveAdmin && await adminCount(id) < 1) return fail(400, 'You cannot remove the last admin.');
         const owns = (await pg.query('select exists (select 1 from public."ReportSpotStatus" r join public."User" u on u.user_id = r.user_id where u.auth_id = $1) as b', [id])).rows[0].b;
         if (owns) return fail(409, 'This account has reports or submissions, so it cannot be deleted. Disable it instead.');

@@ -1,8 +1,20 @@
--- Reverses every live change made for the dev portal (migrations 001-007). NOT run automatically.
+-- Reverses every live change made for the dev portal (migrations 001-009). NOT run automatically.
 -- WARNING: dropping the pin/soft-delete columns deletes any pins and soft-delete marks made since go-live.
 -- Left alone on purpose: the "extensions" schema and pgcrypto (they existed before), tag-report, existing data.
 -- Remove the edge function separately (Supabase dashboard > Edge Functions > admin-users > delete).
 begin;
+
+-- 009 / 008: protected accounts and the Quiet/Social noise rules. (Rows changed from High to Social stay Social.)
+drop trigger if exists protect_accounts_trg on auth.users;
+drop function if exists public.protect_accounts();
+drop trigger if exists noise_quiet_social_trg on public."ReportSpotStatus";
+drop trigger if exists noise_quiet_social_trg on public."SpotSubmission";
+drop trigger if exists noise_quiet_social_trg on public.spot_reports;
+drop function if exists public.noise_quiet_social();
+alter table public."ReportSpotStatus" drop constraint if exists "ReportSpotStatus_noise_quiet_social";
+alter table public."SpotSubmission" drop constraint if exists "SpotSubmission_noise_quiet_social";
+alter table public.spot_reports drop constraint if exists spot_reports_noise_quiet_social;
+alter table public."StudySpot" drop constraint if exists "StudySpot_noise_quiet_social";
 
 -- 007: restore the original report view (sample ids 1001-1025 only).
 create or replace view public.latest_report_spot_status with (security_invoker = true) as
