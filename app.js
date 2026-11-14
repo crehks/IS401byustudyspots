@@ -528,7 +528,7 @@ function labelBusy(spot){if(spot.reserved)return 'Reserve ahead';const busy=curr
 function badgeClass(spot){return spot.reserved?'reserved':currentBusy(spot)==='high'?'high':currentBusy(spot)==='medium'?'medium':currentBusy(spot)?'':'unknown'}
 function showToast(message){const toast=$('#toast');toast.textContent=message;toast.hidden=false;clearTimeout(showToast.timer);showToast.timer=setTimeout(()=>toast.hidden=true,3500)}
 // 5. Reporting. Keep the connection banner short; show details in the dialog.
-function renderAuthNav(){const b=$('#navAuth');if(!b)return;const admin=auth.signedIn&&auth.isAdmin;b.innerHTML=auth.signedIn?`<span class="auth-label">Log out${admin?' ▾':''}</span>${auth.displayName?`<span class="auth-name">(${esc(auth.displayName)})</span>`:''}`:'<span class="auth-label">Log in</span>';b.classList.toggle('is-signed-in',auth.signedIn);b.title=auth.signedIn?`Signed in as ${auth.displayName}. ${admin?'Select for Dev tools or Log out.':'Select to log out.'}`:'';b.setAttribute('aria-label',auth.signedIn?(admin?`Account menu for ${auth.displayName}`:`Log out ${auth.displayName}`).trim():'Log in or sign up');
+function renderAuthNav(){const profileButton=$('#navProfile');if(profileButton)profileButton.hidden=!auth.signedIn;const b=$('#navAuth');if(!b)return;const admin=auth.signedIn&&auth.isAdmin;b.innerHTML=auth.signedIn?`<span class="auth-label">Log out${admin?' ▾':''}</span>${auth.displayName?`<span class="auth-name">(${esc(auth.displayName)})</span>`:''}`:'<span class="auth-label">Log in</span>';b.classList.toggle('is-signed-in',auth.signedIn);b.title=auth.signedIn?`Signed in as ${auth.displayName}. ${admin?'Select for Dev tools or Log out.':'Select to log out.'}`:'';b.setAttribute('aria-label',auth.signedIn?(admin?`Account menu for ${auth.displayName}`:`Log out ${auth.displayName}`).trim():'Log in or sign up');
   // Admins only: a small menu with the dev page and Log out. Showing it is cosmetic; the database still decides who may edit.
   let menu=$('#navMenu');
   if(admin){
@@ -560,6 +560,7 @@ function loadCloudLists(){
 }
 auth.onChange(()=>{
   renderAuthNav();
+  if(state.view==='profile'){if(auth.signedIn)renderProfile(true);else setView('explore');}
   if(auth.userId===cloud.userId)return;
   Object.assign(cloud,{lists:[],ready:false,error:'',userId:auth.userId,promise:null});state.selectedList='favorites';
   if(auth.userId)void loadCloudLists();else renderSaved();
@@ -728,6 +729,7 @@ function retainControlFocus(root){
 }
 // Lists store spot IDs, not copies, so details use the current catalogue and reports.
 function renderSaved(){
+  renderProfileLists();
   const cloudOn=cloudMode(),lists=activeLists();
   const canCreate=cloudOn?auth.signedIn&&cloud.ready&&lists.length<3:lists.length<3;
   $('#createList').disabled=!canCreate;$('#createList').title=lists.length>=3?'Two custom lists maximum':'';
@@ -747,7 +749,7 @@ function renderSaved(){
   restoreFocus();
 }
 // Refresh shared UI; rebuild the floor drawing only when that view is visible.
-function render(){renderFilters();renderRecommendations();if(state.view==='building')renderBuilding();renderSaved();$$('.view').forEach(v=>v.hidden=v.id!==`${state.view}View`);document.documentElement.classList.toggle('explore-snap',state.view==='explore');$('#navExplore').classList.toggle('is-active',state.view!=='saved');$('#navSaved').classList.toggle('is-active',state.view==='saved');$('#navExplore').setAttribute('aria-current',state.view!=='saved'?'page':'false');$('#navSaved').setAttribute('aria-current',state.view==='saved'?'page':'false');$$('#savedTabs button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.list===state.selectedList));$('#backToExplore').textContent=viewHistory.at(-1)==='saved'?'← Back to saved':'← Back to campus';$('#savedBack').textContent=viewHistory.at(-1)==='building'?'← Back to floor map':'← Back to explore';if(state.view==='explore'){document.documentElement.style.setProperty('--header-height',`${$('.site-header').offsetHeight}px`);if(!campusZoomInitialized&&$('#campusMapViewport').clientWidth){changeCampusZoom(0,true);campusZoomInitialized=true}else if(campusZoomInitialized)changeCampusZoom(0)}}
+function render(){renderFilters();renderRecommendations();if(state.view==='building')renderBuilding();renderSaved();renderProfile();$$('.view').forEach(v=>v.hidden=v.id!==`${state.view}View`);document.documentElement.classList.toggle('explore-snap',state.view==='explore');const exploring=state.view==='explore'||state.view==='building';$('#navExplore').classList.toggle('is-active',exploring);$('#navSaved').classList.toggle('is-active',state.view==='saved');$('#navProfile')?.classList.toggle('is-active',state.view==='profile');$('#navExplore').setAttribute('aria-current',exploring?'page':'false');$('#navSaved').setAttribute('aria-current',state.view==='saved'?'page':'false');$('#navProfile')?.setAttribute('aria-current',state.view==='profile'?'page':'false');$$('#savedTabs button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.list===state.selectedList));$('#backToExplore').textContent=viewHistory.at(-1)==='saved'?'← Back to saved':'← Back to campus';$('#savedBack').textContent=viewHistory.at(-1)==='building'?'← Back to floor map':'← Back to explore';if(state.view==='explore'){document.documentElement.style.setProperty('--header-height',`${$('.site-header').offsetHeight}px`);if(!campusZoomInitialized&&$('#campusMapViewport').clientWidth){changeCampusZoom(0,true);campusZoomInitialized=true}else if(campusZoomInitialized)changeCampusZoom(0)}}
 // Announce view changes through the heading without extra scrolling.
 function focusView(){const heading=$(`#${state.view}View h1`);heading?.setAttribute('tabindex','-1');heading?.focus({preventScroll:true})}
 function setView(view){const changed=state.view!==view;if(changed)viewHistory.push(state.view);state.view=view;render();if(changed)focusView();if(!isCompactLayout())window.scrollTo({top:0,behavior:'smooth'})}
@@ -917,6 +919,62 @@ async function submitNewList(form){
   }catch(problem){fail(problem.message)}finally{button.disabled=false}
 }
 function openCreateList(){if(activeLists().length>=3){showToast('You can have Favorites and two custom lists.');return}openModal(`${modalHeader('New saved list')}<p class="modal-description">Create a list for a class, group, or favorite study routine.</p><form id="newListForm"><div class="form-field"><label for="newListName">List name</label><input id="newListName" name="name" required maxlength="28" placeholder="Example: Group project"></div><p class="form-error" id="newListError" role="alert" hidden></p><div class="modal-actions"><button type="button" class="secondary-button" data-modal-close>Cancel</button><button type="submit" class="primary-button">Create list</button></div></form>`)}
+// PROFILE: view and change the signed-in user's name, email, and password, see saved lists, or delete the account.
+const profileState={accountFor:null,busy:false};
+function renderProfile(force=false){
+  const box=$('#profileContent');if(!box)return;
+  if(!auth.signedIn){box.dataset.user='';box.innerHTML='<div class="empty-state"><h3>Log in to see your profile</h3><p>Your profile shows your account details and saved spots.</p><button type="button" class="primary-button" data-action="login">Log in or sign up</button></div>';return}
+  if(state.view!=='profile')return;
+  if(profileState.accountFor!==auth.userId){profileState.accountFor=auth.userId;auth.loadAccount().then(()=>renderProfile(true)).catch(problem=>showToast(problem.message));}
+  if(force||box.dataset.user!==String(auth.userId)){
+    box.dataset.user=String(auth.userId);
+    const p=auth.profile,pending=auth.pendingEmail?`<p class="profile-note">Waiting for you to confirm <strong>${esc(auth.pendingEmail)}</strong>. Check that inbox for the link.</p>`:'';
+    box.innerHTML=`<section class="profile-card"><h2>Your name</h2><form id="profileNameForm" novalidate><div class="form-field"><label for="profileFirst">First name</label><input id="profileFirst" name="first" required maxlength="60" autocomplete="given-name" value="${esc(p.first_name||'')}"></div><div class="form-field"><label for="profileLast">Last name</label><input id="profileLast" name="last" maxlength="60" autocomplete="family-name" value="${esc(p.last_name||'')}"></div><p class="form-error" role="alert" hidden></p><div class="modal-actions"><button type="submit" class="primary-button">Save name</button></div></form></section>
+<section class="profile-card"><h2>Email</h2><p class="profile-note">Current email: <strong>${esc(auth.email||'Loading…')}</strong></p>${pending}<form id="profileEmailForm" novalidate><div class="form-field"><label for="profileEmail">New email</label><input id="profileEmail" name="email" type="email" required autocomplete="email"></div><div class="form-field"><label for="profileEmailPassword">Current password</label><input id="profileEmailPassword" name="current" type="password" required autocomplete="current-password"></div><p class="form-error" role="alert" hidden></p><div class="modal-actions"><button type="submit" class="primary-button">Change email</button></div></form></section>
+<section class="profile-card"><h2>Password</h2><form id="profilePasswordForm" novalidate><div class="form-field"><label for="profileCurrentPassword">Current password</label><input id="profileCurrentPassword" name="current" type="password" required autocomplete="current-password"></div><div class="form-field"><label for="profileNewPassword">New password</label><input id="profileNewPassword" name="password" type="password" required minlength="8" autocomplete="new-password"><small>At least 8 characters.</small></div><div class="form-field"><label for="profileConfirmPassword">Confirm new password</label><input id="profileConfirmPassword" name="confirm" type="password" required minlength="8" autocomplete="new-password"></div><p class="form-error" role="alert" hidden></p><div class="modal-actions"><button type="submit" class="primary-button">Change password</button></div></form></section>
+<section class="profile-card"><h2>Saved lists</h2><div id="profileLists"></div></section>
+<section class="profile-card profile-danger"><h2>Delete account</h2><p class="profile-note">This permanently deletes your account and saved lists. Reports you submitted stay on the map without your name.</p><button type="button" class="danger-button" id="deleteAccount">Delete my account</button></section>`;
+  }
+  renderProfileLists();
+}
+function renderProfileLists(){
+  const box=$('#profileLists');if(!box)return;
+  if(cloud.error){box.innerHTML=`<p class="form-error">${esc(cloud.error)}</p>`;return}
+  if(!cloud.ready){box.innerHTML='<p class="profile-note">Loading your lists…</p>';return}
+  box.innerHTML=cloud.lists.map(l=>{const spots=l.spots.map(spotById).filter(Boolean);return `<div class="profile-list"><div><h3>${esc(l.name)} <span>${spots.length}</span></h3><p>${spots.length?spots.slice(0,3).map(s=>esc(s.name)).join(' · ')+(spots.length>3?` · +${spots.length-3} more`:''):'No spots saved yet.'}</p></div><button type="button" class="secondary-button" data-profile-list="${esc(l.id)}">Open</button></div>`}).join('')||'<p class="profile-note">No lists yet.</p>';
+}
+async function submitProfile(form){
+  if(profileState.busy)return;
+  const error=form.querySelector('.form-error'),button=form.querySelector('[type=submit]'),f=form.elements;
+  const fail=message=>{error.textContent=message;error.hidden=false};error.hidden=true;
+  let action;
+  if(form.id==='profileNameForm'){
+    const first=f.first.value.trim(),last=f.last.value.trim();
+    if(!first)return fail('Enter your first name.');
+    action=async()=>{await auth.updateName({firstName:first,lastName:last});showToast('Name updated.')};
+  }else if(form.id==='profileEmailForm'){
+    const email=f.email.value.trim();
+    if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email))return fail('Enter a valid email address.');
+    if(email.toLowerCase()===(auth.email||'').toLowerCase())return fail('That is already your email.');
+    if(!f.current.value)return fail('Enter your current password.');
+    action=async()=>{const changed=await auth.changeEmail({currentPassword:f.current.value,newEmail:email});showToast(changed?'Email updated.':'Check your inbox to confirm your new email.');renderProfile(true)};
+  }else{
+    if(!f.current.value)return fail('Enter your current password.');
+    if(f.password.value.length<8)return fail('New password must be at least 8 characters.');
+    if(f.password.value!==f.confirm.value)return fail('The new passwords do not match.');
+    action=async()=>{await auth.changePassword({currentPassword:f.current.value,newPassword:f.password.value});form.reset();showToast('Password changed.')};
+  }
+  profileState.busy=true;button.disabled=true;
+  try{await action()}catch(problem){fail(problem.message)}finally{profileState.busy=false;button.disabled=false}
+}
+function openDeleteAccount(){openModal(`${modalHeader('Delete your account?')}<p class="modal-description">This permanently deletes your account, your name, and your saved lists. It cannot be undone. Type DELETE to confirm.</p><form id="deleteAccountForm" novalidate><div class="form-field"><label for="deleteConfirm">Type DELETE</label><input id="deleteConfirm" name="confirm" autocomplete="off"></div><p class="form-error" role="alert" hidden></p><div class="modal-actions"><button type="button" class="secondary-button" data-modal-close>Cancel</button><button type="submit" class="danger-button">Delete account</button></div></form>`)}
+async function submitDeleteAccount(form){
+  const error=form.querySelector('.form-error'),button=form.querySelector('[type=submit]');
+  if(form.elements.confirm.value.trim()!=='DELETE'){error.textContent='Type DELETE to confirm.';error.hidden=false;return}
+  button.disabled=true;error.hidden=true;
+  try{await auth.deleteAccount();closeModal(true);setView('explore');showToast('Your account was deleted.')}
+  catch(problem){error.textContent=problem.message;error.hidden=false;button.disabled=false}
+}
 // Clear also removes the saved filter preset for the next page load.
 function resetFilters(){state.buildings=new Set(['HBLL','WSC','JKB']);state.study='any';state.groupSize=4;state.noise='any';state.private=false;state.outlets=false;data.savedFilters=null;save();render()}
 function updateFilter(){renderFilters();renderRecommendations();if(state.view==='building')renderBuilding()}
@@ -949,8 +1007,11 @@ document.addEventListener('click',event=>{
   if(t.matches('[data-modal-close]')){closeModal();return}
   // Main navigation, filter actions, and building selection.
   if(t.id==='homeButton'||t.id==='navExplore'){setView('explore');return}
-  if(t.id==='backToExplore'||t.id==='savedBack'){goBack();return}
+  if(t.id==='backToExplore'||t.id==='savedBack'||t.id==='profileBack'){goBack();return}
   if(t.id==='navSaved'){setView('saved');return}
+  if(t.id==='navProfile'){setView('profile');return}
+  if(t.id==='deleteAccount'){openDeleteAccount();return}
+  if(t.dataset.profileList){state.selectedList=t.dataset.profileList;setView('saved');return}
   if(t.id==='navReport'){openNewSpot();return}
     if(t.id==='rateUs'){event.preventDefault();openRating();return}
   if(t.id==='navAuth'){if(!auth.signedIn)openAuth('login');else if(auth.isAdmin)toggleNavMenu();else logOut();return}
@@ -1018,6 +1079,8 @@ document.addEventListener('submit',e=>{
   if(e.target.id==='arrivalForm'){e.preventDefault();void submitArrival(e.target);return}
   if(e.target.id==='newSpotForm'){e.preventDefault();const f=e.target.elements;const name=f.name.value.trim();const type=f.type.value;const capacity=type==='group'?Number(f.capacity.value):1;if(name.length<3||(type==='group'&&(capacity<2||capacity>6))){$('#newSpotError').textContent='Enter a spot name and a group size from 2 to 6.';$('#newSpotError').hidden=false;return}const chosenFloor=BUILDINGS[f.building.value].floors.find(fl=>fl.id===f.floor.value);const spot={id:`custom-${Date.now()}`,building:f.building.value,floor:f.floor.value,name,type,capacity,private:f.private.checked,outlets:f.outlets.checked,noise:f.noise.value,busy:null,reserved:false,x:chosenFloor?.defaultX??29,y:chosenFloor?.defaultY??72,typical:[],detail:f.detail.value.trim()};if(database.config.configured&&database.ready){submitNewSpot(e.target,{building:f.building.value,floorNumber:chosenFloor?.level,floorLabel:chosenFloor?.label,name,type,capacity,private:f.private.checked,outlets:f.outlets.checked,noise:f.noise.value,detail:f.detail.value.trim()});return}data.customSpots.push(spot);const saved=save();closeModal();openBuilding(spot.building,spot.floor);render();if(saved)showToast('New spot added on this device.');return}
   if(e.target.id==='ratingForm'){e.preventDefault();void submitRating(e.target);return}
+  if(['profileNameForm','profileEmailForm','profilePasswordForm'].includes(e.target.id)){e.preventDefault();void submitProfile(e.target);return}
+  if(e.target.id==='deleteAccountForm'){e.preventDefault();void submitDeleteAccount(e.target);return}
   if(e.target.id==='newListForm'){e.preventDefault();void submitNewList(e.target);return}
 });
 // 10. Startup. Render local UI first, then refresh after the connection check.
