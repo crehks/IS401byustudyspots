@@ -8,11 +8,11 @@
   <title>Nook | Find your place</title>
   <link rel="icon" type="image/png" href="assets/nook-logo.png">
   <!-- Load map bundles before the adapter and app. defer keeps the scripts in order. -->
-  <link rel="stylesheet" href="styles.css?v=20261107-navauth">
+  <link rel="stylesheet" href="styles.css?v=20261113-profile">
   <script defer src="supabase-config.js?v=20261104-restore"></script>
   <script defer src="database.js?v=20261105-lists"></script>
-  <script defer src="auth.js?v=20261107-email"></script>
-  <script defer src="app.js?v=20261107-navauth"></script>
+  <script defer src="auth.js?v=20261113-profile"></script>
+  <script defer src="app.js?v=20261113-profile"></script>
 </head>
 <body>
   <a class="skip-link" href="#mainContent">Skip to content</a>
@@ -29,6 +29,7 @@
           <button id="navExplore" class="nav-link is-active" type="button">Explore</button>
           <button id="navSaved" class="nav-link" type="button">My Nooks</button>
           <button id="navReport" class="nav-link nav-report" type="button" aria-label="Report a Spot"><span>Report a Spot</span></button>
+          <button id="navProfile" class="nav-link" type="button" hidden>Profile</button>
           <button id="navAuth" class="nav-link nav-auth nav-login" type="button">Log in</button>
         </nav>
       </header>
@@ -165,7 +166,12 @@
           </aside>
         </div>
       </section>
-
+      <!-- PROFILE VIEW: account details, saved lists, and account deletion. Shown only when logged in. -->
+      <section id="profileView" class="view profile-view" hidden>
+        <button id="profileBack" class="back-button" type="button">← Back</button>
+        <div class="saved-heading"><div><p class="kicker">Your account</p><h1>Profile</h1><p class="intro">Update your details and see your saved spots.</p></div></div>
+        <div id="profileContent" class="profile-grid"></div>
+      </section>
       <!-- SAVED VIEW: Favorites and up to two custom lists, kept with the account (device-local without a database). -->
       <section id="savedView" class="view saved-view" hidden>
         <button id="savedBack" class="back-button" type="button">← Back to explore</button>

@@ -105,6 +105,59 @@
       try{if(token&&this.db.config.configured)await this.db.request(this.authUrl('logout'),{method:'POST',headers:this.db.headers({Authorization:`Bearer ${token}`})});}catch{}
       this.setSession(null);this.db.userId=null;this.emit();
     }
+        // ---- Profile ----------------------------------------------------------------------
+    // The account email lives in Supabase Auth; names live in the User table.
+    async loadAccount() {
+      const response=await this.db.request(this.authUrl('user'),{headers:this.db.headers()});
+      if(!response.ok)throw new Error('Your account details could not be loaded. Try again.');
+      const user=await response.json();
+      this.email=String(user.email||'');this.pendingEmail=String(user.new_email||'');
+      return user;
+    }
+    // Confirm the current password by logging in again; this also refreshes the session.
+    async verifyPassword(password) {
+      if(!this.email)await this.loadAccount();
+      try{const result=await this.authRequest('token?grant_type=password',{email:this.email,password});this.setSession(this.normalize(result));}
+      catch(error){if(error.code==='invalid_credentials')throw new Error('Your current password is incorrect.');throw error;}
+    }
+    async authUpdate(body,query='') {
+      const response=await this.db.request(`${this.authUrl('user')}${query}`,{method:'PUT',headers:this.db.headers({'Content-Type':'application/json'}),body:JSON.stringify(body)});
+      let result={};try{result=await response.json()}catch{}
+      if(!response.ok){
+        const code=result.error_code||result.code||'';
+        if(code==='email_exists')throw new Error('Another account already uses that email.');
+        if(code==='same_password')throw new Error('Choose a password different from your current one.');
+        if(code==='reauthentication_needed')throw new Error('For security, log out and log back in, then try again.');
+        throw new Error(this.friendly(response.status,result));
+      }
+      return result;
+    }
+    async rpc(name,body={}) {
+      const response=await this.db.request(`${this.db.config.url}/rest/v1/rpc/${name}`,{method:'POST',headers:this.db.headers({'Content-Type':'application/json'}),body:JSON.stringify(body)});
+      if(!response.ok)throw await this.db.apiError(response);
+    }
+    async updateName({firstName,lastName}) {
+      await this.rpc('update_my_profile',{new_first:firstName,new_last:lastName});
+      await this.loadProfile();this.emit();
+    }
+    // Returns true when the change applied right away, false when a confirmation email was sent.
+    async changeEmail({currentPassword,newEmail}) {
+      await this.verifyPassword(currentPassword);
+      const user=await this.authUpdate({email:newEmail},this.redirectQuery());
+      this.pendingEmail=String(user.new_email||'');
+      if(String(user.email||'').toLowerCase()===newEmail.toLowerCase()){this.email=String(user.email);this.pendingEmail='';return true;}
+      return false;
+    }
+    async changePassword({currentPassword,newPassword}) {
+      await this.verifyPassword(currentPassword);
+      await this.authUpdate({password:newPassword});
+    }
+    // Deletes this user's lists and account in the database, then clears the session here.
+    async deleteAccount() {
+      await this.rpc('delete_my_account');
+      this.email='';this.pendingEmail='';
+      this.setSession(null);this.db.userId=null;this.emit();
+    }
     // Restore a saved session on page load, refreshing it when it has expired.
     // The emailed confirmation link returns here with the new session (or an error) in the URL hash.
     // Take it, then clear the hash so tokens are not left in the address bar or browser history.
