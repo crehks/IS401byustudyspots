@@ -12,7 +12,7 @@ const numericSpotIds=['hbll-commons','hbll-west','hbll-group','hbll-think','hbll
     // Tests inject a fake fetcher; the browser uses its normal fetch function.
     constructor(fetcher=(...args)=>fetch(...args)) {
       this.fetcher=fetcher;this.accessToken='';this.userId=null;this.config={configured:false,table:'user_reports'};this.reports={};this.ready=false;this.error='';this.loading=true;this.configLoaded=false;
-      this.pinnedSpots=[];this.pinnedResources=[];this.pinnedIds=new Set();
+      this.pinnedSpots=[];this.pinnedResources=[];this.pinnedIds=new Set();this.capacities={};this.capacities={};
     }
     // Database number for a frontend spot id: sample spots by list position, pinned spots by their own id ("db-12").
     numericOf(spotId) {
@@ -43,6 +43,11 @@ const numericSpotIds=['hbll-commons','hbll-west','hbll-group','hbll-think','hbll
         const rows=await get('StudySpot',{select:'spot_id,building_id,spot_location,group_type,capacity,outlets,reservable,is_private,noise_level,plan_key,plan_x,plan_y',...live,order:'spot_id.asc'});
         this.pinnedSpots=rows.map(r=>({id:`db-${r.spot_id}`,dbId:Number(r.spot_id),building:codeOf(r.building_id),floor:r.plan_key,name:String(r.spot_location||'').trim(),type:r.group_type==='group'?'group':'solo',capacity:Number(r.capacity)||1,private:!!r.is_private,outlets:!!r.outlets,noise:r.noise_level==='low'?'low':'medium',busy:null,reserved:!!r.reservable,pin:[Number(r.plan_x),Number(r.plan_y)],typical:[]})).filter(s=>s.building&&s.name&&s.floor&&s.pin.every(Number.isFinite));
         this.pinnedIds=new Set(this.pinnedSpots.map(s=>s.dbId));
+      } catch {}
+            // Seat counts for every spot, including the built-in sample spots (spot_id 1001-1025).
+      try {
+        const rows=await get('StudySpot',{select:'spot_id,capacity'});
+        for (const r of rows) {const spotId=this.spotOf(r.spot_id),n=Number(r.capacity);if (spotId&&Number.isInteger(n)&&n>0) this.capacities[spotId]=n;}
       } catch {}
       try {
         const [rows,types]=await Promise.all([get('Resources',{select:'resource_id,building_id,resource_type_id,resource_info,resource_location,plan_key,plan_x,plan_y',...live,order:'resource_id.asc'}),get('ResourceType',{select:'resource_type_id,resource_name'})]);
