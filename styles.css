@@ -913,3 +913,15 @@ html.explore-snap .site-footer{scroll-snap-align:end}
 .profile-list h3 span{font-size:11px;color:var(--muted);margin-left:4px}
 .profile-list p{font-size:12px;color:var(--muted);margin:0}
 .profile-danger{border-color:#c27a6570}
+/* Seat-count pins: a pill with a person icon so the number reads as seats, not a cluster of spots. */
+.plan-pin.seat-pin{width:auto;height:26px;padding:0 8px 0 6px;border-radius:999px}
+.pin-badge{display:inline-flex;align-items:center;gap:3px;font-style:normal;font-size:12px;font-weight:800;line-height:1}
+.pin-seat-icon{width:11px;height:11px;flex:none;fill:currentColor}
+.legend-seat-pin{display:inline-flex;align-items:center;gap:2px;height:18px;padding:0 6px 0 4px;border-radius:999px;background:var(--sage);color:var(--accent-ink);font-style:normal;font-size:10px;font-weight:800}
+.legend-seat-pin .pin-seat-icon{width:9px;height:9px}
+/* Phones: keep a 44px tap area around a smaller visible pill. */
+@media(max-width:800px),(max-width:1100px) and (max-height:500px){
+  .plan-pin.seat-pin,.plan-pin.seat-pin:hover,.plan-pin.seat-pin.is-selected{width:auto;min-width:44px;height:44px;padding:0;border:0;border-radius:0;background:transparent;box-shadow:none}
+  .plan-pin.seat-pin>.pin-badge{height:26px;padding:0 8px 0 6px;border:2px solid #fff;border-radius:999px;background:var(--sage);color:var(--accent-ink);box-shadow:0 2px 8px #102b3c66}
+  .plan-pin.seat-pin:hover>.pin-badge,.plan-pin.seat-pin.is-selected>.pin-badge{background:var(--terracotta)}
+}
