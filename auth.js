@@ -76,15 +76,17 @@
       this.profile={...rows[0],user_id:Number(rows[0].user_id)};
       this.db.userId=this.profile.user_id;
     }
-    async finish(session) {
+    // signIn is true for a fresh login and false for restoring a saved session; only used for the visit count.
+    async finish(session,signIn=false) {
       this.setSession(this.normalize(session));
       try{await this.loadProfile()}catch(error){this.setSession(null);this.db.userId=null;throw error}
+      void this.db.recordVisit(signIn);
       this.emit();return this.profile;
     }
     // Create the account; Supabase creates the matching User row. Returns {needsConfirmation}.
     async signUp({email,password,firstName,lastName}) {
       const result=await this.authRequest(`signup${this.redirectQuery()}`,{email,password,data:{first_name:firstName,last_name:lastName}});
-      if(result.access_token){await this.finish(result);return {needsConfirmation:false};}
+      if(result.access_token){await this.finish(result,true);return {needsConfirmation:false};}
       return {needsConfirmation:true};
     }
     // Send the confirmation email again (for example when it never arrived).
@@ -93,7 +95,7 @@
     }
     async signIn({email,password}) {
       const result=await this.authRequest('token?grant_type=password',{email,password});
-      return this.finish(result);
+      return this.finish(result,true);
     }
     async signOut() {
       const token=this.session?.access_token;
@@ -175,7 +177,7 @@
       const redirected=this.db.config.configured?this.takeRedirectHash():null;
       if(redirected?.error)this.notice=redirected.error;
       if(redirected?.session){
-        try{await this.finish(redirected.session);this.notice='Email confirmed. Welcome!';return true;}
+        try{await this.finish(redirected.session,true);this.notice='Email confirmed. Welcome!';return true;}
         catch{this.setSession(null);this.db.userId=null;this.notice='Your email is confirmed. Please log in.';}
       }
       let saved=null;try{saved=JSON.parse(this.storage?.getItem(SESSION_KEY)||'null')}catch{}

@@ -201,6 +201,7 @@ async function loadReservationLinks(){
 }
 
 let reportSubmissionPending=false,newSpotPending=false;
+const choiceTimer=new ChoiceTimer();
 // Temporary screen choices. Save filters copies a preset into device data.
 const state={view:'explore',building:'HBLL',floor:'L3',zoom:1,selectedSpot:null,selectedRoom:null,roomLabels:true,resourcesVisible:false,selectedResource:null,selectedList:'favorites',study:'any',noise:'any',private:false,outlets:false,groupSize:4,buildings:new Set(['HBLL','WSC','JKB'])};
 // Pin positions use the original PDF page; rendering subtracts the crop offset.
@@ -533,7 +534,7 @@ function renderAuthNav(){const profileButton=$('#navProfile');if(profileButton)p
   let menu=$('#navMenu');
   if(admin){
     if(!menu){menu=document.createElement('div');menu.id='navMenu';menu.className='nav-menu';menu.setAttribute('role','menu');menu.hidden=true;document.body.append(menu)}
-    menu.innerHTML='<a role="menuitem" class="nav-menu-item" href="admin.html">Dev tools</a><button role="menuitem" class="nav-menu-item" type="button" id="navLogout">Log out</button>';
+    menu.innerHTML='<a role="menuitem" class="nav-menu-item" href="admin.html">Dev tools</a><a role="menuitem" class="nav-menu-item" href="okr.html">Impact</a><button role="menuitem" class="nav-menu-item" type="button" id="navLogout">Log out</button>';
     b.setAttribute('aria-haspopup','menu');b.setAttribute('aria-expanded','false');
   }else{menu?.remove();b.removeAttribute('aria-haspopup');b.removeAttribute('aria-expanded')}
 }
@@ -601,9 +602,10 @@ function renderDatabaseReceipt(report){
 async function submitArrival(form){
   if(reportSubmissionPending)return;
   const id=form.dataset.id;
-  const input={noise:form.elements.noise.value,busy:form.elements.busy.value,note:form.elements.note.value.trim()};
-  if(!input.noise||!input.busy)return;
+  const input={noise:form.elements.noise.value,busy:form.elements.busy.value,note:form.elements.note.value.trim(),available:form.elements.available.value?form.elements.available.value==='yes':undefined};
   const button=form.querySelector('[type="submit"]'),error=form.querySelector('#arrivalError');
+  if(input.available===undefined){error.textContent='Tell us whether the spot was available when you arrived.';error.hidden=false;return;}
+  if(!input.noise||!input.busy)return;
   if(database.loading||!database.configLoaded){error.textContent=database.loading?'Wait for the connection check to finish.':'Connection settings could not be checked. Start with npm start and fix setup before reporting.';error.hidden=false;return;}
   if(database.error&&!database.config.configured){error.textContent=database.error;error.hidden=false;return;}
   const remote=usesDatabase(spotById(id));
@@ -851,7 +853,7 @@ function openSpot(id){
 // Collect arrival reports. Reserved spots use BYU's external booking link instead.
 function openArrival(id){
   const s=spotById(id);if(!s)return;
-  openModal(`${modalHeader('Once you arrive…')}<p class="modal-description">How is ${esc(s.name)} right now? ${usesDatabase(s)?'Do not include names or private information.':'This report will be saved on this device only.'}</p><form id="arrivalForm" data-id="${esc(s.id)}"><fieldset class="report-choice"><legend class="choice-label">Noise level</legend><div class="choice-row">${[['low','Quiet'],['medium','Social']].map(([v,name],i)=>`<label><input type="radio" name="noise" value="${v}" ${i===0?'required':''}>${name}</label>`).join('')}</div></fieldset><fieldset class="report-choice"><legend class="choice-label">How busy is it?</legend><div class="choice-row">${['low','medium','high'].map((v,i)=>`<label><input type="radio" name="busy" value="${v}" ${i===0?'required':''}>${v[0].toUpperCase()+v.slice(1)}</label>`).join('')}</div></fieldset><div class="form-field"><label for="reportNote">Other details (optional)</label><textarea id="reportNote" name="note" maxlength="240" placeholder="Anything useful for the next student?"></textarea></div><p id="arrivalError" class="form-error" role="alert" hidden></p><div class="modal-actions"><button type="button" class="secondary-button" data-modal-close>Not there yet</button><button type="submit" class="primary-button">Confirm report</button></div></form>`);
+  openModal(`${modalHeader('Once you arrive…')}<p class="modal-description">How is ${esc(s.name)} right now? ${usesDatabase(s)?'Do not include names or private information.':'This report will be saved on this device only.'}</p><form id="arrivalForm" data-id="${esc(s.id)}"><fieldset class="report-choice"><legend class="choice-label">Was this spot available when you arrived?</legend><div class="choice-row">${[['yes','Yes'],['no','No']].map(([v,name],i)=>`<label><input type="radio" name="available" value="${v}" ${i===0?'required':''}>${name}</label>`).join('')}</div></fieldset><fieldset class="report-choice"><legend class="choice-label">Noise level</legend><div class="choice-row">${[['low','Quiet'],['medium','Social']].map(([v,name],i)=>`<label><input type="radio" name="noise" value="${v}" ${i===0?'required':''}>${name}</label>`).join('')}</div></fieldset><fieldset class="report-choice"><legend class="choice-label">How busy is it?</legend><div class="choice-row">${['low','medium','high'].map((v,i)=>`<label><input type="radio" name="busy" value="${v}" ${i===0?'required':''}>${v[0].toUpperCase()+v.slice(1)}</label>`).join('')}</div></fieldset><div class="form-field"><label for="reportNote">Other details (optional)</label><textarea id="reportNote" name="note" maxlength="240" placeholder="Anything useful for the next student?"></textarea></div><p id="arrivalError" class="form-error" role="alert" hidden></p><div class="modal-actions"><button type="button" class="secondary-button" data-modal-close>Not there yet</button><button type="submit" class="primary-button">Confirm report</button></div></form>`);
 }
 // Apply all list checkbox choices together when Save changes is selected.
 async function openSave(id){
@@ -1038,7 +1040,11 @@ document.addEventListener('click',event=>{
   if(t.dataset.pinnedResource){const r=database.pinnedResources.find(x=>x.id===t.dataset.pinnedResource);if(r)showToast(`${r.type}: ${r.info}${r.where?` (${r.where})`:''}`);return}
   if(t.dataset.spot){const s=spotById(t.dataset.spot);if(state.view==='explore'){openBuilding(s.building,s.floor)}openSpot(s.id);return}
   if(t.dataset.openSaved){const s=spotById(t.dataset.openSaved);openBuilding(s.building,s.floor);openSpot(s.id);return}
-  if(t.dataset.confirmSpot){openArrival(t.dataset.confirmSpot);return}
+  if(t.dataset.confirmSpot){
+    // OKR: time from starting the search to choosing a spot; the timer restarts for the next choice.
+    const seconds=choiceTimer.lap();
+    if(seconds)void database.logChoice(seconds);
+    openArrival(t.dataset.confirmSpot);return}
   if(t.dataset.saveSpot){openSave(t.dataset.saveSpot);return}
   if(t.dataset.saveConfirm){void confirmSave(t.dataset.saveConfirm,t);return}
   if(t.id==='editFilters'||t.dataset.action==='edit'){setView('explore');$('#filterHeading').scrollIntoView({behavior:'smooth'});$('#clearFilters').focus({preventScroll:true});return}

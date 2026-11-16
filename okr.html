@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#27241f">
+  <meta name="description" content="Nook impact: live progress on our objectives and key results, measured from real student activity.">
+  <title>Nook | Impact</title>
+  <link rel="icon" type="image/png" href="assets/nook-logo.png">
+  <link rel="stylesheet" href="okr.css">
+  <script defer src="supabase-config.js"></script>
+  <script defer src="database.js"></script>
+  <script defer src="auth.js"></script>
+  <script defer src="okr.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#okrApp">Skip to content</a>
+  <header class="topbar">
+    <a class="brand" href="index.html"><img src="assets/nook-logo.png" alt="" width="40" height="34"><span>Nook</span></a>
+    <nav aria-label="Main navigation"><a class="nav-link" href="index.html">Explore</a><a class="nav-link" href="admin.html">Dev tools</a><a class="nav-link is-active" href="okr.html" aria-current="page">Impact</a></nav>
+  </header>
+  <main>
+    <div class="page-heading">
+      <div><p class="kicker">Impact</p><h1>Objectives and key results</h1><p class="lede">Every number comes from real student activity in the app and updates on its own. Admins only.</p></div>
+      <p id="okrUpdated" class="updated" aria-live="polite">Loading…</p>
+    </div>
+    <section id="okrGate" class="gate" aria-labelledby="gateTitle" hidden>
+      <h2 id="gateTitle"></h2>
+      <p id="gateText"></p>
+      <form id="gateForm" novalidate hidden>
+        <label for="gateCode">Admin code</label>
+        <div class="gate-row"><input id="gateCode" type="password" autocomplete="one-time-code" inputmode="numeric" maxlength="64" required><button type="submit">Unlock</button></div>
+        <p id="gateError" class="gate-error" role="alert" hidden></p>
+      </form>
+      <p class="gate-links"><a href="index.html">Back to the main site</a></p>
+    </section>
+    <div id="okrApp"><noscript>This page needs JavaScript to show live numbers.</noscript></div>
+  </main>
+</body>
+</html>
