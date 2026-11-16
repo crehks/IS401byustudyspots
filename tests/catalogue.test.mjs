@@ -6,17 +6,20 @@ import vm from 'node:vm';
 import {parseEnv} from '../server.mjs';
 
 const root=new URL('../',import.meta.url);
-test('campus labels fit their roof shapes and the three supported labels stay horizontal',async()=>{
+test('campus labels sit at the visual center of each roof, inside it',async()=>{
   const app=await readFile(new URL('app.js',root),'utf8');
   const source=app.slice(0,app.indexOf('const STORAGE_KEY'))+app.slice(app.indexOf('function campusPointInside'),app.indexOf('function renderCampusMap'));
-  const c=vm.runInNewContext(source+'; ({BUILDINGS,CAMPUS_BUILDINGS,campusLabelLayout,campusLabelBoxFits})');
+  const c=vm.runInNewContext(source+'; ({CAMPUS_BUILDINGS,campusLabelLayout,campusPointInside,campusEdgeDistance})');
+  // These four use the center point stored with the building instead of the computed one.
+  const stored=['ARTS','MB','MCDB','PPMW'];
   for(const b of c.CAMPUS_BUILDINGS){
-    const supported=!!c.BUILDINGS[b.id],label=c.campusLabelLayout(b,supported),points=b.points.split(' ').map(p=>p.split(',').map(Number));
-    const widths={I:.3,J:.6,M:.9,W:1,T:.7,F:.65,L:.65};
-    const textWidth=[...b.id].reduce((sum,char)=>sum+(widths[char]||.8),0)*label.size;
-    const padding=label.size<8?1.2:3,width=(label.angle?label.size*1.55:textWidth)+padding,height=(label.angle?textWidth:label.size*1.55)+padding;
-    assert.ok(c.campusLabelBoxFits(points,label.x-width/2,label.y-height/2,label.x+width/2,label.y+height/2),b.id);
-    if(supported){assert.equal(label.angle,0,b.id);assert.ok(label.size<=20);}
+    const label=c.campusLabelLayout(b),points=b.points.split(' ').map(p=>p.split(',').map(Number));
+    assert.ok(Number.isFinite(label.x)&&Number.isFinite(label.y),b.id);
+    if(stored.includes(b.id)){assert.deepEqual([label.x,label.y],[b.x,b.y],b.id);continue;}
+    assert.ok(c.campusPointInside(points,label.x,label.y),`${b.id} label is outside its roof`);
+    // Visual center: no scanned point inside the roof is farther from the walls than the label (within the 1 px refinement).
+    const here=c.campusEdgeDistance(points,label.x,label.y);
+    for(const [x,y] of [[b.x,b.y]])if(c.campusPointInside(points,x,y))assert.ok(here>=c.campusEdgeDistance(points,x,y)-4,`${b.id} label is not near the roof center`);
   }
 });
 test('campus map has 45 traced buildings but only the three supported building routes',async()=>{

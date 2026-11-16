@@ -156,7 +156,7 @@ const numericSpotIds=['hbll-commons','hbll-west','hbll-group','hbll-think','hbll
       if (!['low','medium'].includes(input.noise) || !['low','medium','high'].includes(input.busy)) throw new Error('Choose a noise level (Quiet or Social) and a crowding level.');
       const body=String(input.note||'').trim()||`Noise ${input.noise}, crowding ${input.busy}.`;
       if (body.length>240) throw new Error('Keep the report note to 240 characters.');
-      const response=await this.request(`${this.config.url}/rest/v1/spot_reports`,{method:'POST',headers:this.headers({'Content-Type':'application/json',Prefer:'return=representation'}),body:JSON.stringify({space_id:numeric,body,self_noise:input.noise,self_crowd:input.busy})});
+      const response=await this.request(`${this.config.url}/rest/v1/spot_reports`,{method:'POST',headers:this.headers({'Content-Type':'application/json',Prefer:'return=representation'}),body:JSON.stringify({space_id:numeric,body,self_noise:input.noise,self_crowd:input.busy,...(typeof input.available==='boolean'?{was_available:input.available}:{})})});
       if (!response.ok) {
         const problem=await response.clone().json().catch(()=>({}));
         if (problem.code==='P0001'&&typeof problem.message==='string') throw new Error(problem.message);
@@ -175,6 +175,36 @@ const numericSpotIds=['hbll-commons','hbll-west','hbll-group','hbll-think','hbll
       }
       if (status==='approved') await this.loadConditions().catch(()=>{});
       return {id:rows[0].id,status,spotId,noise:input.noise,busy:input.busy,note:body};
+    }
+    // OKR time-to-choose event. Anonymous, fire-and-forget: tracking must never get in the student's way.
+    async logChoice(seconds) {
+      if (!this.config.configured||!Number.isInteger(seconds)||seconds<1||seconds>1800) return false;
+      try {
+        const response=await this.request(`${this.config.url}/rest/v1/spot_choice_events`,{method:'POST',headers:this.headers({'Content-Type':'application/json',Prefer:'return=minimal'}),body:JSON.stringify({seconds})});
+        return response.ok;
+      } catch {return false;}
+    }
+    // OKR visit tracking for signed-in users. The database ignores repeats, so a refresh is not a new visit.
+    async recordVisit(signedIn) {
+      if (!this.config.configured||!this.accessToken) return false;
+      try {
+        const response=await this.request(`${this.config.url}/rest/v1/rpc/record_visit`,{method:'POST',headers:this.headers({'Content-Type':'application/json'}),body:JSON.stringify({p_sign_in:!!signedIn})});
+        return response.ok;
+      } catch {return false;}
+    }
+    // Aggregate OKR numbers for the Impact page. The function returns counts only, never raw rows.
+    async loadOkrs() {
+      if (!this.config.configured) throw new Error('The database is not connected yet.');
+      const response=await this.request(`${this.config.url}/rest/v1/rpc/okr_metrics`,{method:'POST',headers:this.headers({'Content-Type':'application/json'}),body:'{}'});
+      if (!response.ok) {
+        const error=await this.apiError(response);
+        // 401/403 means "not an unlocked admin", which the Impact page turns into its sign-in gate.
+        error.denied=response.status===401||response.status===403;
+        throw error;
+      }
+      const result=await response.json();
+      if (!result||typeof result!=='object'||!result.o1k1||!result.o1k2||!result.o2k1||!result.o2k2) throw new Error('Supabase returned an unexpected OKR response.');
+      return result;
     }
         // Building hours live in their own table and do not affect reports.
     // Buildings IDs map to the codes the UI uses: 1001 HBLL, 1002 WSC, 1003 JKB.
@@ -218,6 +248,7 @@ const numericSpotIds=['hbll-commons','hbll-west','hbll-group','hbll-think','hbll
       if(numeric&&!numericId)throw new Error('This spot is not in the database inventory.');
       const payload=numeric?{spot_id:numericId,noise_level:levelNumber[input.noise],crowd_level:levelNumber[input.busy],notes:note}:{spot_id:spotId,noise_level:input.noise,crowd_levels:input.busy,notes:note};
       // Signed-in users post as themselves; guests fall back to the database default (demo user).
+      if(numeric&&typeof input.available==='boolean')payload.was_available=input.available;
       if(numeric&&this.userId)payload.user_id=this.userId;
       const response=await this.request(`${this.config.url}/rest/v1/${encodeURIComponent(this.config.table)}`,{method:'POST',headers:this.headers({'Content-Type':'application/json',Prefer:'return=representation'}),body:JSON.stringify(payload)});
       if (!response.ok) throw await this.apiError(response);
@@ -311,6 +342,16 @@ const numericSpotIds=['hbll-commons','hbll-west','hbll-group','hbll-think','hbll
       this.error='';
     }
   }
+  // Time-to-choose timer: starts when created, and every lap() restarts it for the next choice.
+  // A gap under 1 second or over 30 minutes is not a real choice, so lap() returns null for it.
+  class ChoiceTimer {
+    constructor(now=Date.now()) {this.startedAt=now;}
+    lap(now=Date.now()) {
+      const seconds=Math.round((now-this.startedAt)/1000);
+      this.startedAt=now;
+      return Number.isFinite(seconds)&&seconds>=1&&seconds<=1800?seconds:null;
+    }
+  }
   // Expose the same adapter to browser code and Node-based tests.
-  scope.StudyDatabase=StudyDatabase;
+  scope.StudyDatabase=StudyDatabase;scope.ChoiceTimer=ChoiceTimer;
 })(typeof window==='undefined'?globalThis:window);
