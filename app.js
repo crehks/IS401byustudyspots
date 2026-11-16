@@ -7,24 +7,16 @@
 // JKB's G key displays Floor 1 but must keep matching existing spot references.
 const BUILDINGS = {
   HBLL: { name: 'Harold B. Lee Library', short: 'Library', groundFloor: 'L3', description: '', floors: [
-    {id:'L3',label:'Floor 3 South / Entry',file:'hbll-3s',level:3,side:'South',defaultX:43,defaultY:52},
-    {id:'L3N',label:'Floor 3 North',file:'hbll-3ns',level:3,side:'North',defaultX:64,defaultY:49},
-    {id:'L2',label:'Floor 2 South',file:'hbll-2s',level:2,side:'South',defaultX:25,defaultY:73},
-    {id:'L2N',label:'Floor 2 North',file:'hbll-2ns',level:2,side:'North',defaultX:34,defaultY:66},
-    {id:'L1',label:'Floor 1 South',file:'hbll-1s',level:1,side:'South',defaultX:25,defaultY:74},
-    {id:'L1N',label:'Floor 1 North',file:'hbll-1ns',level:1,side:'North',defaultX:31,defaultY:74},
+    {id:'L1',label:'Floor 1',file:'hbll-1ns + hbll-1s',level:1,defaultX:70,defaultY:82},
+    {id:'L2',label:'Floor 2',file:'hbll-2ns + hbll-2s',level:2,defaultX:70,defaultY:82},
+    {id:'L3',label:'Floor 3',file:'hbll-3ns + hbll-3s',level:3,defaultX:70,defaultY:82},
     {id:'L4',label:'Floor 4',file:'hbll-4s',level:4,defaultX:26,defaultY:68},
-    {id:'L5',label:'Floor 5',file:'hbll-5s',level:5,defaultX:67,defaultY:50},
-    {id:'L6',label:'Floor 6',file:'hbll-6s',level:6,defaultX:74,defaultY:52},
-    {id:'B',label:'Basement North',file:'hbll-bns',level:0,side:'North',defaultX:39,defaultY:66}
+    {id:'L5',label:'Floor 5',file:'hbll-5s',level:5,defaultX:67,defaultY:50}
   ], map:'https://map.byu.edu/', floorsUrl:'https://lib.byu.edu/floormaps/' },
-  WSC: { name: 'Wilkinson Student Center', short: 'The Wilk', groundFloor: '2E', description: '', floors: [
-    {id:'1E',label:'Floor 1 East',file:'wsc-1s',level:1,side:'East',defaultX:25,defaultY:43},
-    {id:'1W',label:'Floor 1 West',file:'wsc-1ws',level:1,side:'West',defaultX:31,defaultY:48},
-    {id:'2E',label:'Floor 2 East',file:'wsc-2s',level:2,side:'East',defaultX:21,defaultY:43},
-    {id:'2W',label:'Floor 2 West',file:'wsc-2ws',level:2,side:'West',defaultX:39,defaultY:40},
-    {id:'3E',label:'Floor 3 East',file:'wsc-3s',level:3,side:'East',defaultX:26,defaultY:30},
-    {id:'3W',label:'Floor 3 West',file:'wsc-3ws',level:3,side:'West',defaultX:35,defaultY:45},
+  WSC: { name: 'Wilkinson Student Center', short: 'The Wilk', groundFloor: '2', description: '', floors: [
+    {id:'1',label:'Floor 1',file:'wsc-1s + wsc-1ws',level:1,defaultX:50,defaultY:50},
+    {id:'2',label:'Floor 2',file:'wsc-2s + wsc-2ws',level:2,defaultX:50,defaultY:50},
+    {id:'3',label:'Floor 3',file:'wsc-3s + wsc-3ws',level:3,defaultX:50,defaultY:50},
     {id:'4E',label:'Floor 4',file:'wsc-4s',level:4,side:'East',defaultX:69,defaultY:32},
     {id:'5E',label:'Floor 5',file:'wsc-5s',level:5,side:'East',defaultX:33,defaultY:43},
     {id:'6E',label:'Floor 6',file:'wsc-6s',level:6,side:'East',defaultX:34,defaultY:53}
@@ -221,7 +213,81 @@ const HBLL_STUDY_POINTS={
   'hbll-upper':[349,536]
 };
 const JKB_STUDY_POINTS={'jkb-tables':[520,177],'jkb-nook':[828,520],'jkb-group':[610,188]};
-function buildingPlans(building=state.building){return {WSC:window.WSC_PLANS,HBLL:window.HBLL_PLANS,JKB:window.JKB_PLANS}[building]||null}
+let hbllPlanSource=null,hbllDisplayPlans=null,wscPlanSource=null,wscDisplayPlans=null;
+const WSC_CONNECTIONS={1:{east:'1177',west:'1901'},2:{east:'2200',west:'2902'},3:{east:'3208',west:'3901'}};
+function combinedWscPlan(east,west,level){
+  // Align each pair on its mapped service core so the two drawings share a single connection point.
+  const header=28,connection=WSC_CONNECTIONS[level];
+  const eastAnchor=east.rooms.find(room=>room.number===connection.east),westAnchor=west.rooms.find(room=>room.number===connection.west);
+  const dx=(eastAnchor?.x??east.width/2)-(westAnchor?.x??west.width/2),dy=(eastAnchor?.y??east.height/2)-(westAnchor?.y??west.height/2);
+  const minX=Math.min(0,dx),minY=Math.min(0,dy),eastX=-minX,westX=dx-minX,eastY=-minY,westY=dy-minY;
+  const width=Math.max(eastX+east.width,westX+west.width),height=header+Math.max(eastY+east.height,westY+west.height);
+  const inner=plan=>plan.svg.slice(plan.svg.indexOf('>')+1,plan.svg.lastIndexOf('</svg>')).replace(/<title>.*?<\/title>/,'').replace(/<desc>.*?<\/desc>/,'');
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" class="digital-floor-svg" viewBox="0 0 ${width} ${height}" role="group" aria-label="Wilkinson Student Center Floor ${level} combined East and West floor plan"><title>Wilkinson Student Center Floor ${level}</title><desc>East and West floor plans are aligned at a shared service core.</desc><g aria-hidden="true" fill="var(--map-text,#23495f)" font-family="Arial,Helvetica,sans-serif" font-size="18" font-weight="700"><text x="${eastX+east.width/2}" y="20" text-anchor="middle">EAST</text><text x="${westX+west.width/2}" y="20" text-anchor="middle">WEST</text></g><g transform="translate(${eastX} ${header+eastY})">${inner(east)}</g><g transform="translate(${westX} ${header+westY})">${inner(west)}</g></svg>`;
+  return {file:`${east.file} + ${west.file}`,label:`Floor ${level}`,width,height,crop:[0,0,width,height],north:east.north,rooms:[...east.rooms,...west.rooms],svg,combined:true,eastTransform:{x:eastX,y:header+eastY,width:east.width,height:east.height},westTransform:{x:westX,y:header+westY,width:west.width,height:west.height},pointPositions:{}};
+}
+function wscPlans(plans){
+  if(!plans)return null;
+  if(plans!==wscPlanSource){
+    wscPlanSource=plans;wscDisplayPlans={...plans};
+    for(const level of [1,2,3]){
+      const east=plans[`${level}E`],west=plans[`${level}W`];if(!east||!west)continue;
+      const combined=combinedWscPlan(east,west,level);wscDisplayPlans[String(level)]=combined;
+      for(const [spotId,point] of Object.entries(WILK_STUDY_POINTS)){
+        const spot=DEMO_SPOTS.find(item=>item.id===spotId);if(!spot||spot.floor[0]!==String(level))continue;
+        const source=spot.floor.endsWith('W')?west:east,box=spot.floor.endsWith('W')?combined.westTransform:combined.eastTransform;
+        combined.pointPositions[spotId]=[box.x+(point[0]-source.crop[0])/source.width*box.width,box.y+(point[1]-source.crop[1])/source.height*box.height];
+      }
+      delete wscDisplayPlans[`${level}E`];delete wscDisplayPlans[`${level}W`];
+    }
+  }
+  return wscDisplayPlans;
+}
+const HBLL_STAIR_ROOMS={L1N:{label:'Floor 1 North stair entrance',rooms:['1178']},L1:{label:'Floor 1 South stair entrance',rooms:['1302','1600']},L2N:{label:'Floor 2 North stair entrance',rooms:['2001']},L2:{label:'Floor 2 South stair entrance',rooms:['2310']},L3N:{label:'Floor 3 North stair entrance',rooms:['3001']},L3:{label:'Floor 3 South stair entrance',rooms:['3300']},L4:{label:'Floor 4 stair entrance',rooms:['4400']},L5:{label:'Floor 5 stair entrance',rooms:['5500']}};
+const HBLL_STAIR_ANCHORS={1:{north:['L1N','1178'],south:['L1','1600']},2:{north:['L2N','2001'],south:['L2','2310']},3:{north:['L3N','3001'],south:['L3','3300']}};
+function stairTarget(plan,number,label){
+  const shape=[...plan.svg.matchAll(/<path\b([^>]*)>/g)].find(([,attrs])=>attrs.includes(`data-room="${number}"`));
+  const d=shape?.[1].match(/\bd="([^"]+)"/)?.[1];
+  if(!d)return '';
+  return `<g class="stair-target" tabindex="0" aria-label="${esc(label)}"><title>${esc(label)}</title><path class="stair-hit-area" d="${d}"/></g>`;
+}
+function markStairEntrances(plan,{label,rooms=[]}){
+  let svg=plan.svg;const targets=[];
+  for(const number of rooms)targets.push(stairTarget(plan,number,label));
+  // Use a landing note only when no known stair room is available; otherwise it duplicates the room outline target.
+  if(!rooms.length){
+  svg=svg.replace(/<text class="map-note"([^>]*)transform="translate\(([\d.]+) ([\d.]+)\) rotate\(([-\d.]+)\)">(UP|DN)<\/text>/g,(_match,attrs,x,y,angle,direction)=>`<g class="stair-note-target" tabindex="0" aria-label="${label}" transform="translate(${x} ${y})"><title>${label}</title><rect class="stair-hit-area" x="-23" y="-21" width="46" height="42" rx="6"/><path class="stair-glyph" d="M -13 11 H -7 V 5 H -1 V -1 H 5 V -7 H 11"/><text class="map-note"${attrs}transform="translate(0 0) rotate(${angle})">${direction}</text></g>`);
+  }
+  svg=svg.replace('</svg>',`${targets.join('')}</svg>`);
+  return {...plan,svg,hasStairTargets:true};
+}
+function combinedHbllPlan(north,south,northAnchor,southAnchor){
+  const n=north.rooms.find(room=>room.number===northAnchor),s=south.rooms.find(room=>room.number===southAnchor);
+  const dx=(n?.x||north.width/2)-(s?.x||south.width/2),dy=(n?.y||north.height/2)-(s?.y||south.height/2);
+  const minX=Math.min(0,dx),minY=Math.min(0,dy),northX=-minX,northY=-minY,southX=dx-minX,southY=dy-minY;
+  const width=Math.max(northX+north.width,southX+south.width),height=Math.max(northY+north.height,southY+south.height);
+  const inner=plan=>plan.svg.slice(plan.svg.indexOf('>')+1,plan.svg.lastIndexOf('</svg>')).replace(/<title>.*?<\/title>/,'').replace(/<desc>.*?<\/desc>/,'');
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" class="digital-floor-svg" viewBox="0 0 ${width} ${height}" role="group" aria-label="Harold B. Lee Library combined north and south floor map"><title>Harold B. Lee Library combined floor map</title><desc>North and south sides are aligned at their connecting staircases. Hover a highlighted stair for its entrance label.</desc><g transform="translate(${northX} ${northY})">${inner(north)}</g><g transform="translate(${southX} ${southY})">${inner(south)}</g></svg>`;
+  return {file:`${north.file} + ${south.file}`,label:north.label.replace(' North',''),width,height,crop:[0,0,width,height],north:-90,rooms:[...north.rooms,...south.rooms],svg,combined:true,hasStairTargets:true,northTransform:{x:northX,y:northY,width:north.width,height:north.height},southTransform:{x:southX,y:southY,width:south.width,height:south.height},pointPositions:{}};
+}
+function hbllPlans(plans){
+  if(!plans)return null;
+  if(plans!==hbllPlanSource){
+    hbllPlanSource=plans;hbllDisplayPlans={...plans};
+    for(const [key,plan] of Object.entries(plans))if(HBLL_STAIR_ROOMS[key])hbllDisplayPlans[key]=markStairEntrances(plan,HBLL_STAIR_ROOMS[key]);
+    for(const level of [1,2,3]){const anchors=HBLL_STAIR_ANCHORS[level],north=hbllDisplayPlans[anchors.north[0]],south=hbllDisplayPlans[anchors.south[0]];if(north&&south)hbllDisplayPlans[`L${level}`]=combinedHbllPlan(north,south,anchors.north[1],anchors.south[1])}
+    for(const key of ['B','L1N','L2N','L3N','L6'])delete hbllDisplayPlans[key];
+    const spotLevels={'hbll-commons':3,'hbll-west':3,'hbll-group':3,'hbll-think':2,'hbll-reading':2,'hbll-single':2};
+    for(const [spotId,point] of Object.entries(HBLL_STUDY_POINTS)){
+      const level=spotLevels[spotId]||4,combined=hbllDisplayPlans[`L${level}`];
+      if(!combined?.combined)continue;
+      const source=plans[`L${level}`],box=combined.southTransform;
+      combined.pointPositions[spotId]=[box.x+(point[0]-source.crop[0])/source.width*box.width,box.y+(point[1]-source.crop[1])/source.height*box.height];
+    }
+  }
+  return hbllDisplayPlans;
+}
+function buildingPlans(building=state.building){const plans={WSC:window.WSC_PLANS,HBLL:window.HBLL_PLANS,JKB:window.JKB_PLANS}[building]||null;return building==='HBLL'?hbllPlans(plans):building==='WSC'?wscPlans(plans):plans}
 // Floor-plan bundles are several MB each, so each loads only when its building is first opened.
 const PLAN_FILES={WSC:'wsc-plans.js?v=20261007',HBLL:'hbll-plans.js?v=20261009',JKB:'jkb-plans.js?v=20261009'},planLoads={};
 function loadPlans(building){
@@ -401,7 +467,7 @@ function addCampusMapGuide(){
 function save(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(data));return true}catch{showToast('Could not save on this device. Changes will last only until you refresh.');return false}}
 function allSpots(){return [...DEMO_SPOTS,...data.customSpots]}
 function spotById(id){return allSpots().find(s=>s.id===id)}
-function floorLabel(spot){return BUILDINGS[spot.building].floors.find(f=>f.id===spot.floor)?.label||spot.floor}
+function floorLabel(spot){const floors=BUILDINGS[spot.building].floors;return floors.find(f=>f.id===spot.floor)?.label||floors.find(f=>f.id===spot.floor.replace(/[NWE]$/,''))?.label||spot.floor}
 // Built-in reports use Supabase when configured; custom suggestions stay local.
 function usesDatabase(spot){return database.config.configured&&!spot.id.startsWith('custom-')}
 // Read the newest report from the chosen store before falling back to sample status.
@@ -551,14 +617,14 @@ function renderBuilding(){
   $('#floorDisclaimer').hidden=isDigital;
   if(!isDigital)$('#selectedRoomPanel').hidden=true;
   if(isDigital){$('#zoomValue').textContent=`${Math.round(state.zoom*100)}%`;$('#zoomOut').disabled=state.zoom<=1;$('#zoomIn').disabled=state.zoom>=8;$('#toggleRoomLabels').setAttribute('aria-pressed',state.roomLabels)}
-  const spots=allSpots().filter(s=>s.building===state.building&&s.floor===state.floor);
+  const spots=allSpots().filter(s=>s.building===state.building&&(s.floor===state.floor||(isHbll&&s.floor===`${state.floor}N`)||(isWsc&&digital?.combined&&s.floor.startsWith(state.floor))));
   const plan=$('#floorPlan');
   if(isDigital){
     plan.className=`floor-plan native-plan ${state.building.toLowerCase()}-plan ${state.roomLabels?'':'hide-room-labels'}`;plan.setAttribute('aria-label',`Interactive ${building.short} ${floor.label} map`);
     // Translate page-based pin positions into percentages of the cropped SVG.
     const studyPoints={WSC:WILK_STUDY_POINTS,HBLL:HBLL_STUDY_POINTS,JKB:JKB_STUDY_POINTS}[state.building]||{};
-    plan.innerHTML=`<div class="plan-scroll"><div class="plan-canvas"><div id="planStage" class="plan-stage">${digital.svg}${spots.map((s,i)=>{const point=studyPoints[s.id]||[s.x/100*1224,s.y/100*792];const x=(point[0]-digital.crop[0])/digital.width*100;const y=(point[1]-digital.crop[1])/digital.height*100;return `<button type="button" class="plan-pin ${s.reserved?'reserved':''} ${matches(s)?'':'is-dimmed'} ${state.selectedSpot===s.id?'is-selected':''}" style="left:${x}%;top:${y}%" data-spot="${esc(s.id)}" title="${esc(s.name)}" aria-label="Sample spot ${i+1}: ${esc(s.name)}">S${i+1}</button>`}).join('')}</div></div></div>`;
-    $('#floorLegend').innerHTML='<span><i class="map-key-swatch room"></i>Rooms</span><span><i class="map-key-swatch open"></i>Open areas</span><span><i class="map-key-swatch service"></i>Service cores</span><span><i class="legend-dot open"></i>Study spots</span>';
+    plan.innerHTML=`<div class="plan-scroll"><div class="plan-canvas"><div id="planStage" class="plan-stage">${digital.svg}${spots.map((s,i)=>{let x,y;if(digital.pointPositions?.[s.id]){x=digital.pointPositions[s.id][0]/digital.width*100;y=digital.pointPositions[s.id][1]/digital.height*100}else if(digital.eastTransform&&/[EW]$/.test(s.floor)){const west=s.floor.endsWith('W'),source=window.WSC_PLANS?.[`${s.floor[0]}${west?'W':'E'}`],box=west?digital.westTransform:digital.eastTransform,point=studyPoints[s.id]||[s.x/100*1224,s.y/100*792];x=(box.x+(point[0]-(source?.crop?.[0]||0))/(source?.width||digital.width)*box.width)/digital.width*100;y=(box.y+(point[1]-(source?.crop?.[1]||0))/(source?.height||digital.height)*box.height)/digital.height*100}else if(digital.eastTransform){x=s.x;y=s.y}else if(digital.combined){const box=s.floor.endsWith('N')?digital.northTransform:digital.southTransform;x=(box.x+s.x/100*box.width)/digital.width*100;y=(box.y+s.y/100*box.height)/digital.height*100}else{const point=studyPoints[s.id]||[s.x/100*1224,s.y/100*792];x=(point[0]-digital.crop[0])/digital.width*100;y=(point[1]-digital.crop[1])/digital.height*100}return `<button type="button" class="plan-pin ${s.reserved?'reserved':''} ${matches(s)?'':'is-dimmed'} ${state.selectedSpot===s.id?'is-selected':''}" style="left:${x}%;top:${y}%" data-spot="${esc(s.id)}" title="${esc(s.name)}" aria-label="Sample spot ${i+1}: ${esc(s.name)}">S${i+1}</button>`}).join('')}</div></div></div>`;
+    $('#floorLegend').innerHTML=`<span><i class="map-key-swatch room"></i>Rooms</span><span><i class="map-key-swatch open"></i>Open areas</span><span><i class="map-key-swatch service"></i>Service cores</span><span><i class="legend-dot open"></i>Study spots</span>${digital.hasStairTargets?'<span><i class="stair-entrance-key"></i>Hover stairs for entrance</span>':''}`;
     $('#mapNorth').innerHTML=`N <span style="display:inline-block;transform:rotate(${digital.north}deg)">↑</span>`;
     mapResizeObserver.disconnect();mapResizeObserver.observe(plan);
     setMapInteraction(!isCompactLayout());resizeDigitalMap();installMapPan();updateRoomHighlight();
@@ -620,7 +686,7 @@ function focusView(){const heading=$(`#${state.view}View h1`);heading?.setAttrib
 function setView(view){const changed=state.view!==view;if(changed)viewHistory.push(state.view);state.view=view;render();if(changed)focusView();if(!isCompactLayout())window.scrollTo({top:0,behavior:'smooth'})}
 function goBack(){state.view=viewHistory.pop()||'explore';render();focusView();if(!isCompactLayout())window.scrollTo({top:0,behavior:'smooth'})}
 // Changing drawings clears the previous room and spot selection.
-function openBuilding(id,floor,panel='map'){if(!BUILDINGS[id])return;$('#campusComingSoon').hidden=true;state.building=id;state.floor=floor||BUILDINGS[id].groundFloor||BUILDINGS[id].floors[0].id;state.zoom=1;state.selectedSpot=null;state.selectedRoom=null;setBuildingPanel(panel);setView('building');if(!buildingPlans(id))loadPlans(id).then(()=>{if(state.view==='building'&&state.building===id)renderBuilding()}).catch(()=>showToast('Floor map could not load. Check your connection and try again.'))}
+function openBuilding(id,floor,panel='map'){if(!BUILDINGS[id])return;$('#campusComingSoon').hidden=true;state.building=id;let normalizedFloor=floor;if(id==='HBLL'&&floor)normalizedFloor=floor.replace(/N$/,'');if(id==='WSC'&&floor&&/^([1-3])[EW]$/.test(floor))normalizedFloor=floor.slice(0,1);state.floor=normalizedFloor||BUILDINGS[id].groundFloor||BUILDINGS[id].floors[0].id;state.zoom=1;state.selectedSpot=null;state.selectedRoom=null;setBuildingPanel(panel);setView('building');if(!buildingPlans(id))loadPlans(id).then(()=>{if(state.view==='building'&&state.building===id)renderBuilding()}).catch(()=>showToast('Floor map could not load. Check your connection and try again.'))}
 // 7. Floor tools. Fit preserves aspect ratio; zoom multiplies the fitted size.
 function resizeDigitalMap(){
   const plan=buildingPlans()?.[state.floor];if(!plan||!$('#planStage'))return;
@@ -825,9 +891,9 @@ document.addEventListener('click',event=>{
   if(t.dataset.noise){state.noise=t.dataset.noise;updateFilter();return}
   // Each building has its own floor keys; retain the side when changing levels.
   if(t.dataset.floor){state.floor=t.dataset.floor;state.zoom=1;state.selectedSpot=null;state.selectedRoom=null;renderBuilding();return}
-  if(t.dataset.wscLevel){const level=Number(t.dataset.wscLevel);state.floor=level<=3?`${level}${state.floor.endsWith('W')?'W':'E'}`:`${level}E`;state.zoom=1;state.selectedSpot=null;state.selectedRoom=null;renderBuilding();return}
+  if(t.dataset.wscLevel){const level=Number(t.dataset.wscLevel);state.floor=level<=3?String(level):`${level}E`;state.zoom=1;state.selectedSpot=null;state.selectedRoom=null;renderBuilding();return}
   if(t.dataset.wscSide){state.floor=`${state.floor[0]}${t.dataset.wscSide==='West'?'W':'E'}`;state.zoom=1;state.selectedSpot=null;state.selectedRoom=null;renderBuilding();return}
-  if(t.hasAttribute('data-hbll-level')){const level=Number(t.dataset.hbllLevel);state.floor=level===0?'B':`L${level}${level<=3&&state.floor.endsWith('N')?'N':''}`;state.zoom=1;state.selectedSpot=null;state.selectedRoom=null;renderBuilding();return}
+  if(t.hasAttribute('data-hbll-level')){const level=Number(t.dataset.hbllLevel);state.floor=`L${level}`;state.zoom=1;state.selectedSpot=null;state.selectedRoom=null;renderBuilding();return}
   if(t.dataset.hbllSide){const floor=BUILDINGS.HBLL.floors.find(f=>f.id===state.floor);state.floor=`L${floor.level}${t.dataset.hbllSide==='North'?'N':''}`;state.zoom=1;state.selectedSpot=null;state.selectedRoom=null;renderBuilding();return}
   if(t.dataset.jkbLevel){const floor=BUILDINGS.JKB.floors.find(f=>f.level===Number(t.dataset.jkbLevel));if(!floor)return;state.floor=floor.id;state.zoom=1;state.selectedSpot=null;state.selectedRoom=null;renderBuilding();return}
   if(t.id==='zoomOut'||t.id==='zoomIn'){changeZoom(t.id==='zoomIn'?.25:-.25);return}
