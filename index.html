@@ -8,11 +8,11 @@
   <title>Nook | Find your place</title>
   <link rel="icon" type="image/png" href="assets/nook-logo.png">
   <!-- Load map bundles before the adapter and app. defer keeps the scripts in order. -->
-  <link rel="stylesheet" href="styles.css?v=20261116-stairs">
+  <link rel="stylesheet" href="styles.css?v=20261117-locate-spots">
   <script defer src="supabase-config.js?v=20261104-restore"></script>
   <script defer src="database.js?v=20261105-lists"></script>
   <script defer src="auth.js?v=20261113-profile"></script>
-  <script defer src="app.js?v=20261116-wsc-connected"></script>
+  <script defer src="app.js?v=20261117-locate-spots"></script>
 </head>
 <body>
   <a class="skip-link" href="#mainContent">Skip to content</a>
@@ -26,9 +26,9 @@
           <span>Nook</span>
         </button>
         <nav class="topnav" aria-label="Main navigation">
-          <button id="navExplore" class="nav-link is-active" type="button">Explore</button>
-          <button id="navSaved" class="nav-link" type="button">My Nooks</button>
-          <button id="navReport" class="nav-link nav-report" type="button" aria-label="Report a Spot"><span>Report a Spot</span></button>
+          <button id="navExplore" class="nav-link is-active" type="button"><svg class="mobile-nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5M5.5 9v11h13V9M9 20v-6h6v6"/></svg><span>Explore</span></button>
+          <button id="navSaved" class="nav-link" type="button"><svg class="mobile-nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h12v17l-6-4-6 4z"/></svg><span>My Nooks</span></button>
+          <button id="navReport" class="nav-link nav-report" type="button" aria-label="Report a Spot"><svg class="mobile-nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span class="nav-report-full">Report a Spot</span><span class="nav-report-short">Report</span></button>
           <button id="navProfile" class="nav-link" type="button" hidden>Profile</button>
           <button id="navAuth" class="nav-link nav-auth nav-login" type="button">Log in</button>
         </nav>
@@ -55,10 +55,11 @@
             <button id="exploreMapButton" class="primary-button hero-map-cta" type="button">Explore campus map <span aria-hidden="true">↓</span></button>
           </div>
         </section>
-        <!-- JavaScript inserts three matching spots or a clear empty state. -->
+        <!-- Scenario presets apply editable filters to the map below. -->
         <section class="recommendations" aria-labelledby="recommendHeading">
-          <div class="section-heading"><div><h2 id="recommendHeading">Good places to start</h2></div></div>
-          <div id="recommendationsList" class="recommendation-grid"></div>
+          <div class="section-heading"><div><h2 id="recommendHeading">Good places to start</h2><p class="intro">Choose what you need, and we’ll find the spots that fit.</p></div></div>
+          <div id="recommendationsList" class="playlist-row" aria-label="Study spot playlists"></div>
+          <button id="scrollToMap" class="intro recommendations-cue" type="button"><span>Scroll to explore map</span><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 7 5 5 5-5"/></svg></button>
         </section>
         <section id="exploreMapSection" class="explore-map-section" aria-label="Explore campus map and study filters">
           <div class="explore-layout">
@@ -86,10 +87,18 @@
             </fieldset>
             <fieldset class="filter-group">
               <legend>Noise level</legend>
-              <div class="chip-row" role="group" aria-label="Maximum noise level">
+              <div class="chip-row" role="group" aria-label="Noise level">
                 <button class="chip is-selected" data-noise="any" type="button">Any</button>
                 <button class="chip" data-noise="low" type="button">Quiet</button>
                 <button class="chip" data-noise="medium" type="button">Social</button>
+              </div>
+            </fieldset>
+            <fieldset class="filter-group">
+              <legend>Layout</legend>
+              <div class="chip-row layout-filter" role="group" aria-label="Preferred layout">
+                <button class="chip is-selected" data-layout="any" type="button">Any</button>
+                <button class="chip" data-layout="secluded" type="button">Secluded</button>
+                <button class="chip" data-layout="open" type="button">Open Area</button>
               </div>
             </fieldset>
             <details class="filter-group building-filter-group">
@@ -101,8 +110,7 @@
               <div id="buildingFilters" class="building-checks"></div>
             </details>
             <div class="switch-stack">
-              <label class="switch-row"><span><strong>Tucked Away</strong></span><input id="privateFilter" type="checkbox"><span class="switch-ui" aria-hidden="true"></span></label>
-              <label class="switch-row"><span><strong>Outlets nearby</strong></span><input id="outletFilter" type="checkbox"><span class="switch-ui" aria-hidden="true"></span></label>
+              <label class="switch-row"><span><strong>Power available</strong></span><input id="outletFilter" type="checkbox"><span class="switch-ui" aria-hidden="true"></span></label>
             </div>
             </div>
             <div class="filter-actions"><button id="clearFilters" class="secondary-button" type="button">Clear filters</button><button id="showMatches" class="primary-button" type="button">View matches</button></div>
@@ -129,11 +137,11 @@
       <section id="buildingView" class="view" hidden>
         <div class="building-heading">
           <div>
-            <button id="backToExplore" class="back-button" type="button">← Back to campus</button>
-            <div class="building-title-row"><div><h1 id="buildingTitle">Harold B. Lee Library</h1></div><div class="building-select-label"><select id="buildingSelect" aria-label="Choose building"></select></div></div>
+            <div class="building-title-row"><div class="inline-back-heading"><a id="backToExplore" class="inline-back-btn" href="#exploreMapSection" aria-label="Go back"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></a><h1 id="buildingTitle">Harold B. Lee Library</h1></div></div>
             <p id="buildingSummary" class="intro"></p>
             <p id="buildingHours" class="building-hours" hidden></p>
           </div>
+          <div class="building-select-label"><select id="buildingSelect" aria-label="Choose building"></select></div>
         </div>
         <div class="mobile-view-switch" role="group" aria-label="Building view">
           <button type="button" data-building-panel="map" aria-pressed="true" aria-controls="floorMain">Map</button>
@@ -142,16 +150,18 @@
         <div class="building-layout" data-panel="map">
           <div id="floorMain" class="floor-main">
             <div class="floor-toolbar"><div><h2 id="floorTitle">Entry level</h2><p id="floorSubtitle">Select a spot on the floor view.</p></div><div class="floor-control-stack"><div id="floorTabs" class="floor-tabs" role="group" aria-label="Choose floor"></div><div id="floorSideTabs" class="floor-tabs side-tabs" role="group" aria-label="Choose side" hidden></div></div></div>
-            <!-- Room labels can be toggled separately from spot selection. -->
+            <!-- Switch between room numbers and Nook locations. -->
             <div id="roomTools" class="room-tools" hidden>
-              <div class="map-mode-tabs"><button id="toggleRoomLabels" class="map-label-toggle" type="button" aria-pressed="true">Room numbers</button><button id="toggleResources" class="map-label-toggle" type="button" aria-pressed="false" aria-controls="resourceFilters" hidden>Resources</button></div>
+              <div class="map-mode-tabs" role="group" aria-label="Floor plan display"><button id="toggleNooks" class="map-label-toggle" type="button" aria-pressed="true" aria-controls="floorPlan">Nooks</button><button id="toggleResources" class="map-label-toggle" type="button" aria-pressed="false" aria-controls="floorPlan">Resources</button></div>
             </div>
+            <p id="mapModeEmptyNotice" class="nooks-empty-notice" role="status" hidden>No Nooks are listed on this floor yet.</p>
             <div id="resourceFilters" class="resource-filters" hidden aria-label="Filter map by resource"></div>
-            <div id="planAssetBar" class="campus-map-heading floor-map-heading" hidden><span>Digitized floor plan</span><div class="campus-map-controls" role="group" aria-label="Floor plan zoom"><button id="zoomIn" type="button" aria-label="Zoom campus map in">+</button><button id="zoomOut" type="button" aria-label="Zoom campus map out">−</button><output id="zoomValue">100%</output><button id="zoomFit" type="button">Reset</button></div></div>
+            <div id="planAssetBar" class="campus-map-heading floor-map-heading" hidden><span>Digitized floor plan</span><div class="campus-map-controls" role="group" aria-label="Floor plan zoom"><button id="zoomIn" type="button" aria-label="Zoom floor plan in">+</button><button id="zoomOut" type="button" aria-label="Zoom floor plan out">−</button><output id="zoomValue">100%</output><button id="zoomFit" type="button" aria-label="Fit floor"><span class="fit-floor-desktop">Reset</span><span class="fit-floor-mobile">Fit floor</span></button></div></div>
             <div id="selectedRoomPanel" class="selected-room-panel" role="status" hidden></div>
             <!-- floorPlan receives the selected SVG and provisional study pins. -->
             <div class="floor-plan-shell">
               <button id="interactMap" class="secondary-button" type="button" aria-pressed="false" aria-controls="floorPlan">Interact with map</button>
+              <div id="locatedSpotPanel" class="located-spot-panel" role="status" aria-live="polite" hidden></div>
               <div id="floorPlan" class="floor-plan" aria-label="Illustrative floor view of study spots"></div>
               <div id="mapInstructions" class="map-instructions" hidden><span id="mapNorth" class="map-north" aria-label="North direction">N ↑</span></div>
               <div id="floorLegend" class="floor-legend"><span><i class="legend-dot open"></i>Open study area</span><span><i class="legend-dot reserved"></i>Reservation required</span><span><i class="legend-dot amenity"></i>Amenity</span></div>
@@ -160,23 +170,23 @@
           </div>
           <!-- Room selection and study-spot filtering are separate actions. -->
           <aside id="studyResults" class="results-panel">
-            <div class="results-head"><div><h2>Study spots</h2><p id="resultsSummary">Matching your filters</p></div><button id="editFilters" class="subtle-button" type="button">Edit filters</button></div>
+            <div class="results-head"><div><h2>Study spots</h2><p id="resultsSummary">Matching your filters</p></div><div class="results-head-actions"><button id="editFilters" class="subtle-button" type="button">Edit filters</button><button id="clearAllBuildingFilters" class="subtle-button" data-action="clear" type="button">Clear all</button></div></div>
             <div id="activeFilterBar" class="active-filters"></div>
             <div id="spotList" class="spot-list"></div>
+            <button id="keepSearching" class="secondary-button keep-searching" type="button">Keep searching</button>
           </aside>
         </div>
       </section>
       <!-- PROFILE VIEW: account details, saved lists, and account deletion. Shown only when logged in. -->
       <section id="profileView" class="view profile-view" hidden>
-        <button id="profileBack" class="back-button" type="button">← Back</button>
-        <div class="saved-heading"><div><p class="kicker">Your account</p><h1>Profile</h1><p class="intro">Update your details and see your saved spots.</p></div></div>
+        <div class="saved-heading"><div><p class="kicker">Your account</p><div class="inline-back-heading"><a id="profileBack" class="inline-back-btn" href="#exploreMapSection" aria-label="Go back"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></a><h1>Profile</h1></div><p class="intro">Update your details and see your saved spots.</p></div></div>
         <div id="profileContent" class="profile-grid"></div>
       </section>
       <!-- SAVED VIEW: Favorites and up to two custom lists, kept with the account (device-local without a database). -->
       <section id="savedView" class="view saved-view" hidden>
-        <button id="savedBack" class="back-button" type="button">← Back to explore</button>
-        <div class="saved-heading"><div><p class="kicker">Your spaces</p><h1>My Nooks</h1><p id="savedIntro" class="intro">Keep your go-to study spots together on this device.</p></div><button id="createList" class="secondary-button" type="button">+ New list</button></div>
+        <div class="saved-heading"><div><p class="kicker">Your spaces</p><div class="inline-back-heading"><a id="savedBack" class="inline-back-btn" href="#exploreMapSection" aria-label="Go back"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></a><h1>My Nooks</h1></div><p id="savedIntro" class="intro">Keep your go-to study spots together on this device.</p></div><button id="createList" class="secondary-button" type="button">+ New list</button></div>
         <div id="savedTabs" class="saved-tabs" role="group" aria-label="Saved lists"></div>
+        <div id="savedListActions" class="saved-list-actions" hidden></div>
         <div id="savedItems" class="saved-items"></div>
       </section>
     </main>

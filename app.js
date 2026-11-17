@@ -92,11 +92,8 @@ const CAMPUS_BUILDINGS = [
   {id:'ROTC',x:1142,y:340,points:'1133,323 1147,323 1147,336 1153,338 1153,346 1148,348 1148,360 1134,360'},
   {id:'CMB',x:1091,y:369,points:'1087,352 1106,351 1107,362 1100,363 1101,388 1090,389 1089,376 1072,376 1072,364 1089,363'},
   {id:'SNLB',x:1019,y:421,points:'1001,385 1036,385 1036,410 1028,412 1029,429 1044,429 1045,418 1052,418 1054,432 1042,433 1041,440 1052,441 1050,451 1053,452 1002,452 1002,440 999,437'},
-  {id:'B73',x:1052,y:424,points:'1045,416 1055,416 1055,431 1044,431'},
   {id:'B66',x:1085,y:430,points:'1073,411 1102,411 1102,448 1097,449 1096,453 1070,453 1071,430 1069,429 1069,415'},
   {id:'TCB',name:'Tennis Courts Building',x:200,y:501,points:'180,458 219,459 220,475 237,477 237,481 220,482 220,528 226,529 226,531 220,534 220,541 222,542 218,544 179,544 177,503 179,497 177,495 176,462'},
-  {id:'GH',x:331,y:471,points:'324,459 332,459 337,463 337,478 333,478 332,481 324,478'},
-  {id:'FPH',x:315,y:506,points:'308,495 320,495 320,516 310,516 308,514'},
   {id:'CB',name:'Clyde Building',x:760,y:464,points:'733,423 739,425 741,419 746,417 747,420 752,420 753,424 801,424 802,429 799,430 799,436 801,437 800,450 788,452 790,464 787,470 787,483 790,484 790,496 787,499 787,513 776,513 774,522 768,522 767,510 749,511 735,511 735,499 724,499 723,452 734,451'},
   {id:'MARB',name:'Martin Building',x:653,y:480,points:'631,458 656,455 657,458 675,457 675,500 657,500 656,508 642,506 641,501 631,501'},
   {id:'NICB',name:'Nicholes Building',x:562,y:515,points:'538,498 580,497 580,539 557,540 557,557 531,558 531,525 530,519 538,518'},
@@ -149,7 +146,7 @@ function loadData(){
     }
     // Older or damaged settings fall back to supported filter values.
     const filters=stored.savedFilters;
-    if(filters&&Array.isArray(filters.buildings))clean.savedFilters={study:['any','solo','group'].includes(filters.study)?filters.study:'any',noise:['any','low','medium'].includes(filters.noise)?filters.noise:'any',private:!!filters.private,outlets:!!filters.outlets,groupSize:Math.min(6,Math.max(2,Math.round(Number(filters.groupSize)||4))),buildings:filters.buildings.filter(id=>Object.hasOwn(BUILDINGS,id))};
+    if(filters&&Array.isArray(filters.buildings))clean.savedFilters={study:['any','solo','group'].includes(filters.study)?filters.study:'any',noise:['any','low','medium'].includes(filters.noise)?filters.noise:'any',layout:['any','secluded','open'].includes(filters.layout)?filters.layout:filters.private?'secluded':'any',outlets:!!filters.outlets,groupSize:Math.min(6,Math.max(2,Math.round(Number(filters.groupSize)||4))),buildings:filters.buildings.filter(id=>Object.hasOwn(BUILDINGS,id))};
   }catch{}
   return clean;
 }
@@ -201,7 +198,7 @@ async function loadReservationLinks(){
 let reportSubmissionPending=false,newSpotPending=false;
 const choiceTimer=new ChoiceTimer();
 // Temporary screen choices. Save filters copies a preset into device data.
-const state={view:'explore',building:'HBLL',floor:'L3',zoom:1,selectedSpot:null,selectedRoom:null,roomLabels:true,resourcesVisible:false,selectedResource:null,selectedList:'favorites',study:'any',noise:'any',private:false,outlets:false,groupSize:4,buildings:new Set(['HBLL','WSC','JKB'])};
+const state={view:'explore',building:'HBLL',floor:'L3',zoom:1,selectedSpot:null,locatedSpot:null,selectedRoom:null,nooksVisible:true,resourcesVisible:false,selectedResource:null,selectedList:'favorites',listEditMode:false,study:'any',noise:'any',layout:'any',outlets:false,groupSize:4,buildings:new Set(['HBLL','WSC','JKB'])};
 // Pin positions use the original PDF page; rendering subtracts the crop offset.
 const WILK_STUDY_POINTS={
   'wsc-tables':[255,253],'wsc-lounge':[698,350],
@@ -420,7 +417,8 @@ function loadPlans(building){
 }
 // This history drives in-app Back buttons; it does not change the browser URL.
 const viewHistory=[];
-if(data.savedFilters){const f=data.savedFilters;state.study=f.study||'any';state.noise=f.noise||'any';state.private=!!f.private;state.outlets=!!f.outlets;state.groupSize=Math.min(8,Math.max(2,Number(f.groupSize)||4));state.buildings=new Set((f.buildings||[]).filter(id=>BUILDINGS[id]));}
+let searchBuildingQueue=[],searchBuildingIndex=-1;
+if(data.savedFilters){const f=data.savedFilters;state.study=f.study||'any';state.noise=f.noise||'any';state.layout=f.layout||'any';state.outlets=!!f.outlets;state.groupSize=Math.min(8,Math.max(2,Number(f.groupSize)||4));state.buildings=new Set((f.buildings||[]).filter(id=>BUILDINGS[id]));}
 const $=selector=>document.querySelector(selector);
 const $$=selector=>[...document.querySelectorAll(selector)];
 // Escape user text before inserting it into an HTML template.
@@ -476,19 +474,18 @@ function renderCampusMap(){
     const label=campusLabelLayout(b);
     return `<g class="campus-building ${available?'is-available':'is-coming-soon'}" data-campus-building="${b.id}" ${available?`data-open-building="${b.id}"`:''} role="button" tabindex="0" aria-label="${esc(available?`${b.id} floor plans`:`${b.id}${b.name?' '+b.name:''}, coming soon`)}" ${available?'':'aria-controls="campusComingSoon"'}><title>${esc(b.name||b.id)}: ${available?'floor plans available':'not yet supported, coming soon'}</title><polygon class="campus-building-shadow" points="${b.points}" transform="translate(6 ${depth+5})"/><g class="campus-building-walls" aria-hidden="true">${walls}</g><polygon class="campus-building-roof" points="${b.points}"/>${courtyard}<text class="campus-building-label" x="${label.x}" y="${label.y}" text-anchor="middle" dominant-baseline="central">${b.id}</text></g>`;
   }).join('');
-  const trees=[[185,81],[399,25],[569,213],[563,281],[558,299],[586,286],[563,193],[550,214],[577,345],[873,556],[417,689],[966,161],[932,381],[695,499],[280,619],[372,691],[510,715],[623,560],[587,531],[487,364],[222,573]].map(([x,y],i)=>`<g transform="translate(${x} ${y})"><ellipse class="campus-tree-shadow" cx="3" cy="5" rx="7" ry="5"/><circle class="campus-tree" r="${i%3+6}"/><circle class="campus-tree-light" cx="-2" cy="-2" r="3"/></g>`).join('');
-  const parking=[[173,58,139,287],[436,21,45,80],[848,24,86,137],[998,259,214,49],[948,357,44,167],[845,479,115,55],[1105,304,101,245],[958,626,250,84]].map(([x,y,w,h])=>`<g class="campus-parking"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="8"/>${Array.from({length:Math.floor(w/18)},(_,i)=>`<path d="M${x+10+i*18} ${y+8}v11 M${x+10+i*18} ${y+h-8}v-11"/>`).join('')}</g>`).join('');
+  const parking=[[173,58,139,287],[436,21,45,80],[848,24,86,137],[948,357,44,167],[845,479,115,55],[1105,304,101,245],[958,626,250,84]].map(([x,y,w,h])=>`<g class="campus-parking"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="8"/>${Array.from({length:Math.floor(w/18)},(_,i)=>`<path d="M${x+10+i*18} ${y+8}v11 M${x+10+i*18} ${y+h-8}v-11"/>`).join('')}</g>`).join('');
   const walkways=['M408 0L383 328L205 676','M567 157L575 207L585 244L585 347L605 456L602 560','M343 346L926 344','M603 85L705 84','M612 88L665 138L626 172 M669 87L623 139L663 173','M690 200L721 200L732 226','M454 341L606 344','M439 489L433 542','M584 496L621 496','M611 458L626 458','M715 346L715 520','M687 345L687 561','M854 336L858 411','M748 580L855 581','M462 475L461 642','M476 464L489 489L499 519','M323 657L439 649','M354 580L402 580','M794 165L925 165','M975 281L1065 281','M440 18L506 19','M949 310L986 329','M690 641L697 695'];
   $('#campusMapDrawing').innerHTML=`<svg class="campus-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 -18 1238 845" role="group" aria-label="BYU central campus, digitized from the supplied map"><g aria-hidden="true"><rect class="campus-ground" x="0" y="-18" width="1238" height="845"/><path class="campus-lawn" d="M16 29H158V278H19Z M14 455H166V773H55Z M212 349L397 326L373 524L222 719L87 772L100 708L198 567Z M415 7L698 1L925 88L947 331L899 574L693 633L594 645L369 690L420 349Z M949 92L982 88L982 254L949 254Z M922 729L1214 729L1214 776L928 776Z"/><path class="campus-stream-bank" d="M310 86Q323 251 293 353Q276 456 220 535Q182 593 126 676Q78 725 103 762Q170 782 286 737L528 664Q536 702 482 747Q399 787 277 798L52 798Q26 748 60 691Q97 607 166 527Q232 418 247 341L278 153Z"/><path class="campus-stream" d="M304 91Q313 262 281 372Q247 477 195 555Q136 639 94 717Q71 757 113 763Q173 771 299 726L500 675"/>
   ${parking}<g class="campus-walkways">${walkways.map(d=>`<path d="${d}"/>`).join('')}</g>
-  <g class="campus-roads"><path d="M431 -30Q411 160 382 285Q365 438 293 583Q238 676 209 677Q184 679 206 646"/><path d="M107 -5L168 -5Q210 -5 226 -28 M160 55L175 281Q187 347 141 357L15 357"/><path d="M13 793L866 793Q905 793 905 748V659Q898 605 947 604H1256"/><path d="M206 652Q186 679 218 692Q287 663 414 650Q546 638 647 611Q697 579 754 589L899 612"/><path d="M927 72Q1053 69 1111 106Q1145 125 1248 121"/><path d="M1218 -20V804 M968 327V535Q963 571 925 581 M947 280L1220 280 M925 346L929 381 M15 19V800"/></g>
-  <g class="campus-road-lines"><path d="M431 -30Q411 160 382 285Q365 438 293 583"/><path d="M13 793L866 793Q905 793 905 748V659Q898 605 947 604H1256"/><path d="M206 652Q186 679 218 692Q287 663 414 650Q546 638 647 611Q697 579 754 589L899 612"/><path d="M1218 -20V804 M15 19V800"/></g>
+  <g class="campus-roads"><path d="M431 -30Q411 160 382 285Q365 438 293 583Q238 676 209 677Q184 679 206 646"/><path d="M107 -5L168 -5Q210 -5 226 -28 M160 55L175 281Q187 347 141 357L15 357"/><path d="M13 793L866 793Q905 793 905 748V659Q898 605 947 604H1256"/><path d="M206 652Q186 679 218 692Q287 663 414 650Q546 638 647 611Q697 579 754 589L899 612"/><path d="M927 72Q1053 69 1111 106Q1145 125 1248 121"/><path d="M1218 -20V804 M968 280V535Q963 571 925 581L899 612 M947 280L1220 280 M925 346L929 381 M15 19V800"/></g>
+  <g class="campus-road-lines"><path d="M431 -30Q411 160 382 285Q365 438 293 583"/><path d="M13 793L866 793Q905 793 905 748V659Q898 605 947 604H1256"/><path d="M206 652Q186 679 218 692Q287 663 414 650Q546 638 647 611Q697 579 754 589L899 612"/><path d="M1218 -20V804 M968 280V535Q963 571 925 581L899 612 M947 280L1220 280 M15 19V800"/></g>
   <g class="campus-roundabout"><circle cx="969" cy="280" r="26"/><circle class="campus-lawn" cx="969" cy="280" r="14"/></g>
   <g class="campus-fields"><rect x="23" y="45" width="129" height="77"/><rect x="23" y="144" width="129" height="128"/><rect x="31" y="464" width="130" height="78"/><path d="M23 84H152 M23 169H152 M23 195H152 M23 221H152 M23 247H152 M86 45V122 M31 503H161 M95 464V542"/><rect x="31" y="53" width="113" height="61"/><rect x="31" y="152" width="113" height="111"/><rect x="39" y="472" width="114" height="62"/></g>
   <g class="campus-tennis">${Array.from({length:6},(_,i)=>{const x=25+(i%3)*34,y=568+Math.floor(i/3)*57;return `<rect x="${x}" y="${y}" width="25" height="43"/><path d="M${x} ${y+21}h25 M${x+5} ${y+5}h15v33h-15Z"/>`;}).join('')}</g>
   <g class="campus-plaza"><path d="M627 94L657 94L656 159L625 159Z M672 171L739 170L739 197L672 197Z M786 173L851 171L852 190L786 191Z M842 540L889 540L889 568L842 568Z"/></g>
-  <g class="campus-context-labels"><text x="88" y="138">RB Fields</text><text x="80" y="513">South Field</text><text x="71" y="688">Tennis courts</text><text x="721" y="187">Brigham Square</text><text x="899" y="183">Lee Lane</text><text x="970" y="241">Cougar Quad</text><text x="750" y="388">Cougar Crossing</text><text x="660" y="540">South Campus Quad</text><text x="344" y="603">Maeser Quad</text><text x="470" y="494">Kimball Quad</text><text x="188" y="355">Richards Quad</text><text x="501" y="753">Arboretum &amp; Botany Pond</text><text x="122" y="721">South Campus Trail</text></g>
-  <g class="campus-road-labels"><text x="366" y="367" transform="rotate(-78 366 367)">Campus Drive</text><text x="820" y="366">1060 N</text><text x="455" y="672" transform="rotate(-12 455 672)">Campus Drive</text><text x="1069" y="610">900 N</text><text x="450" y="799">800 N</text><text x="1089" y="738">820 North Street</text><text x="980" y="467" transform="rotate(90 980 467)">750 East</text></g>${trees}</g>${blocks}</svg>`;
+  <g class="campus-context-labels"><text x="88" y="138">RB Fields</text><text x="80" y="513">South Field</text><text x="71" y="688">Tennis courts</text><text x="750" y="388">Cougar Crossing</text><text x="501" y="753">Arboretum &amp; Botany Pond</text><text x="122" y="721">South Campus Trail</text></g>
+  <g class="campus-road-labels"><text x="366" y="367" transform="rotate(-78 366 367)">Campus Drive</text><text x="820" y="366">1060 N</text><text x="455" y="672" transform="rotate(-12 455 672)">Campus Drive</text><text x="1069" y="610">900 N</text><text x="450" y="799">800 N</text><text x="980" y="467" transform="rotate(90 980 467)">750 E</text></g></g>${blocks}</svg>`;
   installCampusMapInteraction($('#campusMapViewport'));
 }
 // Preserve the map center on zoom; Reset centers the supported buildings.
@@ -604,6 +601,7 @@ function applyDatabaseCapacities(){for(const s of DEMO_SPOTS){const n=database.c
 const NOISE_LABEL={low:'Quiet',medium:'Social',high:'Social'};
 function noiseLabel(value){return NOISE_LABEL[value]||''}
 function floorLabel(spot){const floors=BUILDINGS[spot.building].floors;return floors.find(f=>f.id===spot.floor)?.label||floors.find(f=>f.id===spot.floor.replace(/[NWE]$/,''))?.label||spot.floor}
+function spotLocationSummary(spot){const room=spot.room||spot.roomNumber;return [floorLabel(spot),room?`Room ${room}`:spot.detail||''].filter(Boolean).join(' · ')}
 // Built-in reports use Supabase when configured; custom suggestions stay local.
 function usesDatabase(spot){return database.config.configured&&!spot.id.startsWith('custom-')}
 // Read the newest report from the chosen store before falling back to sample status.
@@ -614,24 +612,30 @@ function liveConditions(spot){return usesDatabase(spot)&&database.conditions?(da
 function currentBusy(spot){const live=liveConditions(spot);return live?(live.busy||spot.busy):(currentReport(spot)?.busy||spot.busy)}
 function currentNoise(spot){const live=liveConditions(spot);return live?(live.noise||spot.noise):(currentReport(spot)?.noise||spot.noise)}
 function isTypical(spot){const live=liveConditions(spot);return !!live&&!live.busy}
-// Apply all filters together. The medium noise filter includes quiet and medium-noise spots.
-function matches(spot){if(!state.buildings.has(spot.building))return false;if(state.study==='solo'&&spot.type!=='solo')return false;if(state.study==='group'&&(spot.type!=='group'||spot.capacity<state.groupSize))return false;if(state.private&&!spot.private)return false;if(state.outlets&&!spot.outlets)return false;if(state.noise==='low'&&currentNoise(spot)!=='low')return false;if(state.noise==='medium'&&currentNoise(spot)==='high')return false;return true}
+// Apply the selected scenario and any later edits through the same filter state.
+function matches(spot){if(!state.buildings.has(spot.building))return false;if(state.study==='solo'&&spot.type!=='solo')return false;if(state.study==='group'&&(spot.type!=='group'||spot.capacity<state.groupSize))return false;if(state.layout==='secluded'&&!isSecluded(spot))return false;if(state.layout==='open'&&isSecluded(spot))return false;if(state.outlets&&!spot.outlets)return false;if(state.noise==='low'&&currentNoise(spot)!=='low')return false;if(state.noise==='medium'&&currentNoise(spot)!=='medium')return false;return true}
 // Lower scores rank first: prefer quieter, less crowded, non-reservable spaces.
 function rank(spot){return (spot.reserved?8:0)+(currentBusy(spot)==='low'?0:currentBusy(spot)==='medium'?2:currentBusy(spot)==='high'?5:3)+(currentNoise(spot)==='low'?0:1)}
-function labelBusy(spot){if(spot.reserved)return 'Reserve ahead';const busy=currentBusy(spot),text=busy==='low'?'Less busy':busy==='medium'?'Moderate':busy==='high'?'Busy':'';if(!text)return liveConditions(spot)?'No recent data':'No report yet';return isTypical(spot)?`Typically ${text.toLowerCase()}`:text}
-function badgeClass(spot){return spot.reserved?'reserved':currentBusy(spot)==='high'?'high':currentBusy(spot)==='medium'?'medium':currentBusy(spot)?'':'unknown'}
+function forecastValue(spot){return ({low:'Light',medium:'Moderate',high:'Busy'})[currentBusy(spot)]||''}
+function labelBusy(spot){if(spot.reserved)return 'Reserve ahead';const value=forecastValue(spot);return value?`Forecast: ${value}`:liveConditions(spot)?'No recent data':'No report yet'}
+function badgeClass(spot){return spot.reserved?'reserved':currentBusy(spot)==='low'?'forecast-light':currentBusy(spot)==='medium'?'forecast-moderate':currentBusy(spot)==='high'?'forecast-busy':currentBusy(spot)?'':'unknown'}
+function forecastTag(spot){const value=forecastValue(spot);return value?`<span class="availability ${badgeClass(spot)}"><span class="tag-prefix">Forecast:&nbsp;</span><strong>${value}</strong></span>`:`<span class="availability ${badgeClass(spot)}">${esc(labelBusy(spot))}</span>`}
+function isSecluded(spot){return !!(spot.private||spot.reserved||/\b(?:nook|corner|alcove|room)\b/i.test(spot.name||''))}
+function layoutLabel(spot){return isSecluded(spot)?'Secluded':'Open Area'}
+const POWER_ICON='<svg class="power-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M13.2 1.8 4.4 13h6l-.8 9.2L19.6 11h-6.2l-.2-9.2Z"/></svg>';
+function powerTag(spot){return spot.outlets?`<span class="power-tag">${POWER_ICON} Power</span>`:''}
 function showToast(message){const toast=$('#toast');toast.textContent=message;toast.hidden=false;clearTimeout(showToast.timer);showToast.timer=setTimeout(()=>toast.hidden=true,3500)}
 // 5. Reporting. Keep the connection banner short; show details in the dialog.
-function renderAuthNav(){const profileButton=$('#navProfile');if(profileButton)profileButton.hidden=!auth.signedIn;const b=$('#navAuth');if(!b)return;const admin=auth.signedIn&&auth.isAdmin;b.innerHTML=auth.signedIn?`<span class="auth-label">Log out${admin?' ▾':''}</span>${auth.displayName?`<span class="auth-name">(${esc(auth.displayName)})</span>`:''}`:'<span class="auth-label">Log in</span>';b.classList.toggle('is-signed-in',auth.signedIn);b.title=auth.signedIn?`Signed in as ${auth.displayName}. ${admin?'Select for Dev tools or Log out.':'Select to log out.'}`:'';b.setAttribute('aria-label',auth.signedIn?(admin?`Account menu for ${auth.displayName}`:`Log out ${auth.displayName}`).trim():'Log in or sign up');
-  // Admins only: a small menu with the dev page and Log out. Showing it is cosmetic; the database still decides who may edit.
+function renderAuthNav(){const profileButton=$('#navProfile');if(profileButton)profileButton.hidden=true;const b=$('#navAuth');if(!b)return;const admin=auth.signedIn&&auth.isAdmin,name=auth.displayName||'Account';b.innerHTML=auth.signedIn?`<span class="auth-label">${esc(name)}</span><svg class="auth-chevron" viewBox="0 0 16 16" aria-hidden="true"><path d="m3.5 5.75 4.5 4.5 4.5-4.5"/></svg>`:'<span class="auth-label">Log in</span>';b.classList.toggle('is-signed-in',auth.signedIn);b.title=auth.signedIn?`Signed in as ${name}. Select to view account options.`:'';b.setAttribute('aria-label',auth.signedIn?`Account menu for ${name}`:'Log in or sign up');
+  // Signed-in users get account options; administrative links appear only for admins.
   let menu=$('#navMenu');
-  if(admin){
+  if(auth.signedIn){
     if(!menu){menu=document.createElement('div');menu.id='navMenu';menu.className='nav-menu';menu.setAttribute('role','menu');menu.hidden=true;document.body.append(menu)}
-    menu.innerHTML='<a role="menuitem" class="nav-menu-item" href="admin.html">Dev tools</a><a role="menuitem" class="nav-menu-item" href="okr.html">Impact</a><button role="menuitem" class="nav-menu-item" type="button" id="navLogout">Log out</button>';
+    menu.innerHTML=`<button role="menuitem" class="nav-menu-item" type="button" id="navMenuProfile">Profile</button>${admin?'<a role="menuitem" class="nav-menu-item" href="admin.html">Dev tools</a><a role="menuitem" class="nav-menu-item" href="okr.html">Impact</a>':''}<button role="menuitem" class="nav-menu-item" type="button" id="navLogout">Log out</button>`;
     b.setAttribute('aria-haspopup','menu');b.setAttribute('aria-expanded','false');
   }else{menu?.remove();b.removeAttribute('aria-haspopup');b.removeAttribute('aria-expanded')}
 }
-function toggleNavMenu(open){const b=$('#navAuth'),menu=$('#navMenu');if(!b||!menu)return;const show=open??menu.hidden;if(show){const r=b.getBoundingClientRect();menu.style.top=`${r.bottom+6}px`;menu.style.right=`${Math.max(8,window.innerWidth-r.right)}px`}menu.hidden=!show;b.setAttribute('aria-expanded',String(show));if(show)menu.querySelector('a')?.focus()}
+function toggleNavMenu(open){const b=$('#navAuth'),menu=$('#navMenu');if(!b||!menu)return;const show=open??menu.hidden;if(show){const r=b.getBoundingClientRect();menu.style.top=`${r.bottom+6}px`;menu.style.right=`${Math.max(8,window.innerWidth-r.right)}px`}menu.hidden=!show;b.setAttribute('aria-expanded',String(show));if(show)menu.querySelector('[role="menuitem"]')?.focus()}
 function logOut(){void auth.signOut().then(()=>{showToast('Logged out.');render()})}
 // Saved lists follow the account when the database is connected. Device lists (data.lists) are used
 // only when no database is configured, so one person's lists never leak into another account.
@@ -656,13 +660,13 @@ auth.onChange(()=>{
   renderAuthNav();
   if(state.view==='profile'){if(auth.signedIn)renderProfile(true);else setView('explore');}
   if(auth.userId===cloud.userId)return;
-  Object.assign(cloud,{lists:[],ready:false,error:'',userId:auth.userId,promise:null});state.selectedList='favorites';
+  Object.assign(cloud,{lists:[],ready:false,error:'',userId:auth.userId,promise:null});state.selectedList='favorites';state.listEditMode=false;
   if(auth.userId)void loadCloudLists();else renderSaved();
 });
 // Login / sign-up dialog. mode is 'login' or 'signup'; after is an optional callback run on success.
 function openAuth(mode='login',after=null){
   openAuth.after=after;const signup=mode==='signup';
-  openModal(`${modalHeader(signup?'Create your account':'Log in')}<p class="modal-description">${signup?'Sign up to save favorites and have your reports tied to you.':'Log in to use your saved favorites.'}</p><form id="authForm" data-mode="${mode}" novalidate>${signup?'<div class="form-field"><label for="authFirst">First name</label><input id="authFirst" name="first" required maxlength="60" autocomplete="given-name"></div><div class="form-field"><label for="authLast">Last name</label><input id="authLast" name="last" maxlength="60" autocomplete="family-name"></div>':''}<div class="form-field"><label for="authEmail">Email</label><input id="authEmail" name="email" type="email" required autocomplete="email"></div><div class="form-field"><label for="authPassword">Password</label><input id="authPassword" name="password" type="password" required minlength="8" autocomplete="${signup?'new-password':'current-password'}">${signup?'<small>At least 8 characters.</small>':''}</div><p class="form-error" id="authError" role="alert" hidden></p><button type="button" class="text-link" id="resendConfirm" hidden>Resend confirmation email</button><div class="modal-actions"><button type="button" class="secondary-button" data-auth-switch="${signup?'login':'signup'}">${signup?'I have an account':'Create account'}</button><button type="submit" class="primary-button">${signup?'Sign up':'Log in'}</button></div></form>`);
+  openModal(`${modalHeader(signup?'Create your account':'Log in')}<p class="modal-description">${signup?'Sign up to save favorites and have your reports tied to you.':'Log in to use your saved favorites.'}</p><form id="authForm" data-mode="${mode}" novalidate>${signup?'<div class="form-field"><label for="authFirst">First name</label><input id="authFirst" name="first" required maxlength="60" autocomplete="given-name"></div><div class="form-field"><label for="authLast">Last name</label><input id="authLast" name="last" maxlength="60" autocomplete="family-name"></div>':''}<div class="form-field"><label for="authEmail">Email</label><input id="authEmail" name="email" type="email" required autocomplete="email"></div><div class="form-field"><label for="authPassword">Password</label><div class="password-input-wrap"><input id="authPassword" name="password" type="password" required minlength="8" autocomplete="${signup?'new-password':'current-password'}"><button type="button" class="password-toggle" data-password-toggle="authPassword" aria-controls="authPassword" aria-label="Show password" aria-pressed="false" title="Show password"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.4-6 9.5-6 9.5 6 9.5 6-3.4 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.5"/></svg></button></div>${signup?'<small>At least 8 characters.</small>':''}</div><p class="form-error" id="authError" role="alert" hidden></p><button type="button" class="text-link" id="resendConfirm" hidden>Resend confirmation email</button><div class="modal-actions"><button type="button" class="secondary-button" data-auth-switch="${signup?'login':'signup'}">${signup?'I have an account':'Create account'}</button><button type="submit" class="primary-button">${signup?'Sign up':'Log in'}</button></div></form>`);
 }
 async function submitAuth(form){
   const f=form.elements,signup=form.dataset.mode==='signup',err=$('#authError'),btn=form.querySelector('[type=submit]');
@@ -718,7 +722,7 @@ function isCompactLayout(){return window.matchMedia?.(COMPACT_LAYOUT_QUERY).matc
 function setBuildingPanel(panel){
   $('.building-layout').dataset.panel=panel;
   $$('[data-building-panel]').forEach(button=>button.setAttribute('aria-pressed',button.dataset.buildingPanel===panel));
-  if(panel==='map')resizeDigitalMap();
+  if(panel==='map'){resizeDigitalMap();const building=state.building;if(!buildingPlans(building))loadPlans(building).then(()=>{if(state.view==='building'&&state.building===building&&$('.building-layout').dataset.panel==='map')renderBuilding()}).catch(()=>showToast('Floor map could not load. Check your connection and try again.'))}
 }
 function setMapInteraction(active){
   $('#floorPlan').classList.toggle('is-interactive',active);
@@ -730,13 +734,15 @@ function renderFilters(){
   $$('#buildingFilters input').forEach(input=>input.checked=state.buildings.has(input.value));
   $$('[data-study]').forEach(b=>{const selected=b.dataset.study===state.study;b.classList.toggle('is-selected',selected);b.setAttribute('aria-pressed',selected)});
   $$('[data-noise]').forEach(b=>{const selected=b.dataset.noise===state.noise;b.classList.toggle('is-selected',selected);b.setAttribute('aria-pressed',selected)});
+  $$('[data-layout]').forEach(b=>{const selected=b.dataset.layout===state.layout;b.classList.toggle('is-selected',selected);b.setAttribute('aria-pressed',selected)});
   $('#groupSizeWrap').hidden=state.study!=='group';$('#groupSize').value=state.groupSize;$('#groupSizeValue').textContent=`${state.groupSize} people`;
-  $('#privateFilter').checked=state.private;$('#outletFilter').checked=state.outlets;
+  $('#outletFilter').checked=state.outlets;
 }
-// Render the three best matches, or a way to clear restrictive filters.
+// Show scenario presets rather than recommendations for specific rooms.
 function renderRecommendations(){
-  const spots=allSpots().filter(matches).sort((a,b)=>rank(a)-rank(b)).slice(0,3);
-  $('#recommendationsList').innerHTML=spots.length?spots.map(s=>`<button type="button" class="recommendation-card" data-spot="${esc(s.id)}"><div class="rec-top"><span class="rec-building">${s.building} / ${esc(floorLabel(s))}</span><span class="availability ${badgeClass(s)}">${labelBusy(s)}</span></div><h3>${esc(s.name)}</h3><span class="rec-meta">${s.type==='group'?`Group up to ${s.capacity}`:'Individual'} · ${s.outlets?'Outlets':'No outlet listed'} ${s.reserved?'· Reservation required':''}</span></button>`).join(''):`<div class="empty-state"><h3>No spaces match these filters</h3><p>Try another building, a different noise level, or fewer requirements.</p><button class="secondary-button" type="button" data-action="clear">Clear filters</button></div>`;
+  const playlistPower=`<span class="playlist-power">${POWER_ICON} Power</span>`;
+  const playlists=[['deep-focus','Deep Focus',`Noise: Quiet · Secluded · ${playlistPower}`],['group-project','Group Project','Noise: Social · Open Area · Group 4+'],['quick-touchdown','In Between Classes','Open Area · Noise: Social'],['dead-battery','Dead Battery',`${playlistPower} · Solo study`]];
+  $('#recommendationsList').innerHTML=playlists.map(([id,title,filters])=>`<button type="button" class="playlist-card" data-playlist="${id}"><span class="playlist-title">${title}</span><span class="playlist-filters">${filters}</span></button>`).join('');
 }
 // Select the drawing and controls for the active building, floor, and side.
 function renderBuilding(){
@@ -763,30 +769,42 @@ function renderBuilding(){
   $('#planAssetBar').hidden=!isDigital;
   $('#roomTools').hidden=!isDigital;$('#mapInstructions').hidden=!isDigital;
   $('#floorDisclaimer').hidden=isDigital;
-  $('#toggleResources').hidden=!(isDigital&&isHbll);
-  if(!isHbll){state.resourcesVisible=false;state.selectedResource=null}
-  $('#toggleResources').setAttribute('aria-pressed',String(state.resourcesVisible&&isHbll));
-  $('#resourceFilters').hidden=!(isDigital&&isHbll&&state.resourcesVisible);
+  $('#toggleNooks').hidden=!isDigital;
+  $('#toggleResources').hidden=!isDigital;
+  if(!isHbll)state.selectedResource=null;
+  $('#toggleNooks').setAttribute('aria-pressed',String(state.nooksVisible));
+  $('#toggleResources').setAttribute('aria-pressed',String(state.resourcesVisible));
+  $('#resourceFilters').hidden=!(isDigital&&state.resourcesVisible);
   if(!isDigital)$('#selectedRoomPanel').hidden=true;
-  if(isDigital){$('#zoomValue').textContent=`${Math.round(state.zoom*100)}%`;$('#zoomOut').disabled=state.zoom<=1;$('#zoomIn').disabled=state.zoom>=8;$('#toggleRoomLabels').setAttribute('aria-pressed',String(state.roomLabels&&!state.resourcesVisible))}
+  if(isDigital){$('#zoomValue').textContent=`${Math.round(state.zoom*100)}%`;$('#zoomOut').disabled=state.zoom<=1;$('#zoomIn').disabled=state.zoom>=8}
   const spots=allSpots().filter(s=>s.building===state.building&&floorIds(state.building,state.floor).includes(s.floor));
+  $('#mapModeEmptyNotice').hidden=true;
   const plan=$('#floorPlan');
   if(isDigital){
-    plan.className=`floor-plan native-plan ${state.building.toLowerCase()}-plan ${state.roomLabels?'':'hide-room-labels'}`;plan.setAttribute('aria-label',`Interactive ${building.short} ${floor.label} map`);
+    plan.className=`floor-plan native-plan ${state.building.toLowerCase()}-plan ${state.zoom<=1&&!state.locatedSpot?'subdued-room-labels':''} ${state.locatedSpot||state.zoom>1?'show-nearby-room-labels':''}`;plan.setAttribute('aria-label',`Interactive ${building.short} ${floor.label} map`);
     // Translate page-based pin positions into percentages of the cropped SVG.
     const studyPoints={WSC:WILK_STUDY_POINTS,HBLL:HBLL_STUDY_POINTS,JKB:JKB_STUDY_POINTS}[state.building]||{};let sampleCount=0;
     const resources=isHbll?hbllFloorResources(digital):[];
-    const selectedResource=state.selectedResource?.startsWith(`${state.floor}:`)?Number(state.selectedResource.split(':')[1]):null;
-    $('#resourceFilters').innerHTML=resources.length?`<span class="resource-filter-label">${esc(floor.label)} resources</span>${resources.map(([name],i)=>{const room=HBLL_RESOURCE_ROOMS[name];return `<button type="button" class="resource-filter ${selectedResource===i?'is-selected':''}" data-resource="${state.floor}:${i}" aria-pressed="${selectedResource===i}" title="${esc(resourceTooltip(name))}"><span class="resource-letter">${resourceLetters(i)}</span><span class="resource-filter-name">${esc(name)}${room?`<small>Room ${esc(room)}</small>`:''}</span></button>`}).join('')}`:'<span class="resource-filter-empty">No public resource locations are listed for this floor.</span>';
+    const selectedResource=state.selectedResource;
     const markerOffsets=[[0,0],[36,0],[-36,0],[0,36],[0,-36],[28,28],[-28,28],[28,-28],[-28,-28],[48,0],[0,48],[-48,0],[0,-48]];
     const resourcePoints=[];
     resources.forEach(([,px,py])=>{const point=markerOffsets.map(([dx,dy])=>[px+dx,py+dy]).find(([x,y])=>resourcePoints.every(([prevX,prevY])=>Math.hypot(x-prevX,y-prevY)>=34))||[px,py];resourcePoints.push(point)});
-    plan.innerHTML=`<div class="plan-scroll"><div class="plan-canvas"><div id="planStage" class="plan-stage">${digital.svg}${spots.map((s,i)=>{let x,y;const label=String(Number.isInteger(s.capacity)&&s.capacity>0?s.capacity:1);[x,y]=pinPercent(digital,s,studyPoints);return `<button type="button" class="plan-pin seat-pin ${s.reserved?'reserved':''} ${matches(s)?'':'is-dimmed'} ${state.selectedSpot===s.id?'is-selected':''}" style="left:${x}%;top:${y}%" data-spot="${esc(s.id)}" title="${esc(s.name)} · seats ${label}" aria-label="${esc(s.name)}, seats ${label}"><i class="pin-badge" aria-hidden="true">${SEAT_ICON}${label}</i></button>`}).join('')}${state.resourcesVisible&&isHbll?resources.map(([name],i)=>{const [px,py]=resourcePoints[i],x=(px-digital.crop[0])/digital.width*100,y=(py-digital.crop[1])/digital.height*100,selected=selectedResource===i;return `<button type="button" class="resource-pin ${selected?'is-selected':''} ${selectedResource!==null&&!selected?'is-dimmed':''}" style="left:${x}%;top:${y}%" data-resource="${state.floor}:${i}" title="${resourceLetters(i)} · ${esc(resourceTooltip(name))}" aria-label="Resource ${resourceLetters(i)}: ${esc(resourceTooltip(name))}">${resourceLetters(i)}</button>`}).join(''):''}${floorResources().map(r=>{const [rx,ry]=pinPercent(digital,r,studyPoints);return `<button type="button" class="plan-pin pinned-resource-pin" style="left:${rx}%;top:${ry}%" data-pinned-resource="${esc(r.id)}" title="${esc(r.type)}: ${esc(r.info)}" aria-label="${esc(r.type)}: ${esc(r.info)}${r.where?`, ${esc(r.where)}`:''}">${esc(r.type.charAt(0).toUpperCase())}</button>`}).join('')}</div></div></div>`;
+    const addedResources=floorResources(),resourceCount=resources.length+addedResources.length;
+    const libraryResourceButtons=resources.map(([name],i)=>{const room=HBLL_RESOURCE_ROOMS[name],key=`${state.floor}:${i}`,selectedResourceIsActive=selectedResource===key;return `<button type="button" class="resource-filter ${selectedResourceIsActive?'is-selected':''}" data-resource="${key}" aria-pressed="${selectedResourceIsActive}" title="${esc(resourceTooltip(name))}"><span class="resource-letter">${resourceLetters(i)}</span><span class="resource-filter-name">${esc(name)}${room?`<small>Room ${esc(room)}</small>`:''}</span></button>`});
+    const addedResourceButtons=addedResources.map(r=>`<button type="button" class="resource-filter" data-pinned-resource="${esc(r.id)}" title="${esc(r.info)}"><span class="resource-letter">${esc(r.type.charAt(0).toUpperCase())}</span><span class="resource-filter-name">${esc(r.type)}<small>${esc(r.info)}${r.where?` · ${esc(r.where)}`:''}</small></span></button>`);
+    $('#resourceFilters').innerHTML=resourceCount?`<span class="resource-filter-label">${esc(floor.label)} resources</span>${[...libraryResourceButtons,...addedResourceButtons].join('')}`:'<span class="resource-filter-empty">No resources are listed for this floor yet.</span>';
+    $('#resourceFilters').hidden=!(isDigital&&state.resourcesVisible&&resourceCount>0);
+    $('#mapModeEmptyNotice').hidden=!(isDigital&&(state.nooksVisible?!spots.length:!resourceCount));
+    $('#mapModeEmptyNotice').textContent=state.nooksVisible?'No Nooks are listed on this floor yet.':'No resources are listed on this floor yet.';
+    const nookPins=state.nooksVisible?spots.map(s=>{let x,y;const label=String(Number.isInteger(s.capacity)&&s.capacity>0?s.capacity:1);[x,y]=pinPercent(digital,s,studyPoints);return `<button type="button" class="plan-pin seat-pin ${s.reserved?'reserved':''} ${matches(s)?'':'is-dimmed'} ${state.selectedSpot===s.id||state.locatedSpot===s.id?'is-selected':''}" style="left:${x}%;top:${y}%" data-spot="${esc(s.id)}" title="${esc(s.name)} · seats ${label}" aria-label="${esc(s.name)}, seats ${label}"><i class="pin-badge" aria-hidden="true">${SEAT_ICON}${label}</i></button>`}).join(''):'';
+    const resourcePins=state.resourcesVisible&&isHbll?resources.map(([name],i)=>{const [px,py]=resourcePoints[i],x=(px-digital.crop[0])/digital.width*100,y=(py-digital.crop[1])/digital.height*100,selected=selectedResource===`${state.floor}:${i}`;return `<button type="button" class="resource-pin ${selected?'is-selected':''} ${selectedResource!==null&&!selected?'is-dimmed':''}" style="left:${x}%;top:${y}%" data-resource="${state.floor}:${i}" title="${resourceLetters(i)} · ${esc(resourceTooltip(name))}" aria-label="Resource ${resourceLetters(i)}: ${esc(resourceTooltip(name))}">${resourceLetters(i)}</button>`}).join(''):'';
+    const pinnedResources=state.resourcesVisible?addedResources.map(r=>{const [rx,ry]=pinPercent(digital,r,studyPoints);return `<button type="button" class="plan-pin pinned-resource-pin" style="left:${rx}%;top:${ry}%" data-pinned-resource="${esc(r.id)}" title="${esc(r.type)}: ${esc(r.info)}" aria-label="${esc(r.type)}: ${esc(r.info)}${r.where?`, ${esc(r.where)}`:''}">${esc(r.type.charAt(0).toUpperCase())}</button>`}).join(''):'';
+    plan.innerHTML=`<div class="plan-scroll"><div class="plan-canvas"><div id="planStage" class="plan-stage">${digital.svg}${nookPins}${resourcePins}${pinnedResources}</div></div></div>`;
     if(isHbll){
       const serviceResources=Object.assign({},...floorIds('HBLL',state.floor).map(id=>HBLL_SERVICE_ROOM_RESOURCES[id]||{}));
       $$('#floorPlan .map-space-service[data-room]').forEach(area=>{const name=serviceResources[area.dataset.room],title=area.querySelector('title');if(name&&title)title.textContent=resourceTooltip(name)});
     }
-    $('#floorLegend').innerHTML=`<span><i class="map-key-swatch room"></i>Rooms</span><span><i class="map-key-swatch open"></i>Open areas</span><span><i class="map-key-swatch service"></i>Resources</span><span><i class="legend-seat-pin" aria-hidden="true">${SEAT_ICON}4</i>Seats at a study spot</span>`+(floorResources().length?'<span><i class="legend-dot resource"></i>Added resources</span>':'')+(digital.hasStairTargets?'<span><i class="stair-entrance-key"></i>Hover stairs for entrance</span>':'');
+    $('#floorLegend').innerHTML=`<span><i class="map-key-swatch room"></i>Rooms</span><span><i class="map-key-swatch open"></i>Open areas</span>`+(state.nooksVisible?`<span><i class="legend-seat-pin" aria-hidden="true">${SEAT_ICON}4</i>Seats at a study spot</span>`:`<span><i class="map-key-swatch service"></i>Resources</span>`)+(addedResources.length?'<span><i class="legend-dot resource"></i>Added resources</span>':'')+(digital.hasStairTargets?'<span><i class="stair-entrance-key"></i>Hover stairs for entrance</span>':'');
     $('#mapNorth').innerHTML=`N <span style="display:inline-block;transform:rotate(${digital.north}deg)">↑</span>`;
     mapResizeObserver.disconnect();mapResizeObserver.observe(plan);
     setMapInteraction(!isCompactLayout());resizeDigitalMap();installMapPan();updateRoomHighlight();
@@ -802,11 +820,18 @@ function renderBuilding(){
     $('#floorDisclaimer').textContent='This is a schematic guide, not an architectural floor plan.';
   }
   const matched=spots.filter(matches).sort((a,b)=>rank(a)-rank(b));
+  const selected=spots.find(s=>s.id===state.selectedSpot);
+  const displayed=selected&&!matched.some(s=>s.id===selected.id)?[selected,...matched]:matched;
   $('#mobileSpotCount').textContent=matched.length;
   $('#resultsSummary').textContent=`${matched.length} matching ${matched.length===1?'spot':'spots'} on this floor`;
-  const chips=[];if(state.study==='group')chips.push(`Group ${state.groupSize}+`);else if(state.study==='solo')chips.push('Solo');if(state.noise==='low')chips.push('Quiet');else if(state.noise==='medium')chips.push('Social');if(state.private)chips.push('Private');if(state.outlets)chips.push('Outlets');
+  const chips=[];if(state.study==='group')chips.push(`Group ${state.groupSize}+`);else if(state.study==='solo')chips.push('Solo');if(state.noise==='low')chips.push('Quiet');if(state.noise==='medium')chips.push('Social');if(state.layout!=='any')chips.push(state.layout==='open'?'Open Area':'Secluded');if(state.outlets)chips.push('Power');
   $('#activeFilterBar').innerHTML=chips.map(c=>`<span>${esc(c)}</span>`).join('')||'<span>All study types</span>';
-  $('#spotList').innerHTML=matched.length?matched.map(s=>`<button type="button" class="spot-row ${state.selectedSpot===s.id?'is-selected':''}" data-spot="${esc(s.id)}"><div class="spot-row-top"><h3>${esc(s.name)}</h3><span class="availability ${badgeClass(s)}">${labelBusy(s)}</span></div><p>${s.type==='group'?`Group up to ${s.capacity}`:'Individual'} · ${s.private?'Private':'Open'} · ${s.outlets?'Outlets':'Outlets not listed'}</p></button>`).join(''):`<div class="empty-state"><h3>No matching spots on this floor</h3><p>Try another floor or update your filters.</p><button type="button" class="secondary-button" data-action="edit">Edit filters</button></div>`;
+  $('#spotList').innerHTML=displayed.length?displayed.map(s=>`<article class="spot-card ${state.selectedSpot===s.id?'is-selected':''}"><button type="button" class="spot-row" data-spot="${esc(s.id)}" aria-expanded="${state.selectedSpot===s.id}" aria-controls="spotDetail-${esc(s.id)}"><div class="spot-row-top"><h3>${esc(s.name)}</h3>${forecastTag(s)}</div><p>${s.type==='group'?`Group up to ${s.capacity}`:'Individual'} · ${layoutLabel(s)} ${powerTag(s)}</p><span class="spot-location">${esc(spotLocationSummary(s))}</span></button><div class="spot-card-actions"><button type="button" class="subtle-button locate-spot-button" data-locate-spot="${esc(s.id)}">Locate on map</button></div>${state.selectedSpot===s.id?`<div class="spot-detail" id="spotDetail-${esc(s.id)}">${spotDetailContent(s)}</div>`:''}</article>`).join(''):`<div class="empty-state"><h3>No matching spots on this floor</h3><p>Try another floor or update your filters.</p><button type="button" class="secondary-button" data-action="edit">Edit filters</button></div>`;
+  const located=spots.find(s=>s.id===state.locatedSpot),locatedPanel=$('#locatedSpotPanel');
+  locatedPanel.hidden=!(isDigital&&located);
+  if(isDigital&&located){const room=located.room||located.roomNumber;locatedPanel.innerHTML=`<div><strong>${esc(located.name)}</strong><span>${esc(floorLabel(located))}${room?` · Room ${esc(room)}`:located.detail?` · ${esc(located.detail)}`:''}</span></div><button type="button" data-clear-located-spot aria-label="Clear located spot">×</button>`}
+  const queueIndex=searchBuildingQueue.indexOf(state.building);if(queueIndex>=0)searchBuildingIndex=queueIndex;else if(searchBuildingQueue.length)searchBuildingIndex=searchBuildingQueue.length-1;
+  const nextBuilding=searchBuildingQueue[searchBuildingIndex+1];$('#keepSearching').textContent=nextBuilding?`Try the ${nextBuilding} next`:'Back to campus map';$('#keepSearching').hidden=false;
   $$('#floorTabs button,#floorSideTabs button').forEach(button=>button.setAttribute('aria-pressed',button.classList.contains('is-selected')));
   restoreFocus();
 }
@@ -828,28 +853,33 @@ function renderSaved(){
   const canCreate=cloudOn?auth.signedIn&&cloud.ready&&lists.length<3:lists.length<3;
   $('#createList').disabled=!canCreate;$('#createList').title=lists.length>=3?'Two custom lists maximum':'';
   $('#savedIntro').textContent=cloudOn?'Your saved study spots, kept with your account on every device.':'Keep your go-to study spots together on this device.';
-  if(!lists.some(l=>l.id===state.selectedList))state.selectedList='favorites';
+  if(!lists.some(l=>l.id===state.selectedList)){state.selectedList='favorites';state.listEditMode=false}
   const restoreFocus=retainControlFocus($('#savedView'));
   $('#savedTabs').innerHTML=lists.map(l=>`<button type="button" class="saved-tab ${l.id===state.selectedList?'is-selected':''}" data-list="${esc(l.id)}" aria-pressed="${l.id===state.selectedList}">${esc(l.name)} <span>${l.spots.length}</span></button>`).join('');
   const list=lists.find(l=>l.id===state.selectedList);
+  const canEditList=!!list&&(!cloudOn||(auth.signedIn&&cloud.ready));if(!canEditList)state.listEditMode=false;
+  const canManageList=canEditList&&list.id!=='favorites'&&state.listEditMode;
+  const listActions=$('#savedListActions');listActions.hidden=!canEditList;listActions.innerHTML=canEditList?`${canManageList?`<button type="button" class="secondary-button" data-rename-list="${esc(list.id)}">Rename list</button><button type="button" class="danger-button" data-delete-list="${esc(list.id)}">Delete list</button>`:''}<button type="button" class="secondary-button" data-toggle-list-edit aria-pressed="${state.listEditMode}" aria-label="${state.listEditMode?'Done editing list':'Edit current list'}">${state.listEditMode?'Done':'Edit'}</button>`:'';
   const message=(title,text,button)=>`<div class="empty-state"><h3>${title}</h3><p>${text}</p>${button||''}</div>`;
   if(cloudOn&&!auth.signedIn)$('#savedItems').innerHTML=message('Log in to see your saved spots','Your lists are saved to your account, so they follow you to any device.','<button type="button" class="primary-button" data-action="login">Log in or sign up</button>');
   else if(cloudOn&&cloud.error)$('#savedItems').innerHTML=message('Your lists could not load',esc(cloud.error),'<button type="button" class="secondary-button" data-action="retry-lists">Try again</button>');
   else if(cloudOn&&!cloud.ready)$('#savedItems').innerHTML=message('Loading your lists…','One moment.');
   else{
     const spots=list.spots.map(spotById).filter(Boolean);
-    $('#savedItems').innerHTML=spots.length?spots.map(s=>`<div class="saved-card"><div><span class="rec-building">${s.building} / ${esc(floorLabel(s))}</span><h3>${esc(s.name)}</h3><p>${s.type==='group'?`Group up to ${s.capacity}`:'Individual'} · ${s.reserved?'Reservation required':labelBusy(s)}</p></div><button type="button" data-open-saved="${esc(s.id)}">View ↗</button></div>`).join(''):message('Nothing saved here yet','Open a study spot and save it to this list.','<button type="button" class="secondary-button" data-action="explore">Explore spaces</button>');
+    $('#savedItems').innerHTML=spots.length?spots.map(s=>`<div class="saved-card"><div><span class="rec-building">${s.building} / ${esc(floorLabel(s))}</span><h3>${esc(s.name)}</h3><p>${s.type==='group'?`Group up to ${s.capacity}`:'Individual'} · ${forecastTag(s)}</p></div><div class="saved-card-actions"><button type="button" data-open-saved="${esc(s.id)}">View ↗</button>${state.listEditMode?`<button type="button" class="saved-remove-button" data-remove-saved="${esc(s.id)}" aria-label="Remove ${esc(s.name)} from this list">Remove</button>`:''}</div></div>`).join(''):message('Nothing saved here yet','Open a study spot and save it to this list.','<button type="button" class="secondary-button" data-action="explore">Explore spaces</button>');
   }
   restoreFocus();
 }
 // Refresh shared UI; rebuild the floor drawing only when that view is visible.
-function render(){renderFilters();renderRecommendations();if(state.view==='building')renderBuilding();renderSaved();renderProfile();$$('.view').forEach(v=>v.hidden=v.id!==`${state.view}View`);document.documentElement.classList.toggle('explore-snap',state.view==='explore');const exploring=state.view==='explore'||state.view==='building';$('#navExplore').classList.toggle('is-active',exploring);$('#navSaved').classList.toggle('is-active',state.view==='saved');$('#navProfile')?.classList.toggle('is-active',state.view==='profile');$('#navExplore').setAttribute('aria-current',exploring?'page':'false');$('#navSaved').setAttribute('aria-current',state.view==='saved'?'page':'false');$('#navProfile')?.setAttribute('aria-current',state.view==='profile'?'page':'false');$$('#savedTabs button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.list===state.selectedList));$('#backToExplore').textContent=viewHistory.at(-1)==='saved'?'← Back to saved':'← Back to campus';$('#savedBack').textContent=viewHistory.at(-1)==='building'?'← Back to floor map':'← Back to explore';if(state.view==='explore'){document.documentElement.style.setProperty('--header-height',`${$('.site-header').offsetHeight}px`);if(!campusZoomInitialized&&$('#campusMapViewport').clientWidth){changeCampusZoom(0,true);campusZoomInitialized=true}else if(campusZoomInitialized)changeCampusZoom(0)}}
+function render(){renderFilters();renderRecommendations();if(state.view==='building')renderBuilding();renderSaved();renderProfile();$$('.view').forEach(v=>v.hidden=v.id!==`${state.view}View`);document.documentElement.classList.toggle('explore-snap',state.view==='explore');const exploring=state.view==='explore'||state.view==='building';$('#navExplore').classList.toggle('is-active',exploring);$('#navSaved').classList.toggle('is-active',state.view==='saved');$('#navProfile')?.classList.toggle('is-active',state.view==='profile');$('#navExplore').setAttribute('aria-current',exploring?'page':'false');$('#navSaved').setAttribute('aria-current',state.view==='saved'?'page':'false');$('#navProfile')?.setAttribute('aria-current',state.view==='profile'?'page':'false');$$('#savedTabs button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.list===state.selectedList));if(state.view==='explore'){document.documentElement.style.setProperty('--header-height',`${$('.site-header').offsetHeight}px`);if(!campusZoomInitialized&&$('#campusMapViewport').clientWidth){changeCampusZoom(0,true);campusZoomInitialized=true}else if(campusZoomInitialized)changeCampusZoom(0)}}
 // Announce view changes through the heading without extra scrolling.
 function focusView(){const heading=$(`#${state.view}View h1`);heading?.setAttribute('tabindex','-1');heading?.focus({preventScroll:true})}
 function setView(view){const changed=state.view!==view;if(changed)viewHistory.push(state.view);state.view=view;render();if(changed)focusView();if(!isCompactLayout())window.scrollTo({top:0,behavior:'smooth'})}
 function goBack(){state.view=viewHistory.pop()||'explore';render();focusView();if(!isCompactLayout())window.scrollTo({top:0,behavior:'smooth'})}
 // Changing drawings clears the previous room and spot selection.
-function openBuilding(id,floor,panel='map'){if(!BUILDINGS[id])return;$('#campusComingSoon').hidden=true;state.building=id;let normalizedFloor=floor;if(id==='HBLL'&&floor)normalizedFloor=floor.replace(/N$/,'');if(id==='WSC'&&floor&&/^([1-3])[EW]$/.test(floor))normalizedFloor=floor.slice(0,1);state.floor=normalizedFloor||BUILDINGS[id].groundFloor||BUILDINGS[id].floors[0].id;state.zoom=1;state.selectedSpot=null;state.selectedRoom=null;setBuildingPanel(panel);setView('building');if(!buildingPlans(id))loadPlans(id).then(()=>{if(state.view==='building'&&state.building===id)renderBuilding()}).catch(()=>showToast('Floor map could not load. Check your connection and try again.'))}
+function openBuilding(id,floor,panel=isCompactLayout()?'spots':'map'){if(!BUILDINGS[id])return;$('#campusComingSoon').hidden=true;state.building=id;let normalizedFloor=floor;if(id==='HBLL'&&floor)normalizedFloor=floor.replace(/N$/,'');if(id==='WSC'&&floor&&/^([1-3])[EW]$/.test(floor))normalizedFloor=floor.slice(0,1);state.floor=normalizedFloor||BUILDINGS[id].groundFloor||BUILDINGS[id].floors[0].id;state.zoom=1;state.selectedSpot=null;state.locatedSpot=null;state.selectedRoom=null;setBuildingPanel(panel);setView('building')}
+function centerLocatedSpot(id){requestAnimationFrame(()=>requestAnimationFrame(()=>{if(isCompactLayout())setMapInteraction(true);const viewport=$('.plan-scroll'),marker=$$('#floorPlan [data-spot]').find(button=>button.dataset.spot===id);if(!viewport||!marker)return;const vr=viewport.getBoundingClientRect(),mr=marker.getBoundingClientRect();viewport.scrollLeft+=mr.left+mr.width/2-(vr.left+vr.width/2);viewport.scrollTop+=mr.top+mr.height/2-(vr.top+vr.height/2)}))}
+function locateSpotOnMap(id){const spot=spotById(id);if(!spot)return;if(state.view!=='building'||state.building!==spot.building||state.floor!==spot.floor)openBuilding(spot.building,spot.floor,'map');else setBuildingPanel('map');state.selectedSpot=spot.id;state.locatedSpot=spot.id;state.selectedRoom=null;state.nooksVisible=true;state.resourcesVisible=false;state.zoom=2.4;renderBuilding();if(buildingPlans(spot.building))centerLocatedSpot(spot.id);else loadPlans(spot.building).then(()=>{if(state.view==='building'&&state.building===spot.building&&state.locatedSpot===spot.id){renderBuilding();centerLocatedSpot(spot.id)}}).catch(()=>showToast('Floor map could not load. Check your connection and try again.'))}
 // 7. Floor tools. Fit preserves aspect ratio; zoom multiplies the fitted size.
 function resizeDigitalMap(){
   const plan=buildingPlans()?.[state.floor];if(!plan||!$('#planStage'))return;
@@ -866,6 +896,7 @@ function changeZoom(delta){
   const viewport=$('.plan-scroll');if(!viewport)return;
   const oldZoom=state.zoom,centerX=(viewport.scrollLeft+viewport.clientWidth/2),centerY=(viewport.scrollTop+viewport.clientHeight/2);
   state.zoom=Math.max(1,Math.min(8,Math.round((state.zoom+delta)*100)/100));resizeDigitalMap();
+  const planView=$('#floorPlan');planView.classList.toggle('subdued-room-labels',state.zoom<=1&&!state.locatedSpot);planView.classList.toggle('show-nearby-room-labels',!!state.locatedSpot||state.zoom>1);
   viewport.scrollLeft=centerX*state.zoom/oldZoom-viewport.clientWidth/2;viewport.scrollTop=centerY*state.zoom/oldZoom-viewport.clientHeight/2;
   $('#zoomValue').textContent=`${Math.round(state.zoom*100)}%`;$('#zoomOut').disabled=state.zoom<=1;$('#zoomIn').disabled=state.zoom>=8;
 }
@@ -916,8 +947,7 @@ function installMapPan(){
 function selectRoom(number){
   const floor=state.floor;
   const plan=buildingPlans()?.[floor],room=plan?.rooms.find(r=>r.number===number);if(!room)return;
-  state.selectedRoom={number,floor};state.roomLabels=true;state.resourcesVisible=false;state.selectedResource=null;$('#floorPlan').classList.remove('hide-room-labels');$('#floorPlan .resource-pin')?.remove();$('#resourceFilters').hidden=true;$('#toggleResources').setAttribute('aria-pressed','false');$('#toggleRoomLabels').setAttribute('aria-pressed','true');
-  updateRoomHighlight();
+  state.selectedRoom={number,floor};state.selectedSpot=null;state.locatedSpot=null;state.selectedResource=null;renderBuilding();
 }
 // Keep the SVG highlight and selected-room panel in sync.
 function updateRoomHighlight(){
@@ -934,13 +964,19 @@ function closeModal(force=false){if(!force&&reportSubmissionPending&&$('#arrival
 function openModal(html){if(reportSubmissionPending)return;if($('#modalBackdrop').hidden)closeModal.focus=document.activeElement;$('#modal').innerHTML=html;$('#modalBackdrop').hidden=false;$('.app-shell').setAttribute('inert','');document.body.style.overflow='hidden';$('#modal').querySelector('button, input, select')?.focus()}
 function modalHeader(title){return `<div class="modal-top"><h2 id="modalTitle">${esc(title)}</h2><button class="modal-close" type="button" data-modal-close aria-label="Close">×</button></div>`}
 // Combine sample spot details with the latest report from the chosen store.
-function openSpot(id){
-  const s=spotById(id);if(!s)return;state.selectedSpot=s.id;
-  if(state.view==='building'){if(buildingPlans()?.[state.floor])$$('.plan-pin,.spot-row').forEach(el=>el.classList.toggle('is-selected',el.dataset.spot===s.id));else renderBuilding()}
+function spotDetailContent(s){
   const report=currentReport(s),isSaved=activeLists().some(l=>l.spots.includes(s.id));
   const trend=s.typical?.length?`<div class="trend" aria-label="Illustrative typical crowding across five periods">${s.typical.map(n=>`<span class="${n===2?'medium':n===3?'high':''}"></span>`).join('')}</div><div class="trend-labels"><span>Earlier</span><span>Later</span></div>`:'<p>Typical crowding is not available for this spot.</p>';
   const reportDetails=s.reserved?'<p>Check open times and book this room on the BYU Library site.</p>':report?`<p>Noise: ${esc(noiseLabel(report.noise))} · Crowding: ${esc(report.busy)}</p>${report.note?`<p>${esc(report.note)}</p>`:''}`:usesDatabase(s)&&database.error?`<p class="form-error">Database reports could not be loaded: ${esc(database.error)}</p>`:`<p>No reports yet. Usually ${esc((noiseLabel(s.noise)||'unknown').toLowerCase())} · ${esc(s.busy||'unknown')} crowding.</p>`;
-  openModal(`${modalHeader(s.name)}<p class="modal-description">${s.building} · ${esc(floorLabel(s))} · ${s.type==='group'?`Group up to ${s.capacity}`:'Individual study'}</p>${s.detail?`<div class="report-box"><h3>Location details</h3><p>${esc(s.detail)}</p></div>`:''}<div class="detail-tags"><span>${s.private?'Private':'Open space'}</span><span>${s.outlets?'Outlets nearby':'Outlets not listed'}</span><span>${s.reserved?'Reservation required':`Noise: ${esc(noiseLabel(currentNoise(s))||'unknown')}`}</span></div><div id="latestReport" class="report-box"><h3>${s.reserved?'Reservation required':'Latest report'}</h3>${reportDetails}</div><div class="report-box"><h3>Typical crowding</h3>${trend}</div><div class="modal-actions"><button class="secondary-button" type="button" data-modal-close>Keep searching</button><button class="secondary-button" type="button" data-save-spot="${esc(s.id)}">${isSaved?'Saved / lists':'Save to a list'}</button>${s.reserved?`${reservationLinks[s.building]?`<a class="primary-button" href="${esc(reservationLinks[s.building])}" target="_blank" rel="noopener noreferrer">Reserve with BYU ↗</a>`:''}`:`<button class="primary-button" type="button" data-confirm-spot="${esc(s.id)}" ${database.loading||!database.configLoaded?'disabled':''}>Choose this spot</button>`}</div>`);
+  const noise=noiseLabel(currentNoise(s));
+  return `<p class="modal-description">${s.building} · ${esc(floorLabel(s))} · ${s.type==='group'?`Group up to ${s.capacity}`:'Individual study'}</p>${s.detail?`<div class="report-box"><h3>Location details</h3><p>${esc(s.detail)}</p></div>`:''}<div class="detail-tags">${noise?`<span class="noise-tag"><span class="tag-prefix">Noise:&nbsp;</span><strong>${esc(noise)}</strong></span>`:''}${powerTag(s)}<span class="layout-tag">${layoutLabel(s)}</span></div><div class="report-box"><h3>${s.reserved?'Reservation required':'Latest report'}</h3>${reportDetails}</div><div class="report-box"><h3>Typical crowding</h3>${trend}</div><div class="modal-actions"><button class="secondary-button bookmark-button ${isSaved?'is-saved':''}" type="button" data-save-spot="${esc(s.id)}" aria-label="${isSaved?'Manage saved lists':'Save to a list'}" title="${isSaved?'Manage saved lists':'Save to a list'}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3.75h12a1 1 0 0 1 1 1v16l-7-4.5-7 4.5v-16a1 1 0 0 1 1-1Z"/></svg></button>${s.reserved?`${reservationLinks[s.building]?`<a class="primary-button" href="${esc(reservationLinks[s.building])}" target="_blank" rel="noopener noreferrer">Reserve with BYU ↗</a>`:''}`:`<button class="primary-button" type="button" data-confirm-spot="${esc(s.id)}" ${database.loading||!database.configLoaded?'disabled':''}>Choose Spot</button>`}</div>`;
+}
+function openSpot(id,{keepMap=false}={}){
+  const s=spotById(id);if(!s)return;
+  const collapsing=state.selectedSpot===s.id;
+  state.selectedSpot=collapsing?null:s.id;
+  if(isCompactLayout()&&!keepMap&&!collapsing)setBuildingPanel('spots');
+  if(state.view==='building')renderBuilding();
 }
 // Collect arrival reports. Reserved spots use BYU's external booking link instead.
 function openArrival(id){
@@ -964,12 +1000,17 @@ async function submitNewSpot(form,input){
   newSpotPending=true;button.disabled=true;button.textContent='Sending…';error.hidden=true;
   try{await database.submitSpot(input);closeModal(true);showToast('Thanks! Your spot was sent to the team for review.');}
   catch(problem){error.textContent=problem.message;error.hidden=false;}
-  finally{newSpotPending=false;button.disabled=false;button.textContent='Report spot';}
+  finally{newSpotPending=false;button.disabled=false;button.textContent='Submit Spot';}
 }
 // SITE RATING: anyone can rate Nook from the footer. Ratings save to the SiteRating table.
 let ratingPending=false;
 function openRating(){
-  openModal(`${modalHeader('Rate Nook')}<p class="modal-description">How is Nook working for you? Your rating helps us improve.</p><form id="ratingForm"><fieldset class="report-choice"><legend class="choice-label">Your rating</legend><div class="choice-row">${[1,2,3,4,5].map(n=>`<label><input type="radio" name="stars" value="${n}" ${n===1?'required':''}>${n} ★</label>`).join('')}</div></fieldset><div class="form-field"><label for="ratingComment">Comment (optional)</label><textarea id="ratingComment" name="comment" maxlength="500" placeholder="What do you like, or what should we improve?"></textarea></div><p id="ratingError" class="form-error" role="alert" hidden></p><div class="modal-actions"><button type="button" class="secondary-button" data-modal-close>Cancel</button><button type="submit" class="primary-button">Submit rating</button></div></form>`);
+  openModal(`${modalHeader('Rate Nook')}<p class="modal-description">Is Nook helping you find a spot? Let us know what's working and what we can improve.</p><form id="ratingForm"><fieldset class="rating-field"><div class="rating-stars" id="ratingStars" role="radiogroup" aria-label="Rating">${[1,2,3,4,5].map(n=>`<label class="rating-star" data-value="${n}"><input type="radio" name="stars" value="${n}" aria-label="${n} ${n===1?'star':'stars'}" ${n===1?'required':''}><span aria-hidden="true">&#9733;</span></label>`).join('')}</div></fieldset><div class="form-field"><label for="ratingComment">Comment</label><textarea id="ratingComment" name="comment" maxlength="500" placeholder="Found a bug? Have an idea? Let us know here."></textarea></div><p id="ratingError" class="form-error" role="alert" hidden></p><div class="modal-actions"><button type="button" class="secondary-button" data-modal-close>Cancel</button><button type="submit" class="primary-button">Send Feedback</button></div></form>`);
+  const stars=$('#ratingStars');
+  const update=()=>{const value=Number(stars.dataset.hover||stars.dataset.selected||0);stars.querySelectorAll('.rating-star').forEach(star=>star.classList.toggle('is-filled',Number(star.dataset.value)<=value))};
+  stars.addEventListener('pointerover',event=>{const star=event.target.closest('.rating-star');if(star){stars.dataset.hover=star.dataset.value;update()}});
+  stars.addEventListener('pointerleave',()=>{delete stars.dataset.hover;update()});
+  stars.addEventListener('change',event=>{if(event.target.name==='stars'){stars.dataset.selected=event.target.value;update()}});
 }
 async function submitRating(form){
   if(ratingPending)return;
@@ -979,12 +1020,12 @@ async function submitRating(form){
   ratingPending=true;button.disabled=true;button.textContent='Sending…';error.hidden=true;
   try{await database.submitRating({stars,comment:form.elements.comment.value});closeModal(true);showToast('Thanks for rating Nook!');}
   catch(problem){error.textContent=problem.message;error.hidden=false;}
-  finally{ratingPending=false;button.disabled=false;button.textContent='Submit rating';}
+  finally{ratingPending=false;button.disabled=false;button.textContent='Send Feedback';}
 }
 // Suggestions stay on this device; their map pins are provisional placements.
-function openNewSpot(){openModal(`${modalHeader('Report a new spot')}<p class="modal-description">Suggest a study area missing from this prototype. ${database.config.configured&&database.ready?'It will be sent to the team for review and will not appear on the map right away. Do not include personal information.':'It will appear on this device for now.'}</p><form id="newSpotForm"><div class="form-field"><label for="newName">Spot name</label><input id="newName" name="name" required maxlength="60" placeholder="Example: east wing tables"></div><div class="form-field"><label for="newBuilding">Building</label><select id="newBuilding" name="building">${Object.entries(BUILDINGS).map(([id,b])=>`<option value="${id}">${esc(b.name)}</option>`).join('')}</select></div><div class="form-field"><label for="newFloor">Floor</label><select id="newFloor" name="floor"></select></div><div class="form-field"><label for="newType">Space type</label><select id="newType" name="type"><option value="solo">Individual</option><option value="group">Group</option></select></div><div class="form-field" id="newCapacityWrap" hidden><label for="newCapacity">Maximum group size (2-6)</label><input id="newCapacity" name="capacity" type="number" min="2" max="6" value="4"></div><div class="form-field"><label for="newNoise">Usual noise</label><select id="newNoise" name="noise"><option value="low">Quiet</option><option value="medium">Social</option></select></div><div class="building-checks"><label class="building-check"><input type="checkbox" name="private"><span>Private or separated</span></label><label class="building-check"><input type="checkbox" name="outlets"><span>Outlets nearby</span></label></div><div class="form-field"><label for="newDetail">Location details (optional)</label><textarea id="newDetail" name="detail" maxlength="160" placeholder="Nearby landmark or entrance"></textarea></div><p class="form-error" id="newSpotError" role="alert" hidden></p><div class="modal-actions"><button type="button" class="secondary-button" data-modal-close>Cancel</button><button type="submit" class="primary-button">${database.config.configured&&database.ready?'Report spot':'Add spot'}</button></div></form>`);updateNewSpotFloors()}
-// Keep a valid floor selection when the suggested space type changes.
-function updateNewSpotFloors(){const form=$('#newSpotForm');if(!form)return;const b=form.elements.building.value,previous=form.elements.floor.value;form.elements.floor.innerHTML=BUILDINGS[b].floors.map(f=>`<option value="${f.id}" ${f.id===previous?'selected':''}>${esc(f.label)}</option>`).join('');$('#newCapacityWrap').hidden=form.elements.type.value!=='group';$('#newCapacity').disabled=form.elements.type.value!=='group'}
+function radioChoiceField(name,title,choices,selected){return `<fieldset class="form-field choice-field"><legend>${esc(title)}</legend><div class="radio-segments" role="radiogroup" aria-label="${esc(title)}">${choices.map(([value,label],index)=>{const id=`new-${name}-${index}`;return `<label class="radio-option" for="${id}"><input id="${id}" name="${esc(name)}" type="radio" value="${esc(value)}" required ${value===selected?'checked':''}><span>${esc(label)}</span></label>`}).join('')}</div></fieldset>`}
+function openNewSpot(buildingId=Object.keys(BUILDINGS)[0],floorId=null){const firstBuilding=BUILDINGS[buildingId]?buildingId:Object.keys(BUILDINGS)[0],buildingChoices=Object.entries(BUILDINGS).map(([id,b])=>[`${id} · ${b.short}`,`${id} · ${b.short}`]);openModal(`${modalHeader('Report a new spot')}<p class="modal-description">Know a great spot we missed? Submit it below. We review all submissions to keep the map accurate, so it may take a few days to appear. Please don't include personal info.</p><form id="newSpotForm"><div class="form-field"><label for="newName">Name of spot</label><input id="newName" name="name" required maxlength="60" placeholder="Example: east wing tables"></div>${radioChoiceField('building','Building',buildingChoices,buildingChoices.find(([value])=>value.startsWith(`${firstBuilding} ·`))?.[0])}<div id="newFloorChoices"></div>${radioChoiceField('type','Best for',[['Solo study','Solo study'],['Group study','Group study']])}<div class="form-field" id="newCapacityWrap" hidden><label for="newCapacity">Maximum group size (2-6)</label><input id="newCapacity" name="capacity" type="number" min="2" max="6" value="4"></div>${radioChoiceField('noise','Noise level',[['Quiet','Quiet'],['Social','Social']])}${radioChoiceField('layout','Layout',[['Secluded','Secluded'],['Open Area','Open Area']])}${radioChoiceField('power','Power',[['Outlets','Outlets'],['No outlets','No outlets']])}<div class="form-field"><label for="newDetail">How to find it (optional)</label><textarea id="newDetail" name="detail" maxlength="160" placeholder="E.g., Second floor, past the vending machines..."></textarea></div><p class="form-error" id="newSpotError" role="alert" hidden></p><div class="modal-actions"><button type="button" class="secondary-button" data-modal-close>Cancel</button><button type="submit" class="primary-button">Submit Spot</button></div></form>`);updateNewSpotFloors(floorId)}
+function updateNewSpotFloors(preferredFloorId=null){const form=$('#newSpotForm');if(!form)return;const buildingChoice=form.elements.building.value,building=Object.entries(BUILDINGS).find(([id,b])=>`${id} · ${b.short}`===buildingChoice)?.[0],previous=form.elements.floor?.value,floors=BUILDINGS[building].floors,defaultFloor=BUILDINGS[building].groundFloor||floors[0].id,preferred=floors.find(f=>f.id===preferredFloorId||floorIds(building,f.id).includes(preferredFloorId))?.label,selected=preferred||(floors.some(f=>f.label===previous)?previous:floors.find(f=>f.id===defaultFloor).label);$('#newFloorChoices').innerHTML=radioChoiceField('floor','Floor',floors.map(f=>[f.label,String(f.level)]),selected);const isGroup=form.elements.type.value==='Group study';$('#newCapacityWrap').hidden=!isGroup;$('#newCapacity').disabled=!isGroup}
 // Favorites is permanent; the prototype supports two additional lists.
 // Apply the checked lists to one spot. Account lists are saved to the database before the page changes.
 async function confirmSave(id,button){
@@ -1000,16 +1041,52 @@ async function confirmSave(id,button){
     if($('#modal').contains(button))closeModal();showToast(problem.message);void loadCloudLists();
   }
 }
+async function removeSavedSpot(id,button){
+  const list=activeLists().find(l=>l.id===state.selectedList);if(!list||!list.spots.includes(id))return;
+  if(!cloudMode()){list.spots=list.spots.filter(spotId=>spotId!==id);const saved=save();renderSaved();if(saved)showToast('Spot removed from list.');return}
+  button.disabled=true;
+  try{await database.setSpotLists(id,[{dbId:list.dbId,has:true,want:false}]);list.spots=list.spots.filter(spotId=>spotId!==id);renderSaved();showToast('Spot removed from list.')}
+  catch(problem){showToast(problem.message);void loadCloudLists()}
+  finally{button.disabled=false}
+}
+function openRenameList(id){
+  const list=activeLists().find(item=>item.id===id);if(!list||list.id==='favorites')return;
+  openModal(`${modalHeader('Rename list')}<p class="modal-description">Choose a new name for “${esc(list.name)}”.</p><form id="renameListForm" data-list-id="${esc(list.id)}"><div class="form-field"><label for="renameListName">List name</label><input id="renameListName" name="name" required maxlength="28" value="${esc(list.name)}"></div><p id="renameListError" class="form-error" role="alert" hidden></p><div class="modal-actions"><button type="button" class="secondary-button" data-modal-close>Cancel</button><button type="submit" class="primary-button">Save name</button></div></form>`);
+}
+async function submitRenameList(form){
+  const id=form.dataset.listId,list=activeLists().find(item=>item.id===id),name=form.elements.name.value.trim(),error=$('#renameListError'),button=form.querySelector('[type="submit"]');
+  const fail=message=>{error.textContent=message;error.hidden=false};error.hidden=true;
+  if(!list||id==='favorites')return fail('Favorites cannot be renamed.');
+  if(!name||name.length>28)return fail('Enter a list name from 1 to 28 characters, not just spaces.');
+  if(activeLists().some(item=>item.id!==id&&item.name.toLowerCase()===name.toLowerCase()))return fail('You already have a list with that name.');
+  if(!cloudMode()){list.name=name;const saved=save();closeModal();renderSaved();if(saved)showToast('List renamed.');return}
+  button.disabled=true;
+  try{const updated=await database.renameList(list.dbId,name);list.name=updated.name;closeModal();renderSaved();showToast('List renamed.')}
+  catch(problem){fail(problem.message)}
+  finally{button.disabled=false}
+}
+function openDeleteList(id){
+  const list=activeLists().find(item=>item.id===id);if(!list||list.id==='favorites')return;
+  openModal(`${modalHeader('Delete this list?')}<p class="modal-description">Delete “${esc(list.name)}” and remove its saved spots from this list? Those spots remain available in Nook and in your other lists.</p><p id="deleteListError" class="form-error" role="alert" hidden></p><div class="modal-actions"><button type="button" class="secondary-button" data-modal-close>Cancel</button><button type="button" class="danger-button" data-delete-list-confirm="${esc(list.id)}">Delete list</button></div>`);
+}
+async function deleteSavedList(id,button){
+  const list=activeLists().find(item=>item.id===id);if(!list||list.id==='favorites')return;
+  if(!cloudMode()){data.lists=data.lists.filter(item=>item.id!==id);state.selectedList='favorites';state.listEditMode=false;const saved=save();closeModal();renderSaved();if(saved)showToast('List deleted.');return}
+  button.disabled=true;
+  try{await database.deleteList(list.dbId);cloud.lists=cloud.lists.filter(item=>item.id!==id);state.selectedList='favorites';state.listEditMode=false;closeModal();renderSaved();showToast('List deleted.')}
+  catch(problem){const error=$('#deleteListError');if(error){error.textContent=problem.message;error.hidden=false}}
+  finally{button.disabled=false}
+}
 async function submitNewList(form){
   const error=$('#newListError'),button=form.querySelector('[type=submit]'),name=form.elements.name.value.trim();
   const fail=message=>{error.textContent=message;error.hidden=false};
   if(!name||name.length>28)return fail('Enter a list name from 1 to 28 characters, not just spaces.');
   if(activeLists().some(l=>l.name.toLowerCase()===name.toLowerCase()))return fail('You already have a list with that name.');
-  if(!cloudMode()){const id=`list-${Date.now()}`;data.lists.push({id,name,spots:[]});state.selectedList=id;const saved=save();closeModal();setView('saved');if(saved)showToast('List created.');return}
+  if(!cloudMode()){const id=`list-${Date.now()}`;data.lists.push({id,name,spots:[]});state.selectedList=id;state.listEditMode=false;const saved=save();closeModal();setView('saved');if(saved)showToast('List created.');return}
   button.disabled=true;error.hidden=true;
   try{
     const row=await database.createList(name),list={id:`list-${row.dbId}`,dbId:row.dbId,name:row.name,spots:[]};
-    cloud.lists.push(list);state.selectedList=list.id;closeModal();setView('saved');showToast('List created.');
+    cloud.lists.push(list);state.selectedList=list.id;state.listEditMode=false;closeModal();setView('saved');showToast('List created.');
   }catch(problem){fail(problem.message)}finally{button.disabled=false}
 }
 function openCreateList(){if(activeLists().length>=3){showToast('You can have Favorites and two custom lists.');return}openModal(`${modalHeader('New saved list')}<p class="modal-description">Create a list for a class, group, or favorite study routine.</p><form id="newListForm"><div class="form-field"><label for="newListName">List name</label><input id="newListName" name="name" required maxlength="28" placeholder="Example: Group project"></div><p class="form-error" id="newListError" role="alert" hidden></p><div class="modal-actions"><button type="button" class="secondary-button" data-modal-close>Cancel</button><button type="submit" class="primary-button">Create list</button></div></form>`)}
@@ -1024,8 +1101,8 @@ function renderProfile(force=false){
     box.dataset.user=String(auth.userId);
     const p=auth.profile,pending=auth.pendingEmail?`<p class="profile-note">Waiting for you to confirm <strong>${esc(auth.pendingEmail)}</strong>. Check that inbox for the link.</p>`:'';
     box.innerHTML=`<section class="profile-card"><h2>Your name</h2><form id="profileNameForm" novalidate><div class="form-field"><label for="profileFirst">First name</label><input id="profileFirst" name="first" required maxlength="60" autocomplete="given-name" value="${esc(p.first_name||'')}"></div><div class="form-field"><label for="profileLast">Last name</label><input id="profileLast" name="last" maxlength="60" autocomplete="family-name" value="${esc(p.last_name||'')}"></div><p class="form-error" role="alert" hidden></p><div class="modal-actions"><button type="submit" class="primary-button">Save name</button></div></form></section>
-<section class="profile-card"><h2>Email</h2><p class="profile-note">Current email: <strong>${esc(auth.email||'Loading…')}</strong></p>${pending}<form id="profileEmailForm" novalidate><div class="form-field"><label for="profileEmail">New email</label><input id="profileEmail" name="email" type="email" required autocomplete="email"></div><div class="form-field"><label for="profileEmailPassword">Current password</label><input id="profileEmailPassword" name="current" type="password" required autocomplete="current-password"></div><p class="form-error" role="alert" hidden></p><div class="modal-actions"><button type="submit" class="primary-button">Change email</button></div></form></section>
-<section class="profile-card"><h2>Password</h2><form id="profilePasswordForm" novalidate><div class="form-field"><label for="profileCurrentPassword">Current password</label><input id="profileCurrentPassword" name="current" type="password" required autocomplete="current-password"></div><div class="form-field"><label for="profileNewPassword">New password</label><input id="profileNewPassword" name="password" type="password" required minlength="8" autocomplete="new-password"><small>At least 8 characters.</small></div><div class="form-field"><label for="profileConfirmPassword">Confirm new password</label><input id="profileConfirmPassword" name="confirm" type="password" required minlength="8" autocomplete="new-password"></div><p class="form-error" role="alert" hidden></p><div class="modal-actions"><button type="submit" class="primary-button">Change password</button></div></form></section>
+<section class="profile-card"><h2>Email</h2><p class="profile-note">Current email: <strong>${esc(auth.email||'Loading…')}</strong></p>${pending}<form id="profileEmailForm" novalidate><div class="form-field"><label for="profileEmail">New email</label><input id="profileEmail" name="email" type="email" required autocomplete="email"></div><div class="form-field"><label for="profileEmailPassword">Current password</label><div class="password-input-wrap"><input id="profileEmailPassword" name="current" type="password" required autocomplete="current-password"><button type="button" class="password-toggle" data-password-toggle="profileEmailPassword" aria-controls="profileEmailPassword" aria-label="Show password" aria-pressed="false" title="Show password"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.4-6 9.5-6 9.5 6 9.5 6-3.4 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.5"/></svg></button></div></div><p class="form-error" role="alert" hidden></p><div class="modal-actions"><button type="submit" class="primary-button">Change email</button></div></form></section>
+<section class="profile-card"><h2>Password</h2><form id="profilePasswordForm" novalidate><div class="form-field"><label for="profileCurrentPassword">Current password</label><div class="password-input-wrap"><input id="profileCurrentPassword" name="current" type="password" required autocomplete="current-password"><button type="button" class="password-toggle" data-password-toggle="profileCurrentPassword" aria-controls="profileCurrentPassword" aria-label="Show password" aria-pressed="false" title="Show password"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.4-6 9.5-6 9.5 6 9.5 6-3.4 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.5"/></svg></button></div></div><div class="form-field"><label for="profileNewPassword">New password</label><div class="password-input-wrap"><input id="profileNewPassword" name="password" type="password" required minlength="8" autocomplete="new-password"><button type="button" class="password-toggle" data-password-toggle="profileNewPassword" aria-controls="profileNewPassword" aria-label="Show password" aria-pressed="false" title="Show password"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.4-6 9.5-6 9.5 6 9.5 6-3.4 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.5"/></svg></button></div><small>At least 8 characters.</small></div><div class="form-field"><label for="profileConfirmPassword">Confirm new password</label><div class="password-input-wrap"><input id="profileConfirmPassword" name="confirm" type="password" required minlength="8" autocomplete="new-password"><button type="button" class="password-toggle" data-password-toggle="profileConfirmPassword" aria-controls="profileConfirmPassword" aria-label="Show password" aria-pressed="false" title="Show password"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.4-6 9.5-6 9.5 6 9.5 6-3.4 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.5"/></svg></button></div></div><p class="form-error" role="alert" hidden></p><div class="modal-actions"><button type="submit" class="primary-button">Change password</button></div></form></section>
 <section class="profile-card"><h2>Saved lists</h2><div id="profileLists"></div></section>
 <section class="profile-card profile-danger"><h2>Delete account</h2><p class="profile-note">This permanently deletes your account and saved lists. Reports you submitted stay on the map without your name.</p><button type="button" class="danger-button" id="deleteAccount">Delete my account</button></section>`;
   }
@@ -1070,10 +1147,24 @@ async function submitDeleteAccount(form){
   catch(problem){error.textContent=problem.message;error.hidden=false;button.disabled=false}
 }
 // Clear also removes the saved filter preset for the next page load.
-function resetFilters(){state.buildings=new Set(['HBLL','WSC','JKB']);state.study='any';state.groupSize=4;state.noise='any';state.private=false;state.outlets=false;data.savedFilters=null;save();render()}
+function resetFilters(){state.buildings=new Set(['HBLL','WSC','JKB']);state.study='any';state.groupSize=4;state.noise='any';state.layout='any';state.outlets=false;if(state.view==='building'&&BUILDINGS[state.building]){searchBuildingQueue=[state.building,...[...state.buildings].filter(id=>id!==state.building)];searchBuildingIndex=0}data.savedFilters=null;save();render()}
+function applyPlaylist(id){
+  const presets={
+    'deep-focus':{study:'any',groupSize:4,noise:'low',layout:'secluded',outlets:true},
+    'group-project':{study:'group',groupSize:4,noise:'medium',layout:'open',outlets:false},
+    'quick-touchdown':{study:'any',groupSize:4,noise:'medium',layout:'open',outlets:false},
+    'dead-battery':{study:'solo',groupSize:4,noise:'any',layout:'any',outlets:true}
+  };
+  const preset=presets[id];if(!preset)return;
+  Object.assign(state,preset);
+  updateFilter();
+  const reducedMotion=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  $('#exploreMapSection').scrollIntoView({behavior:reducedMotion?'auto':'smooth'});
+}
 function updateFilter(){renderFilters();renderRecommendations();if(state.view==='building')renderBuilding()}
 // Open the best matching floor while retaining the current filters.
-function showMatches(){const match=allSpots().filter(matches).sort((a,b)=>rank(a)-rank(b));if(!state.buildings.size){showToast('Choose at least one building.');return}if(!match.length){openBuilding([...state.buildings][0]);showToast('No spaces match. Try changing a filter.');return}openBuilding(match[0].building,match[0].floor,isCompactLayout()?'spots':'map')}
+function showMatches(){if(!state.buildings.size){showToast('Choose at least one building.');return}const match=allSpots().filter(matches).sort((a,b)=>rank(a)-rank(b)),selectedBuildings=[...state.buildings],firstBuilding=match[0]?.building||selectedBuildings[0];searchBuildingQueue=[firstBuilding,...selectedBuildings.filter(id=>id!==firstBuilding)];searchBuildingIndex=0;if(!match.length){openBuilding(firstBuilding);showToast('No spaces match. Try changing a filter.');return}openBuilding(firstBuilding,match[0].floor,isCompactLayout()?'spots':'map')}
+function returnToCampusMap(){searchBuildingQueue=[];searchBuildingIndex=-1;viewHistory.length=0;state.view='explore';render();const reducedMotion=window.matchMedia('(prefers-reduced-motion: reduce)').matches;$('#exploreMapSection').scrollIntoView({behavior:reducedMotion?'auto':'smooth'})}
 
 // 9. Event routing. data-* attributes connect rebuilt controls to shared handlers.
 document.addEventListener('click',event=>{
@@ -1081,13 +1172,15 @@ document.addEventListener('click',event=>{
   if(!t||(t.id!=='navAuth'&&!t.closest('#navMenu')))toggleNavMenu(false);
   if(!t)return;
   if(t.id==='exploreMapButton'){const reducedMotion=window.matchMedia('(prefers-reduced-motion: reduce)').matches;$('#exploreMapSection').scrollIntoView({behavior:reducedMotion?'auto':'smooth'});return}
+  if(t.id==='scrollToMap'){const reducedMotion=window.matchMedia('(prefers-reduced-motion: reduce)').matches;$('#exploreMapSection').scrollIntoView({behavior:reducedMotion?'auto':'smooth'});return}
+  if(t.dataset.passwordToggle){const input=document.getElementById(t.dataset.passwordToggle);if(!input)return;const visible=input.type==='password';input.type=visible?'text':'password';const label=visible?'Hide password':'Show password';t.setAttribute('aria-label',label);t.setAttribute('title',label);t.setAttribute('aria-pressed',String(visible));t.innerHTML=visible?'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.4-6 9.5-6 9.5 6 9.5 6-3.4 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.5"/><path d="m4 4 16 16"/></svg>':'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.4-6 9.5-6 9.5 6 9.5 6-3.4 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.5"/></svg>';input.focus({preventScroll:true});try{input.setSelectionRange(input.value.length,input.value.length)}catch{}return}
   if(t.dataset.buildingPanel){setBuildingPanel(t.dataset.buildingPanel);return}
   if(t.id==='interactMap'){setMapInteraction(t.getAttribute('aria-pressed')!=='true');return}
   if(t.id==='campusInteractMap'){setCampusMapInteraction(t.getAttribute('aria-pressed')!=='true');return}
-  if(t.id==='toggleRoomLabels'||t.id==='toggleResources'||t.dataset.resource){
+  if(t.id==='toggleNooks'||t.id==='toggleResources'||t.dataset.resource){
     const viewport=$('.plan-scroll'),scrollLeft=viewport?.scrollLeft||0,scrollTop=viewport?.scrollTop||0;
-    if(t.id==='toggleRoomLabels'){state.roomLabels=true;state.resourcesVisible=false;state.selectedResource=null}
-    else if(t.id==='toggleResources'){state.roomLabels=true;state.resourcesVisible=true}
+    if(t.id==='toggleNooks'){state.nooksVisible=true;state.resourcesVisible=false;state.selectedResource=null;state.selectedRoom=null;state.locatedSpot=null}
+    else if(t.id==='toggleResources'){state.nooksVisible=false;state.resourcesVisible=true;state.selectedResource=null;state.selectedSpot=null;state.locatedSpot=null;state.selectedRoom=null}
     else state.selectedResource=state.selectedResource===t.dataset.resource?null:t.dataset.resource;
     renderBuilding();const nextViewport=$('.plan-scroll');if(nextViewport){nextViewport.scrollLeft=scrollLeft;nextViewport.scrollTop=scrollTop}return
   }
@@ -1097,41 +1190,47 @@ document.addEventListener('click',event=>{
   // Room selection, map labels, and zoom controls.
   if(t.dataset.room){selectRoom(t.dataset.room);return}
   if(t.hasAttribute('data-clear-room')){state.selectedRoom=null;updateRoomHighlight();return}
-  if(t.id==='zoomFit'){changeZoom(1-state.zoom);$('.plan-scroll').scrollLeft=0;$('.plan-scroll').scrollTop=0;return}
+  if(t.id==='zoomFit'){state.zoom=1;resizeDigitalMap();$('.plan-scroll').scrollLeft=0;$('.plan-scroll').scrollTop=0;$('#zoomValue').textContent='100%';$('#zoomOut').disabled=true;$('#zoomIn').disabled=false;renderBuilding();return}
+  if(t.dataset.locateSpot){locateSpotOnMap(t.dataset.locateSpot);return}
+  if(t.hasAttribute('data-clear-located-spot')){state.locatedSpot=null;renderBuilding();return}
   if(t.matches('[data-modal-close]')){closeModal();return}
   // Main navigation, filter actions, and building selection.
   if(t.id==='homeButton'||t.id==='navExplore'){setView('explore');return}
-  if(t.id==='backToExplore'||t.id==='savedBack'||t.id==='profileBack'){goBack();return}
+  if(t.id==='backToExplore'||t.id==='savedBack'||t.id==='profileBack'){event.preventDefault();goBack();return}
   if(t.id==='navSaved'){setView('saved');return}
   if(t.id==='navProfile'){setView('profile');return}
   if(t.id==='deleteAccount'){openDeleteAccount();return}
   if(t.dataset.profileList){state.selectedList=t.dataset.profileList;setView('saved');return}
-  if(t.id==='navReport'){openNewSpot();return}
+  if(t.id==='navReport'){openNewSpot(state.view==='building'?state.building:undefined,state.view==='building'?state.floor:null);return}
     if(t.id==='rateUs'){event.preventDefault();openRating();return}
-  if(t.id==='navAuth'){if(!auth.signedIn)openAuth('login');else if(auth.isAdmin)toggleNavMenu();else logOut();return}
+  if(t.id==='navAuth'){if(!auth.signedIn)openAuth('login');else toggleNavMenu();return}
+  if(t.id==='navMenuProfile'){toggleNavMenu(false);setView('profile');return}
   if(t.id==='navLogout'){toggleNavMenu(false);logOut();return}
   if(t.id==='resendConfirm'){const email=$('#authEmail')?.value.trim();if(!email){showToast('Enter your email first.');return}t.disabled=true;void auth.resendConfirmation(email).then(()=>showToast('Confirmation email sent. Check your inbox and spam.'),e=>showToast(e.message)).finally(()=>{t.disabled=false});return}
   if(t.dataset.authSwitch){const after=openAuth.after;openAuth(t.dataset.authSwitch,after);return}
   if(t.dataset.openReported){const s=spotById(t.dataset.openReported);if(s){openBuilding(s.building,s.floor);openSpot(s.id)}return}
   if(t.id==='clearFilters'||t.dataset.action==='clear'){resetFilters();return}
   if(t.dataset.buildingAction){state.buildings=t.dataset.buildingAction==='all'?new Set(Object.keys(BUILDINGS)):new Set();updateFilter();return}
-  if(t.id==='saveFilters'){data.savedFilters={study:state.study,noise:state.noise,private:state.private,outlets:state.outlets,groupSize:state.groupSize,buildings:[...state.buildings]};if(save())showToast('Filters saved on this device.');return}
+  if(t.id==='saveFilters'){data.savedFilters={study:state.study,noise:state.noise,layout:state.layout,outlets:state.outlets,groupSize:state.groupSize,buildings:[...state.buildings]};if(save())showToast('Filters saved on this device.');return}
   if(t.id==='showMatches'){showMatches();return}
+  if(t.id==='keepSearching'){const nextBuilding=searchBuildingQueue[searchBuildingIndex+1];if(nextBuilding){searchBuildingIndex++;openBuilding(nextBuilding,undefined,isCompactLayout()?'spots':'map')}else returnToCampusMap();return}
   if(t.dataset.openBuilding){openBuilding(t.dataset.openBuilding);return}
   if(t.dataset.study){state.study=t.dataset.study;updateFilter();return}
   if(t.dataset.noise){state.noise=t.dataset.noise;updateFilter();return}
+  if(t.dataset.layout){state.layout=t.dataset.layout;updateFilter();return}
+  if(t.dataset.playlist){applyPlaylist(t.dataset.playlist);return}
   // Each building has its own floor keys; retain the side when changing levels.
-  if(t.dataset.floor){state.floor=t.dataset.floor;state.zoom=1;state.selectedSpot=null;state.selectedRoom=null;renderBuilding();return}
-  if(t.dataset.wscLevel){const level=Number(t.dataset.wscLevel);state.floor=level<=3?String(level):`${level}E`;state.zoom=1;state.selectedSpot=null;state.selectedRoom=null;renderBuilding();return}
-  if(t.dataset.wscSide){state.floor=`${state.floor[0]}${t.dataset.wscSide==='West'?'W':'E'}`;state.zoom=1;state.selectedSpot=null;state.selectedRoom=null;renderBuilding();return}
-  if(t.hasAttribute('data-hbll-level')){const level=Number(t.dataset.hbllLevel);state.floor=`L${level}`;state.zoom=1;state.selectedSpot=null;state.selectedRoom=null;renderBuilding();return}
-  if(t.dataset.hbllSide){const floor=BUILDINGS.HBLL.floors.find(f=>f.id===state.floor);state.floor=`L${floor.level}${t.dataset.hbllSide==='North'?'N':''}`;state.zoom=1;state.selectedSpot=null;state.selectedRoom=null;renderBuilding();return}
-  if(t.dataset.jkbLevel){const floor=BUILDINGS.JKB.floors.find(f=>f.level===Number(t.dataset.jkbLevel));if(!floor)return;state.floor=floor.id;state.zoom=1;state.selectedSpot=null;state.selectedRoom=null;renderBuilding();return}
+  if(t.dataset.floor){state.floor=t.dataset.floor;state.zoom=1;state.selectedSpot=null;state.locatedSpot=null;state.selectedRoom=null;renderBuilding();return}
+  if(t.dataset.wscLevel){const level=Number(t.dataset.wscLevel);state.floor=level<=3?String(level):`${level}E`;state.zoom=1;state.selectedSpot=null;state.locatedSpot=null;state.selectedRoom=null;renderBuilding();return}
+  if(t.dataset.wscSide){state.floor=`${state.floor[0]}${t.dataset.wscSide==='West'?'W':'E'}`;state.zoom=1;state.selectedSpot=null;state.locatedSpot=null;state.selectedRoom=null;renderBuilding();return}
+  if(t.hasAttribute('data-hbll-level')){const level=Number(t.dataset.hbllLevel);state.floor=`L${level}`;state.zoom=1;state.selectedSpot=null;state.locatedSpot=null;state.selectedRoom=null;renderBuilding();return}
+  if(t.dataset.hbllSide){const floor=BUILDINGS.HBLL.floors.find(f=>f.id===state.floor);state.floor=`L${floor.level}${t.dataset.hbllSide==='North'?'N':''}`;state.zoom=1;state.selectedSpot=null;state.locatedSpot=null;state.selectedRoom=null;renderBuilding();return}
+  if(t.dataset.jkbLevel){const floor=BUILDINGS.JKB.floors.find(f=>f.level===Number(t.dataset.jkbLevel));if(!floor)return;state.floor=floor.id;state.zoom=1;state.selectedSpot=null;state.locatedSpot=null;state.selectedRoom=null;renderBuilding();return}
   if(t.id==='zoomOut'||t.id==='zoomIn'){changeZoom(t.id==='zoomIn'?.25:-.25);return}
   // Spot details, reports, and saved-list changes.
   if(t.dataset.pinnedResource){const r=database.pinnedResources.find(x=>x.id===t.dataset.pinnedResource);if(r)showToast(`${r.type}: ${r.info}${r.where?` (${r.where})`:''}`);return}
-  if(t.dataset.spot){const s=spotById(t.dataset.spot);if(state.view==='explore'){openBuilding(s.building,s.floor)}openSpot(s.id);return}
-  if(t.dataset.openSaved){const s=spotById(t.dataset.openSaved);openBuilding(s.building,s.floor);openSpot(s.id);return}
+  if(t.dataset.spot){const s=spotById(t.dataset.spot);if(!s)return;const isMapPin=t.classList.contains('plan-pin');if(isMapPin){state.locatedSpot=s.id;state.nooksVisible=true;state.resourcesVisible=false}if(state.view==='explore'){openBuilding(s.building,s.floor,isCompactLayout()?'spots':'map')}openSpot(s.id,{keepMap:isMapPin});if(isMapPin&&isCompactLayout())setMapInteraction(true);return}
+  if(t.dataset.openSaved){const s=spotById(t.dataset.openSaved);openBuilding(s.building,s.floor,isCompactLayout()?'spots':'map');openSpot(s.id);return}
   if(t.dataset.confirmSpot){
     // OKR: time from starting the search to choosing a spot; the timer restarts for the next choice.
     const seconds=choiceTimer.lap();
@@ -1144,16 +1243,21 @@ document.addEventListener('click',event=>{
   if(t.dataset.action==='login'){openAuth('login');return}
   if(t.dataset.action==='retry-lists'){void loadCloudLists();return}
   if(t.id==='createList'){openCreateList();return}
-  if(t.dataset.list){state.selectedList=t.dataset.list;renderSaved();return}
+  if(t.hasAttribute('data-toggle-list-edit')){state.listEditMode=!state.listEditMode;renderSaved();return}
+  if(t.dataset.removeSaved){void removeSavedSpot(t.dataset.removeSaved,t);return}
+  if(t.dataset.renameList){openRenameList(t.dataset.renameList);return}
+  if(t.dataset.deleteList){openDeleteList(t.dataset.deleteList);return}
+  if(t.dataset.deleteListConfirm){void deleteSavedList(t.dataset.deleteListConfirm,t);return}
+  if(t.dataset.list){if(state.selectedList!==t.dataset.list)state.listEditMode=false;state.selectedList=t.dataset.list;renderSaved();return}
 });
 // Native input changes update filters or dependent form fields.
 document.addEventListener('change',event=>{
   const t=event.target;
   if(t.closest('#buildingFilters')){state.buildings=new Set($$('#buildingFilters input:checked').map(x=>x.value));updateFilter()}
-  if(t.id==='privateFilter'){state.private=t.checked;updateFilter()}
   if(t.id==='outletFilter'){state.outlets=t.checked;updateFilter()}
   if(t.id==='buildingSelect'){openBuilding(t.value)}
-  if(t.id==='newBuilding'||t.id==='newType')updateNewSpotFloors();
+  if(t.closest('#newSpotForm')&&t.name==='building')updateNewSpotFloors();
+  if(t.closest('#newSpotForm')&&t.name==='type'){if(t.value==='Group study')$('#newCapacity').value='4';updateNewSpotFloors()}
 });
 // Update the group-size slider immediately.
 $('#groupSize').addEventListener('input',e=>{state.groupSize=Number(e.target.value);updateFilter()});
@@ -1175,11 +1279,12 @@ document.addEventListener('keydown',e=>{
 document.addEventListener('submit',e=>{
   if(e.target.id==='authForm'){e.preventDefault();void submitAuth(e.target);return}
   if(e.target.id==='arrivalForm'){e.preventDefault();void submitArrival(e.target);return}
-  if(e.target.id==='newSpotForm'){e.preventDefault();const f=e.target.elements;const name=f.name.value.trim();const type=f.type.value;const capacity=type==='group'?Number(f.capacity.value):1;if(name.length<3||(type==='group'&&(capacity<2||capacity>6))){$('#newSpotError').textContent='Enter a spot name and a group size from 2 to 6.';$('#newSpotError').hidden=false;return}const chosenFloor=BUILDINGS[f.building.value].floors.find(fl=>fl.id===f.floor.value);const spot={id:`custom-${Date.now()}`,building:f.building.value,floor:f.floor.value,name,type,capacity,private:f.private.checked,outlets:f.outlets.checked,noise:f.noise.value,busy:null,reserved:false,x:chosenFloor?.defaultX??29,y:chosenFloor?.defaultY??72,typical:[],detail:f.detail.value.trim()};if(database.config.configured&&database.ready){submitNewSpot(e.target,{building:f.building.value,floorNumber:chosenFloor?.level,floorLabel:chosenFloor?.label,name,type,capacity,private:f.private.checked,outlets:f.outlets.checked,noise:f.noise.value,detail:f.detail.value.trim()});return}data.customSpots.push(spot);const saved=save();closeModal();openBuilding(spot.building,spot.floor);render();if(saved)showToast('New spot added on this device.');return}
+  if(e.target.id==='newSpotForm'){e.preventDefault();const f=e.target.elements;const name=f.name.value.trim(),typeChoice=f.type.value,noiseChoice=f.noise.value,layoutChoice=f.layout.value,powerChoice=f.power.value,building=Object.entries(BUILDINGS).find(([id,b])=>`${id} · ${b.short}`===f.building.value)?.[0];const type=typeChoice==='Solo study'?'solo':'group',noise=noiseChoice==='Quiet'?'low':'medium',isPrivate=layoutChoice==='Secluded',outlets=powerChoice==='Outlets',capacity=type==='group'?Number(f.capacity.value):1;if(name.length<3||(type==='group'&&(capacity<2||capacity>6))){$('#newSpotError').textContent='Enter a spot name and a group size from 2 to 6.';$('#newSpotError').hidden=false;return}const chosenFloor=BUILDINGS[building].floors.find(fl=>fl.label===f.floor.value);if(!chosenFloor){$('#newSpotError').textContent='Choose a valid floor for this building.';$('#newSpotError').hidden=false;return}const spot={id:`custom-${Date.now()}`,building,floor:chosenFloor.id,name,type,capacity,private:isPrivate,outlets,noise,busy:null,reserved:false,x:chosenFloor?.defaultX??29,y:chosenFloor?.defaultY??72,typical:[],detail:f.detail.value.trim()};if(database.config.configured&&database.ready){submitNewSpot(e.target,{building,floorNumber:chosenFloor.level,floorLabel:chosenFloor.label,name,type,capacity,private:isPrivate,outlets,noise,detail:f.detail.value.trim()});return}data.customSpots.push(spot);const saved=save();closeModal();openBuilding(spot.building,spot.floor);render();if(saved)showToast('New spot added on this device.');return}
   if(e.target.id==='ratingForm'){e.preventDefault();void submitRating(e.target);return}
   if(['profileNameForm','profileEmailForm','profilePasswordForm'].includes(e.target.id)){e.preventDefault();void submitProfile(e.target);return}
   if(e.target.id==='deleteAccountForm'){e.preventDefault();void submitDeleteAccount(e.target);return}
   if(e.target.id==='newListForm'){e.preventDefault();void submitNewList(e.target);return}
+  if(e.target.id==='renameListForm'){e.preventDefault();void submitRenameList(e.target);return}
 });
 // 10. Startup. Render local UI first, then refresh after the connection check.
 const headerResizeObserver=new ResizeObserver(([entry])=>{document.documentElement.style.setProperty('--header-height',`${entry.target.offsetHeight}px`);if(campusZoomInitialized&&state.view==='explore')changeCampusZoom(0)});

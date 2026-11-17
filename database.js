@@ -300,6 +300,28 @@ const numericSpotIds=['hbll-commons','hbll-west','hbll-group','hbll-think','hbll
       if (!Array.isArray(rows)||rows.length!==1||!rows[0].list_ID) throw new Error('The list was not saved. Try again.');
       return {dbId:Number(rows[0].list_ID),name:String(rows[0].list_name),spots:[]};
     }
+    async renameList(dbId,name) {
+      this.requireUser();
+      const id=Number(dbId),clean=String(name||'').trim();
+      if (!Number.isInteger(id)||id<1) throw new Error('Choose a valid list.');
+      if (clean.length<1||clean.length>28) throw new Error('Enter a list name from 1 to 28 characters.');
+      const query=new URLSearchParams({list_ID:`eq.${id}`});
+      const response=await this.request(this.listUrl('FavoritesList',query),{method:'PATCH',headers:this.headers({'Content-Type':'application/json',Prefer:'return=representation'}),body:JSON.stringify({list_name:clean})});
+      if (!response.ok) throw await this.listError(response);
+      const rows=await response.json();
+      if (!Array.isArray(rows)||rows.length!==1) throw new Error('The list name could not be updated. Try again.');
+      return {dbId:id,name:String(rows[0].list_name||clean)};
+    }
+    async deleteList(dbId) {
+      this.requireUser();
+      const id=Number(dbId);
+      if (!Number.isInteger(id)||id<1) throw new Error('Choose a valid list.');
+      const query=new URLSearchParams({list_ID:`eq.${id}`});
+      const response=await this.request(this.listUrl('FavoritesList',query),{method:'DELETE',headers:this.headers({Prefer:'return=representation'})});
+      if (!response.ok) throw await this.listError(response);
+      const rows=await response.json();
+      if (!Array.isArray(rows)||rows.length!==1) throw new Error('The list could not be deleted. Try again.');
+    }
     // changes: [{dbId, has, want}] for one spot. Adds and removes only what differs.
     async setSpotLists(spotId,changes) {
       this.requireUser();
