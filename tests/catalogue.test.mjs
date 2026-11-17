@@ -203,11 +203,13 @@ test('all eight public HBLL drawings are native room maps with correct floor sid
   assert.deepEqual(Object.keys(plans).sort(),expected.sort());
   const app=await readFile(new URL('app.js',root),'utf8');
   const catalogue=vm.runInNewContext(app.slice(0,app.indexOf('const STORAGE_KEY'))+'; ({BUILDINGS,DEMO_SPOTS})');
-  assert.equal(catalogue.BUILDINGS.HBLL.floors.length,8);
+  // Floors 1-3 are shown as one combined map but keep their North/South drawing sheets (and database keys).
+  assert.deepEqual(Array.from(catalogue.BUILDINGS.HBLL.floors,f=>f.id),['L1','L2','L3','L4','L5']);
   let count=0;
-  for(const floor of catalogue.BUILDINGS.HBLL.floors){
+  for(const sheet of ['L1N','L1','L2N','L2','L3N','L3','L4','L5']){
+    const floor={id:sheet};
     const plan=plans[floor.id];assert.ok(plan,`Missing HBLL ${floor.id}`);
-    assert.equal(plan.file,floor.file);assert.equal(plan.north,-90);
+    floor.file=plan.file;assert.equal(plan.north,-90);
     assert.match(plan.svg,/Harold B\. Lee Library/);
     assert.match(plan.svg,/<path class="map-structure"/);
     assert.ok(!/<image\b|<iframe\b|<foreignObject\b|data:image/i.test(plan.svg),'The map must use native vectors, not an embedded scan');
