@@ -8,11 +8,11 @@
   <title>Nook | Find your place</title>
   <link rel="icon" type="image/png" href="assets/nook-logo.png">
   <!-- Load map bundles before the adapter and app. defer keeps the scripts in order. -->
-  <link rel="stylesheet" href="styles.css?v=20261117-locate-spots">
+  <link rel="stylesheet" href="styles.css?v=20261117-arrival-panel">
   <script defer src="supabase-config.js?v=20261104-restore"></script>
-  <script defer src="database.js?v=20261105-lists"></script>
+  <script defer src="database.js?v=20261117-spot-submissions"></script>
   <script defer src="auth.js?v=20261113-profile"></script>
-  <script defer src="app.js?v=20261117-locate-spots"></script>
+  <script defer src="app.js?v=20261117-spot-submissions"></script>
 </head>
 <body>
   <a class="skip-link" href="#mainContent">Skip to content</a>
@@ -26,7 +26,7 @@
           <span>Nook</span>
         </button>
         <nav class="topnav" aria-label="Main navigation">
-          <button id="navExplore" class="nav-link is-active" type="button"><svg class="mobile-nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5M5.5 9v11h13V9M9 20v-6h6v6"/></svg><span>Explore</span></button>
+          <button id="navExplore" class="nav-link is-active" type="button"><svg class="mobile-nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10 12 4l8 6M6 9v10h12V9"/></svg><span>Explore</span></button>
           <button id="navSaved" class="nav-link" type="button"><svg class="mobile-nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h12v17l-6-4-6 4z"/></svg><span>My Nooks</span></button>
           <button id="navReport" class="nav-link nav-report" type="button" aria-label="Report a Spot"><svg class="mobile-nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span class="nav-report-full">Report a Spot</span><span class="nav-report-short">Report</span></button>
           <button id="navProfile" class="nav-link" type="button" hidden>Profile</button>

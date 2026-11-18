@@ -41,7 +41,7 @@ const numericSpotIds=['hbll-commons','hbll-west','hbll-group','hbll-think','hbll
       const live={deleted_at:'is.null',plan_x:'gte.0'};
       try {
         const rows=await get('StudySpot',{select:'spot_id,building_id,spot_location,group_type,capacity,outlets,reservable,is_private,noise_level,plan_key,plan_x,plan_y',...live,order:'spot_id.asc'});
-        this.pinnedSpots=rows.map(r=>({id:`db-${r.spot_id}`,dbId:Number(r.spot_id),building:codeOf(r.building_id),floor:r.plan_key,name:String(r.spot_location||'').trim(),type:r.group_type==='group'?'group':'solo',capacity:Number(r.capacity)||1,private:!!r.is_private,outlets:!!r.outlets,noise:r.noise_level==='low'?'low':'medium',busy:null,reserved:!!r.reservable,pin:[Number(r.plan_x),Number(r.plan_y)],typical:[]})).filter(s=>s.building&&s.name&&s.floor&&s.pin.every(Number.isFinite));
+        this.pinnedSpots=rows.map(r=>({id:`db-${r.spot_id}`,dbId:Number(r.spot_id),building:codeOf(r.building_id),floor:r.plan_key,name:String(r.spot_location||'').trim(),type:r.group_type==='group'?'group':'solo',capacity:Number(r.capacity)||1,private:!!r.is_private,outlets:!!r.outlets,noise:r.noise_level==='low'?'low':'medium',busy:null,reserved:!!r.reservable,pin:[Number(r.plan_x),Number(r.plan_y)]})).filter(s=>s.building&&s.name&&s.floor&&s.pin.every(Number.isFinite));
         this.pinnedIds=new Set(this.pinnedSpots.map(s=>s.dbId));
       } catch {}
             // Seat counts for every spot, including the built-in sample spots (spot_id 1001-1025).
