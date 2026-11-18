@@ -379,17 +379,18 @@ const numericSpotIds=['hbll-commons','hbll-west','hbll-group','hbll-think','hbll
       const send=body=>this.request(`${this.config.url}/rest/v1/SpotSubmission`,{method:'POST',headers:this.headers({'Content-Type':'application/json',Prefer:'return=minimal'}),body:JSON.stringify(body)});
       let response=await send(payload);
       // Until the pin and spam-check migrations are applied, the database rejects the extra columns. Send the report
-      // anyway and keep the pin in the details text.
-      if (!response.ok&&(pin||token)) {
-        const problem=await response.clone().json().catch(()=>({}));
-        if (problem.code==='PGRST204'||problem.code==='42703') {
-          const {plan_key,plan_x,plan_y,client_token,...plain}=payload;
-          if (pin) {
-            const note=`[Pin ${plan_key} ${plan_x}%, ${plan_y}%]`;
-            plain.location_details=`${detail.slice(0,160-note.length-1)} ${note}`.trim();
-          }
-          response=await send(plain);
-        }
+      // anyway: first without the device token (keeping the pin in its own columns), then, if the pin columns are
+      // missing too, with the pin kept in the details text.
+      const columnMissing=async r=>{const p=await r.clone().json().catch(()=>({}));return p.code==='PGRST204'||p.code==='42703'};
+      if (!response.ok&&token&&await columnMissing(response)) {
+        const {client_token,...withoutToken}=payload;
+        response=await send(withoutToken);
+      }
+      if (!response.ok&&pin&&await columnMissing(response)) {
+        const {plan_key,plan_x,plan_y,client_token,...plain}=payload;
+        const note=`[Pin ${plan_key} ${plan_x}%, ${plan_y}%]`;
+        plain.location_details=`${detail.slice(0,160-note.length-1)} ${note}`.trim();
+        response=await send(plain);
       }
       if (!response.ok) {
         const problem=await response.clone().json().catch(()=>({}));
