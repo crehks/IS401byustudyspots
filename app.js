@@ -1,6 +1,6 @@
 /* Study BYU frontend. Loaded after the map bundles and database.js.
  * Sections: catalogue, local data, campus map, reports, views, floor tools,
- * dialogs, event handlers, and startup. File guide: docs/FILE_GUIDE.md.
+ * dialogs, event handlers, and startup.
  */
 
 // 1. Building catalogue. Floor IDs select drawings; level is the physical floor.

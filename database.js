@@ -96,7 +96,7 @@ const numericSpotIds=['hbll-commons','hbll-west','hbll-group','hbll-think','hbll
     // Translate API failures without exposing credentials or raw response contents.
     async apiError(response) {
       let result={};try {result=await response.json();} catch {}
-      if (result.code==='PGRST205' || result.code==='42P01') return new Error(this.config.table==='ReportSpotStatus'?'ReportSpotStatus or latest_report_spot_status is missing from the API. Use SETUP_PRESERVE_EXISTING.sql for the confirmed schema and check Data API exposure. Do not reset existing rows.':'The reports table or latest-report view is missing from the Supabase API. Run the matching setup file for your schema; do not reset existing tables.');
+      if (result.code==='PGRST205' || result.code==='42P01') return new Error(this.config.table==='ReportSpotStatus'?'ReportSpotStatus or latest_report_spot_status is missing from the API. Check that the tables exist and are exposed in the Supabase Data API.':'The reports table or latest-report view is missing from the Supabase API. Check that the tables exist in Supabase.');
       if (result.code==='PGRST204' || result.code==='42703') return new Error('The report columns do not match the adapter. Check the README column contract.');
       if (response.status===403 || result.code==='42501') return new Error('Supabase denied this action. Check table grants and row-level security policies.');
       if (response.status===401) return new Error('Supabase could not authorize this request. Check that the running app uses the same project settings as check:db.');

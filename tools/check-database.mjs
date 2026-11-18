@@ -31,7 +31,7 @@ async function main(){
       // Print only a recognized error code; omit project credentials and report content.
       let code='';try{const data=await response.json();if(/^[A-Z0-9]{3,12}$/.test(data.code||''))code=data.code;}catch{}
       console.error(`${name}: HTTP ${response.status}${code?' ('+code+')':''}.`);
-      if(code==='PGRST205'||code==='42P01')console.error(numeric?'The API cannot find this table/view. Use supabase/SETUP_PRESERVE_EXISTING.sql for the confirmed schema. If already seeded, check names and API exposure; do not reset existing rows.':'The API cannot find this table/view. Inspect your schema and use the matching setup file; do not reset existing tables.');
+      if(code==='PGRST205'||code==='42P01')console.error(numeric?'The API cannot find this table/view. If already seeded, check names and API exposure; do not reset existing rows.':'The API cannot find this table/view. Check that the tables exist in Supabase.');
       else if(response.status===401)console.error('Check that the URL and publishable key belong to the same Supabase project.');
       else if(response.status===403||code==='42501')console.error('Check the migration grants and RLS policies. Do not disable RLS.');
       else console.error('Check the SQL setup and project status. Inspect detailed errors in Supabase without sharing credentials.');
