@@ -47,7 +47,15 @@ const cors = {
   'Access-Control-Allow-Headers': 'authorization, apikey, content-type, x-client-info, x-cron-secret',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
-const handle = makeHandler({ store, classify: classifySubmission, cronSecret: () => Deno.env.get('CRON_SECRET') });
+// EdgeRuntime.waitUntil lets the sweep of older unchecked reports finish after the student already has their answer.
+// deno-lint-ignore no-explicit-any
+const edge = (globalThis as any).EdgeRuntime;
+const handle = makeHandler({
+  store,
+  classify: classifySubmission,
+  cronSecret: () => Deno.env.get('CRON_SECRET'),
+  background: edge?.waitUntil ? (work) => edge.waitUntil(work) : undefined,
+});
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
