@@ -1,0 +1,90 @@
+/* Report a Spot page. Loaded after styles.css, so colors, buttons, fields, the header and the floor-plan
+ * palette all come from the main site's tokens. Only the page layout and the draggable pin live here. */
+
+a.brand,a.nav-link,a.primary-button,a.secondary-button,a.back-button{text-decoration:none}
+a.nav-link{box-sizing:border-box}
+a.back-button{display:inline-flex;align-items:center;min-height:44px}
+.report-back{margin-bottom:6px}
+
+/* Three blocks: where, map, details. Two columns on wide screens, one column in reading order on small ones. */
+.report-layout{display:grid;grid-template-columns:minmax(300px,380px) minmax(0,1fr);grid-template-areas:"where map" "details map";gap:20px;align-items:start}
+.report-where{grid-area:where}
+.report-details{grid-area:details}
+.report-map{grid-area:map;position:sticky;top:16px}
+.report-block,.report-done{background:var(--beige);border:1px solid var(--line);border-radius:var(--radius);padding:22px;min-width:0}
+.report-block h2,.report-done h2{display:flex;align-items:center;gap:10px;margin:0 0 4px}
+.step-num{display:inline-grid;place-items:center;width:26px;height:26px;flex:none;border-radius:50%;background:var(--sage);color:var(--accent-ink);font-size:13px;font-weight:800}
+.report-block .form-field{margin:14px 0 0}
+.report-block .form-field select,.report-block .form-field input,.report-block .form-field textarea{width:100%}
+.report-block .building-checks{margin-top:16px}
+.report-who{margin:16px 0 0;color:var(--muted);font-size:12px;line-height:1.5}
+.report-actions{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:8px;margin-top:18px}
+
+/* Map block */
+.report-map-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.pin-hint{margin:10px 0 12px;color:var(--muted);font-size:13px;line-height:1.5}
+.report-plan{position:relative;overflow:hidden;border:1px solid var(--line);border-radius:10px;background:var(--map-canvas)}
+.report-scroll{height:clamp(320px,62dvh,640px);overflow:auto;overscroll-behavior:contain;scrollbar-width:thin}
+.report-stage{position:relative;min-width:100%;line-height:0;cursor:crosshair;background:var(--map-canvas)}
+.report-stage .digital-floor-svg{display:block;width:100%;height:auto}
+.report-stage .map-space[data-room],.report-stage .map-room{cursor:crosshair}
+.report-plan-status{display:grid;justify-items:center;gap:12px;padding:48px 20px;margin:0;line-height:1.5;text-align:center;color:var(--muted);font-size:14px}
+.pin-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:10px;min-height:32px}
+.pin-readout{font-size:13px;font-weight:800;color:var(--espresso)}
+.report-map .floor-disclaimer{margin:8px 0 0}
+
+/* The pin you drag. Tip of the teardrop sits on the chosen point. */
+.report-pin{position:absolute;z-index:3;width:34px;height:34px;padding:0;border:3px solid #fff;border-radius:50% 50% 50% 0;background:var(--terracotta);color:#fff;transform:translate(-50%,-100%) rotate(-45deg);transform-origin:50% 50%;box-shadow:0 3px 10px #0007;cursor:grab;touch-action:none;display:grid;place-items:center;line-height:1}
+.report-pin>span{transform:rotate(45deg);font-size:18px;font-weight:900}
+.report-pin:active,.report-pin.is-dragging{cursor:grabbing;box-shadow:0 0 0 5px #d48b7466,0 6px 14px #0008}
+.report-pin.is-locked{cursor:default;background:var(--sage);color:var(--accent-ink);box-shadow:0 3px 10px #0007}
+.report-pin:active{transform:translate(-50%,-100%) rotate(-45deg)}
+
+/* Confirmation, shown in place of the form blocks */
+.report-layout.is-sent .report-where,.report-layout.is-sent .report-details{display:none}
+.report-layout.is-sent{grid-template-areas:"done map"}
+.report-done{grid-area:done;border-color:var(--sage);background:var(--beige)}
+.report-done:focus{outline:none}
+.report-done h2{font-size:22px;margin-bottom:10px}
+.done-lead{color:var(--muted);font-size:14px;line-height:1.6;margin:0 0 16px}
+.done-list{margin:0;display:grid;gap:12px}
+.done-list>div{display:grid;gap:3px;padding-top:12px;border-top:1px solid var(--line)}
+.done-list dt{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.done-list dd{margin:0;font-size:14px;line-height:1.5;overflow-wrap:anywhere}
+.done-status{display:inline-block;padding:4px 10px;border-radius:999px;background:var(--sage);color:var(--accent-ink);font-size:12px;font-weight:800}
+
+@media(max-width:900px){
+  .report-layout,.report-layout.is-sent{grid-template-columns:minmax(0,1fr);grid-template-areas:"where" "map" "details"}
+  .report-layout.is-sent{grid-template-areas:"done" "map"}
+  .report-map{position:static}
+  .report-scroll{height:clamp(300px,52svh,520px)}
+  .report-block,.report-done{padding:16px}
+}
+
+/* Tabs on the right-hand block: floor plan / recent reports */
+.report-tabs{display:flex;gap:8px;margin-bottom:16px}
+.report-tab{flex:1 1 0;min-height:44px;padding:10px 14px;border:1px solid var(--line);border-radius:10px;background:var(--cream);color:var(--espresso);font-size:13px;font-weight:800}
+.report-tab:hover{border-color:var(--sage)}
+.report-tab.is-selected{background:var(--sage);border-color:var(--sage);color:var(--accent-ink)}
+.recent-list{margin-top:4px}
+.recent-items{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.recent-item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px;border:1px solid var(--line);border-radius:10px;background:var(--cream)}
+.recent-item>div{display:grid;gap:3px;min-width:0}
+.recent-item strong{overflow-wrap:anywhere}
+.recent-item span,.recent-item small{color:var(--muted);font-size:12px;line-height:1.4}
+.recent-item .status-badge{color:var(--accent-ink)}
+.status-badge{flex:none;padding:5px 11px;border-radius:999px;font-size:12px;font-weight:800;white-space:nowrap}
+.status-badge.is-pending{background:#e8c5b8}
+.status-badge.is-approved{background:var(--sage)}
+.status-badge.is-rejected{background:var(--line)}
+.recent-empty{display:grid;justify-items:start;gap:14px;margin:0;padding:20px;border:1px dashed var(--line);border-radius:10px;color:var(--muted);font-size:14px;line-height:1.5}
+.recent-filters{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}
+.recent-filter{min-height:38px;padding:6px 12px;border:1px solid var(--line);border-radius:999px;background:var(--cream);color:var(--espresso);font-size:12px;font-weight:800}
+.recent-filter span{margin-left:4px;color:var(--muted)}
+.recent-filter:hover{border-color:var(--sage)}
+.recent-filter.is-selected{background:var(--sage);border-color:var(--sage);color:var(--accent-ink)}
+.recent-filter.is-selected span{color:var(--accent-ink)}
+.done-status.is-denied{background:var(--terracotta);color:var(--accent-ink)}
+.report-done.is-denied{border-color:var(--terracotta)}
+.recent-reason{font-style:italic}
+.done-note{margin:16px 0 0;color:var(--muted);font-size:13px;line-height:1.5}

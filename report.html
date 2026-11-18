@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#F7F4EB">
+  <meta name="description" content="Report a study spot that is missing from Nook and drop a pin on the floor plan to show exactly where it is.">
+  <title>Nook | Report a spot</title>
+  <link rel="icon" type="image/png" href="assets/nook-logo.png">
+  <!-- Same stylesheet and connection scripts as the main site; report.css only adds this page's layout. -->
+  <link rel="stylesheet" href="styles.css?v=20261117-arrival-panel">
+  <link rel="stylesheet" href="report.css?v=20261117-guest">
+  <script defer src="supabase-config.js?v=20261104-restore"></script>
+  <script defer src="database.js?v=20261117-guest"></script>
+  <script defer src="auth.js?v=20261113-profile"></script>
+  <script defer src="report.js?v=20261117-final"></script>
+</head>
+<body>
+  <a class="skip-link" href="#mainContent">Skip to content</a>
+  <div class="app-shell">
+    <div class="site-header">
+      <header class="topbar">
+        <a class="brand" href="index.html" aria-label="Nook home">
+          <img class="brand-mark" src="assets/nook-logo.png" alt="">
+          <span>Nook</span>
+        </a>
+        <nav class="topnav" aria-label="Main navigation">
+          <a id="navExplore" class="nav-link" href="index.html">Explore</a>
+          <a id="navSaved" class="nav-link" href="index.html?view=saved">My Nooks</a>
+          <a id="navReport" class="nav-link nav-report is-active" href="report.html" aria-current="page"><span>Report a Spot</span></a>
+          <a id="navAuth" class="nav-link nav-auth nav-login" href="index.html">Log in</a>
+        </nav>
+      </header>
+      <section id="databaseWarning" class="database-banner" role="status" aria-live="polite" hidden>
+        <p>Supabase is not connected, so reports cannot be sent right now.</p>
+      </section>
+    </div>
+
+    <main id="mainContent" tabindex="-1">
+      <a class="back-button report-back" href="index.html">← Back to explore</a>
+      <div class="page-heading">
+        <div>
+          <p class="kicker">Report a spot</p>
+          <h1>Know a Nook we are missing?</h1>
+          <p class="intro">Tell us about it and drop a pin on the floor plan so we can find it. Our team reviews every report by hand before anything appears on the map.</p>
+        </div>
+      </div>
+
+      <form id="reportForm" class="report-layout" novalidate>
+        <!-- 1. Where: building and floor plan sheet -->
+        <section class="report-block report-where" aria-labelledby="whereTitle">
+          <h2 id="whereTitle"><span class="step-num" aria-hidden="true">1</span> Where is it?</h2>
+          <div class="form-field"><label for="reportBuilding">Building</label><select id="reportBuilding" name="building"></select></div>
+          <div class="form-field"><label for="reportPlan">Floor plan</label><select id="reportPlan" name="plan"></select></div>
+        </section>
+
+        <!-- 2. Drop the pin on the plan -->
+        <section class="report-block report-map" aria-label="Floor plan and recent reports">
+          <div class="report-tabs" role="tablist" aria-label="Floor plan or recent reports">
+            <button id="tabPlan" class="report-tab is-selected" type="button" role="tab" aria-selected="true" aria-controls="panelPlan">Floor plan</button>
+            <button id="tabRecent" class="report-tab" type="button" role="tab" aria-selected="false" aria-controls="panelRecent" tabindex="-1">Recent reports</button>
+          </div>
+          <div id="panelPlan" role="tabpanel" aria-labelledby="tabPlan">
+          <div class="report-map-head">
+            <h2 id="mapTitle"><span class="step-num" aria-hidden="true">2</span> <span id="mapTitleText">Drop a pin</span></h2>
+            <div class="campus-map-controls" role="group" aria-label="Floor plan zoom">
+              <button id="reportZoomOut" type="button" aria-label="Zoom out">−</button>
+              <output id="reportZoomValue">100%</output>
+              <button id="reportZoomIn" type="button" aria-label="Zoom in">+</button>
+              <button id="reportZoomFit" type="button">Reset</button>
+            </div>
+          </div>
+          <p id="pinHint" class="pin-hint" role="status" aria-live="polite">Click or tap the floor plan to drop a pin, then drag it into place.</p>
+          <div id="reportPlanBox" class="report-plan native-plan" aria-label="Floor plan. Click, or press Enter, to place the pin; drag or use arrow keys to move it.">
+            <div id="reportScroll" class="report-scroll" tabindex="0">
+              <div id="reportStage" class="report-stage"></div>
+            </div>
+          </div>
+          <div class="pin-bar">
+            <span id="pinReadout" class="pin-readout">No pin yet</span>
+            <button id="pinClear" class="subtle-button" type="button" hidden>Remove pin</button>
+          </div>
+          <p class="floor-disclaimer">Floor plans are a schematic guide. Put the pin as close to the spot as you can.</p>
+          </div>
+          <div id="panelRecent" role="tabpanel" aria-labelledby="tabRecent" hidden>
+            <div class="report-map-head"><h2 id="recentTitle">Your recent reports</h2><button id="recentRefresh" class="subtle-button" type="button">Refresh</button></div>
+            <p class="pin-hint">Everything you have reported. Pending means our team has not reviewed it yet, Added means it was approved and put on the map, and Denied means it was not approved.</p>
+            <div id="recentList" class="recent-list" aria-live="polite"></div>
+          </div>
+        </section>
+
+        <!-- 3. Spot details (same questions as the old report dialog) -->
+        <section class="report-block report-details" aria-labelledby="detailsTitle">
+          <h2 id="detailsTitle"><span class="step-num" aria-hidden="true">3</span> Tell us about it</h2>
+          <div class="form-field"><label for="reportName">Spot name</label><input id="reportName" name="name" required maxlength="60" placeholder="Example: east wing tables"></div>
+          <div class="form-field"><label for="reportType">Space type</label><select id="reportType" name="type"><option value="solo">Individual</option><option value="group">Group</option></select></div>
+          <div class="form-field" id="reportCapacityWrap" hidden><label for="reportCapacity">Maximum group size (2-6)</label><input id="reportCapacity" name="capacity" type="number" min="2" max="6" value="4"></div>
+          <div class="form-field"><label for="reportNoise">Usual noise</label><select id="reportNoise" name="noise"><option value="low">Quiet</option><option value="medium">Social</option></select></div>
+          <div class="building-checks">
+            <label class="building-check"><input type="checkbox" name="private"><span>Private or separated</span></label>
+            <label class="building-check"><input type="checkbox" name="outlets"><span>Outlets nearby</span></label>
+          </div>
+          <div class="form-field"><label for="reportDetail">Location details (optional)</label><textarea id="reportDetail" name="detail" maxlength="160" placeholder="Nearby landmark or entrance. Do not include personal information."></textarea></div>
+          <p id="reportWho" class="report-who"></p>
+          <p class="form-error" id="reportError" role="alert" hidden></p>
+          <div class="report-actions">
+            <a class="secondary-button" href="index.html">Cancel</a>
+            <button id="reportSubmit" class="primary-button" type="submit">Report spot</button>
+          </div>
+        </section>
+
+        <!-- Shown in place of the form once the report is sent. -->
+        <section id="reportDone" class="report-done" role="status" tabindex="-1" aria-labelledby="doneTitle" hidden></section>
+      </form>
+    </main>
+
+    <footer class="site-footer"><span class="footer-copy"><span>© 2026 Nook.</span><span>Less wandering, more studying.</span><span>Sincerely, Nook.</span></span><span class="footer-links"><a class="footer-button" href="https://map.byu.edu/" target="_blank" rel="noopener noreferrer">BYU Campus Map</a></span></footer>
+  </div>
+</body>
+</html>

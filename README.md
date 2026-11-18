@@ -22,7 +22,7 @@ No setup is needed to try it: open **https://byunook.vercel.app** in any browser
 4. **Open a spot.** Click a pin or a search result to see its details, including the latest crowd and noise report ("No recent data" if nobody has reported in the last 45 minutes).
 5. **Choose a spot and report conditions.** Click **Choose this spot**, set noise and crowding, add an optional note, and click **Confirm report**. Other students see this the next time they load the page.
 6. **Create an account (optional).** Click **Log in**, then sign up with your email and confirm it from the link we send you. Signed-in users can save spots to **Favorites** and custom lists under **My Nooks**, and their reports are checked by AI before they affect the map.
-7. **Suggest a new spot.** Use the suggestion option in the navigation to submit a study spot we are missing.
+7. **Report a new spot.** Click **Report a Spot** in the navigation to open its own page (`/report.html`); no account is needed. Pick a building and floor plan, click the plan to drop a pin (drag it to fine-tune), fill in the spot details, and send it. Reports wait as pending until the team reviews them, so they do not appear on the map right away. Signed-in users can open the **Recent reports** tab on that page to see each report as Pending, Added, or Denied, with filters for each.
 8. **Admins only.** Admin accounts see extra menu items: **Dev tools** (`/admin.html`: Maintain Users, Maintain Records, and floor-plan pin editors, unlocked with an admin code) and **Impact** (`/okr.html`: objectives and key results computed from real app activity).
 
 ## ERD
@@ -49,7 +49,7 @@ The core schema uses six ERD tables: `Buildings`, `Floors`, `SpotType`, `Study S
 
 - **Frontend:** hand-built HTML, CSS, JavaScript, and SVG floor maps (no framework or build step).
 - **Backend/database:** Supabase (PostgreSQL, REST API, Auth, row-level security, Edge Functions in `supabase/functions/`).
-- **AI tagging:** Gemini, called only from the `tag-report` Edge Function.
+- **AI tagging and spam filtering:** Gemini, called only from the `tag-report` (status reports) and `check-spot-submission` (new-spot reports) Edge Functions.
 - **Local server:** Node.js 22+ (`server.mjs`) loads connection settings from `.env` and serves the app.
 - **Hosting:** Vercel serves the static files (`vercel.json`); Supabase hosts the data and functions.
 - **Tests:** Node's built-in test runner, with `linkedom` and `@electric-sql/pglite` as dev dependencies.
@@ -61,6 +61,7 @@ This approach keeps our custom map interface easy to edit while Supabase handles
 | `index.html`, `app.js`, `styles.css` | Main app: map, filters, spot dialog, favorites |
 | `database.js`, `auth.js`, `supabase-config.js` | Supabase data access, authentication, and config |
 | `admin.*`, `okr.*` | Admin portal and Impact (OKR) page |
+| `report.*` | Report a Spot page: form plus a draggable floor-plan pin |
 | `hbll-plans.js`, `wsc-plans.js`, `jkb-plans.js`, `assets/` | Floor-plan data and source drawings |
 | `server.mjs` | Local server and `/api/config` |
 | `supabase/` | Migrations, seed data, and Edge Functions |

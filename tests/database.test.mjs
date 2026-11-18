@@ -58,6 +58,7 @@ test('spot submissions allow group capacity six and reject larger groups',async(
     requests.push({url,options});
     return new Response(null,{status:201});
   });
+  client.checkSubmission=async()=>({status:'pending',reason:''}); // the spam check has its own tests
   client.loading=false;
   client.config={...config};
   const input={building:'WSC',floorNumber:1,floorLabel:'Floor 1',name:'Group study tables',type:'group',capacity:6,noise:'low'};
