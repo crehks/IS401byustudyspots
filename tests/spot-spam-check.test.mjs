@@ -7,7 +7,7 @@ import '../database.js';
 
 const dir='../supabase/functions/check-spot-submission/';
 const {parseVerdict,classifySubmission}=await import(dir+'llm.ts');
-const {makeHandler,check,MAX_ATTEMPTS,SWEEP_LIMIT}=await import(dir+'handler.ts');
+const {makeHandler,check,MAX_ATTEMPTS,SWEEP_LIMIT,SWEEP_MAX_ATTEMPTS}=await import(dir+'handler.ts');
 
 const submission={name:'East hall tables',details:null,building:'Wilkinson Student Center',floor:'Floor 1 East',kind:'individual study spot'};
 const withEnv=async(env,fn)=>{
@@ -47,7 +47,7 @@ const fakeStore=(rows,{user=7,saveOk=true}={})=>{
   const log={saves:[],lists:[]};
   return {log,store:{
     userIdFor:async a=>a==='Bearer good'?user:null,
-    unchecked:async o=>{log.lists.push(o);return rows.filter(r=>r.status==='pending'&&!r.checked&&r.attempts<MAX_ATTEMPTS&&(o.userId===undefined||r.user===o.userId)&&(!o.olderThanMs||r.old)).sort((a,b)=>o.newestFirst?b.id-a.id:a.id-b.id).slice(0,o.limit).map(r=>r.id)},
+    unchecked:async o=>{log.lists.push(o);return rows.filter(r=>r.status==='pending'&&!r.checked&&r.attempts<(o.maxAttempts??MAX_ATTEMPTS)&&r.attempts>=(o.minAttempts??0)&&(o.userId===undefined||r.user===o.userId)&&(!o.olderThanMs||r.old)).sort((a,b)=>o.newestFirst?b.id-a.id:a.id-b.id).slice(0,o.limit).map(r=>r.id)},
     claim:async id=>{const r=rows.find(x=>x.id===id&&x.status==='pending'&&!x.checked);if(!r)return null;r.attempts++;return {id,name:r.name,details:null,buildingId:1002,floor:'Floor 1',typeId:1001,attempts:r.attempts-1}},
     save:async(id,patch)=>{log.saves.push({id,patch});if(!saveOk)return false;const r=rows.find(x=>x.id===id);if(patch.status)r.status=patch.status;r.checked=true;r.reason=patch.ai_reason;return true},
   }};
@@ -117,10 +117,13 @@ test('handler: a guest is matched to their own reports by device token only',asy
   assert.equal(rows[1].checked,undefined,"another device's report is untouched");
 });
 
-test('handler: each new report also re-checks a couple of older unchecked ones, with no cron secret',async()=>{
+test('handler: a new report also retries reports whose first check failed, narrowly and with no cron secret',async()=>{
+  // attempts: 1-2 = tried and failed before; 0 = never tried (older than the check, left to the team); 3+ = reserve.
   const mk=()=>[{id:1,user:7,name:'New report',status:'pending',attempts:0},
-    {id:2,user:9,old:true,name:'Old A',status:'pending',attempts:0},{id:3,user:9,old:true,name:'Old B',status:'pending',attempts:0},{id:4,user:9,old:true,name:'Old C',status:'pending',attempts:0},
-    {id:5,user:9,old:true,name:'Gave up',status:'pending',attempts:MAX_ATTEMPTS}];
+    {id:2,user:9,old:true,name:'Failed once A',status:'pending',attempts:1},{id:3,user:9,old:true,name:'Failed once B',status:'pending',attempts:2},{id:4,user:9,old:true,name:'Failed once C',status:'pending',attempts:1},
+    {id:5,user:9,old:true,name:'Reserve tries only',status:'pending',attempts:SWEEP_MAX_ATTEMPTS},
+    {id:6,user:9,old:true,name:'Older than the check',status:'pending',attempts:0},
+    {id:7,user:9,name:'Failed once but under a minute old',status:'pending',attempts:1}];
   // Background mode (Supabase): the answer does not wait for the sweep.
   let rows=mk();const pending=[];
   let {store}=fakeStore(rows);
@@ -128,10 +131,12 @@ test('handler: each new report also re-checks a couple of older unchecked ones, 
   const res=await post(handler,{check:'mine'},{Authorization:'Bearer good'});
   assert.deepEqual((await res.json()).results.map(r=>r.id),[1],'the student only gets their own result back');
   await Promise.all(pending);
-  assert.deepEqual(rows.filter(r=>r.checked).map(r=>r.id),[1,2,3],'plus SWEEP_LIMIT older reports, oldest first');
+  assert.deepEqual(rows.filter(r=>r.checked).map(r=>r.id),[1,2,3],'plus SWEEP_LIMIT retries, oldest first');
   assert.equal(SWEEP_LIMIT,2);
   assert.equal(rows.find(r=>r.id===4).checked,undefined,'only a couple per request');
-  assert.equal(rows.find(r=>r.id===5).checked,undefined,'a report that used all its tries is left for the team');
+  assert.equal(rows.find(r=>r.id===5).checked,undefined,'tries beyond the sweep cap stay in reserve');
+  assert.equal(rows.find(r=>r.id===6).checked,undefined,'reports from before the check existed are never swept');
+  assert.equal(rows.find(r=>r.id===7).checked,undefined,'a report still inside its first minute is not swept');
   // Without a background hook the sweep is simply awaited, and a sweep failure never breaks the student's answer.
   rows=mk();({store}=fakeStore(rows));
   handler=makeHandler({store,classify:async()=>({valid:false,reason:'Spam.'}),cronSecret:()=>undefined});

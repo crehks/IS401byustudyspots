@@ -15,9 +15,10 @@ const store: Store = {
     const { data: row } = await db.from('User').select('user_id').eq('auth_id', data.user.id).maybeSingle();
     return row?.user_id ?? null;
   },
-  async unchecked({ userId, token, olderThanMs, limit, newestFirst }) {
+  async unchecked({ userId, token, olderThanMs, minAttempts, maxAttempts, limit, newestFirst }) {
     let q = db.from('SpotSubmission').select('submission_id')
-      .eq('status', 'pending').is('ai_checked_at', null).lt('attempts', MAX_ATTEMPTS);
+      .eq('status', 'pending').is('ai_checked_at', null).lt('attempts', maxAttempts ?? MAX_ATTEMPTS);
+    if (minAttempts !== undefined) q = q.gte('attempts', minAttempts);
     if (userId !== undefined) q = q.eq('user_id', userId);
     if (token !== undefined) q = q.eq('client_token', token);
     if (olderThanMs) q = q.lt('created_at', new Date(Date.now() - olderThanMs).toISOString());
