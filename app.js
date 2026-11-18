@@ -198,7 +198,7 @@ async function loadReservationLinks(){
 let reportSubmissionPending=false;
 const choiceTimer=new ChoiceTimer();
 // Temporary screen choices. Save filters copies a preset into device data.
-const state={view:'explore',building:'HBLL',floor:'L3',zoom:1,selectedSpot:null,locatedSpot:null,arrivalReadySpot:null,selectedRoom:null,nooksVisible:true,resourcesVisible:false,selectedResource:null,selectedList:'favorites',listEditMode:false,study:'any',noise:'any',layout:'any',outlets:false,groupSize:4,buildings:new Set(['HBLL','WSC','JKB'])};
+const state={view:'explore',building:'HBLL',floor:'L3',zoom:1,selectedSpot:null,locatedSpot:null,arrivalReadySpot:null,nooksVisible:true,resourcesVisible:false,selectedResource:null,selectedList:'favorites',listEditMode:false,study:'any',noise:'any',layout:'any',outlets:false,groupSize:4,buildings:new Set(['HBLL','WSC','JKB'])};
 // Pin positions use the original PDF page; rendering subtracts the crop offset.
 const WILK_STUDY_POINTS={
   'wsc-tables':[255,253],'wsc-lounge':[698,350],
@@ -766,13 +766,10 @@ function renderBuilding(){
   const hasSides=isDigital&&building.floors.filter(f=>f.level===floor.level).length>1;
   const levels=[...new Set(building.floors.map(f=>f.level))].sort((a,b)=>a-b);
     const groundLevel=building.floors.find(f=>f.id===building.groundFloor)?.level;
-  $('#planFloorLabel').textContent=floor.label;
-  $('#planGroundFloorBadge').innerHTML=`${GROUND_FLOOR_STAR}<span>Ground Floor</span>`;
-  $('#planGroundFloorBadge').hidden=floor.level!==groundLevel;
   $('#floorTabs').innerHTML=loadingPlans?'':isDigital?levels.map(level=>`<button class="floor-tab ${floor.level===level?'is-selected':''} ${level===groundLevel?'is-ground':''}" data-${state.building.toLowerCase()}-level="${level}" type="button" aria-label="${level===0?'Basement':`Floor ${level}`}${level===groundLevel?', ground floor':''}" title="${level===groundLevel?'Ground floor':''}">${level===groundLevel?GROUND_FLOOR_STAR:''}<span>${level===0?'B':level}</span></button>`).join(''):building.floors.map(f=>`<button class="floor-tab ${f.id===state.floor?'is-selected':''} ${f.level===groundLevel?'is-ground':''}" data-floor="${f.id}" type="button" aria-label="${esc(f.label)}${f.level===groundLevel?', ground floor':''}" title="${f.level===groundLevel?'Ground floor':''}">${f.level===groundLevel?GROUND_FLOOR_STAR:''}<span>${esc(f.label)}</span></button>`).join('');
   $('#floorSideTabs').hidden=!hasSides;
   $('#floorSideTabs').innerHTML=hasSides?sides.map(side=>`<button class="floor-tab ${floor.side===side?'is-selected':''}" data-${isHbll?'hbll':'wsc'}-side="${side}" type="button">${side}</button>`).join(''):'';
-  $('#planAssetBar').hidden=!isDigital;
+  $('#floorMapControls').hidden=!isDigital;
   $('#roomTools').hidden=!isDigital;$('#mapInstructions').hidden=!isDigital;
   $('#floorDisclaimer').hidden=isDigital;
   $('#toggleNooks').hidden=!isDigital;
@@ -781,7 +778,6 @@ function renderBuilding(){
   $('#toggleNooks').setAttribute('aria-pressed',String(state.nooksVisible));
   $('#toggleResources').setAttribute('aria-pressed',String(state.resourcesVisible));
   $('#resourceFilters').hidden=!(isDigital&&state.resourcesVisible);
-  if(!isDigital)$('#selectedRoomPanel').hidden=true;
   if(isDigital){$('#zoomOut').disabled=state.zoom<=1;$('#zoomIn').disabled=state.zoom>=8}
   const spots=allSpots().filter(s=>s.building===state.building&&floorIds(state.building,state.floor).includes(s.floor));
   $('#mapModeEmptyNotice').hidden=true;
@@ -812,8 +808,13 @@ function renderBuilding(){
     }
     $('#floorLegend').innerHTML=`<span><i class="map-key-swatch room"></i>Rooms</span><span><i class="map-key-swatch open"></i>Open areas</span>`+(state.nooksVisible?`<span><i class="legend-type-icon">${SPOT_TYPE_ICON.solo}</i>Individual</span><span><i class="legend-type-icon">${SPOT_TYPE_ICON.group}</i>Group</span><span>Number shows seats</span>`:`<span><i class="map-key-swatch service"></i>Resources</span>`)+(addedResources.length?'<span><i class="legend-dot resource"></i>Added resources</span>':'')+(digital.hasStairTargets?'<span><i class="stair-entrance-key"></i>Hover stairs for entrance</span>':'');
     $('#mapNorth').innerHTML=`N <span style="display:inline-block;transform:rotate(${digital.north}deg)">↑</span>`;
+    // Room-number overlays are labels only; floor-map interactions are reserved for spots and map controls.
+    $$('#floorPlan .digital-floor-svg > desc').forEach(description=>{
+      description.textContent=description.textContent.replace(/Select a numbered room to locate it\.?/gi,'Room numbers are labels; study-spot pins are interactive.');
+    });
+    $$('#floorPlan .map-room').forEach(label=>{label.removeAttribute('role');label.removeAttribute('tabindex')});
     mapResizeObserver.disconnect();mapResizeObserver.observe(plan);
-    setMapInteraction(!isCompactLayout());resizeDigitalMap();installMapPan();updateRoomHighlight();
+    setMapInteraction(!isCompactLayout());resizeDigitalMap();installMapPan();
   }else if(loadingPlans){
     plan.className='floor-plan';plan.setAttribute('aria-label','Loading floor map');
     plan.innerHTML='<p class="plan-loading" role="status">Loading floor map…</p>';
@@ -828,7 +829,13 @@ function renderBuilding(){
   const matched=spots.filter(matches).sort((a,b)=>rank(a)-rank(b));
   const selected=spots.find(s=>s.id===state.selectedSpot);
   const arrivalFocus=spots.find(s=>s.id===state.arrivalReadySpot);
-  $('#studyResults').classList.toggle('is-arrival-focused',!!arrivalFocus);
+  const arrivalFocused=!!arrivalFocus;
+  $('#studyResults').classList.toggle('is-arrival-focused',arrivalFocused);
+  $('#backToMatchingSpots').hidden=!arrivalFocused;
+  $('#resultsHead').hidden=arrivalFocused;
+  $('#activeFilterControls').hidden=arrivalFocused;
+  $('#keepSearching').hidden=arrivalFocused;
+  $('#mobileSpotCount').hidden=arrivalFocused;
   const displayed=arrivalFocus?[arrivalFocus]:selected&&!matched.some(s=>s.id===selected.id)?[selected,...matched]:matched;
   $('#mobileSpotCount').textContent=arrivalFocus?1:matched.length;
   $('#resultsHeading').textContent=`Study spots (${arrivalFocus?1:matched.length})`;
@@ -852,9 +859,9 @@ function renderBuilding(){
   }).join(''):`<div class="empty-state"><h3>No matching spots on this floor</h3><p>Try another floor or update your filters.</p><button type="button" class="secondary-button" data-action="edit">Edit filters</button></div>`;
   const located=spots.find(s=>s.id===state.locatedSpot),locatedPanel=$('#locatedSpotPanel');
   locatedPanel.hidden=!(isDigital&&located);
-  if(isDigital&&located){const room=located.room||located.roomNumber,arrivalAction=state.arrivalReadySpot===located.id?`<button type="button" class="primary-button is-en-route arrival-stage-action" data-arrival-stage="${esc(located.id)}" aria-pressed="true" ${database.loading||!database.configLoaded?'disabled':''}>I've Arrived</button>`:'';locatedPanel.innerHTML=`<div><strong>${esc(located.name)}</strong><span>${esc(floorLabel(located))}${room?` · Room ${esc(room)}`:located.detail?` · ${esc(located.detail)}`:''}</span></div>${arrivalAction}<button type="button" data-clear-located-spot aria-label="Clear located spot">×</button>`}
+  if(isDigital&&located){const room=located.room||located.roomNumber,focusBack=state.arrivalReadySpot===located.id?`<button type="button" class="arrival-map-back" data-back-to-matches aria-label="Back to all matching spots" title="Back to all matching spots"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>`:'',arrivalAction=state.arrivalReadySpot===located.id?`<button type="button" class="primary-button is-en-route arrival-stage-action" data-arrival-stage="${esc(located.id)}" aria-pressed="true" ${database.loading||!database.configLoaded?'disabled':''}>I've Arrived</button>`:'';locatedPanel.innerHTML=`<div><strong>${esc(located.name)}</strong><span>${esc(floorLabel(located))}${room?` · Room ${esc(room)}`:located.detail?` · ${esc(located.detail)}`:''}</span></div>${focusBack}${arrivalAction}<button type="button" data-clear-located-spot aria-label="Clear located spot">×</button>`}
   const queueIndex=searchBuildingQueue.indexOf(state.building);if(queueIndex>=0)searchBuildingIndex=queueIndex;else if(searchBuildingQueue.length)searchBuildingIndex=searchBuildingQueue.length-1;
-  const nextBuilding=searchBuildingQueue[searchBuildingIndex+1];$('#keepSearching').textContent=nextBuilding?`Try the ${nextBuilding} next`:'Back to campus map';$('#keepSearching').hidden=false;
+  const nextBuilding=searchBuildingQueue[searchBuildingIndex+1];$('#keepSearching').textContent=nextBuilding?`Try the ${nextBuilding} next`:'Back to campus map';
   $$('#floorTabs button,#floorSideTabs button').forEach(button=>button.setAttribute('aria-pressed',button.classList.contains('is-selected')));
   restoreFocus();
 }
@@ -899,10 +906,10 @@ function render(){renderFilters();renderRecommendations();if(state.view==='build
 function focusView(){const heading=$(`#${state.view}View h1`);heading?.setAttribute('tabindex','-1');heading?.focus({preventScroll:true})}
 function setView(view){const changed=state.view!==view;if(changed)viewHistory.push(state.view);state.view=view;render();if(changed)focusView();if(!isCompactLayout())window.scrollTo({top:0,behavior:'smooth'})}
 function goBack(){state.view=viewHistory.pop()||'explore';render();focusView();if(!isCompactLayout())window.scrollTo({top:0,behavior:'smooth'})}
-// Changing drawings clears the previous room and spot selection.
-function openBuilding(id,floor,panel=isCompactLayout()?'spots':'map'){if(!BUILDINGS[id])return;$('#campusComingSoon').hidden=true;state.building=id;let normalizedFloor=floor;if(id==='HBLL'&&floor)normalizedFloor=floor.replace(/N$/,'');if(id==='WSC'&&floor&&/^([1-3])[EW]$/.test(floor))normalizedFloor=floor.slice(0,1);state.floor=normalizedFloor||BUILDINGS[id].groundFloor||BUILDINGS[id].floors[0].id;state.zoom=1;state.selectedSpot=null;state.locatedSpot=null;state.selectedRoom=null;setBuildingPanel(panel);setView('building')}
+// Changing drawings clears the previous spot selection.
+function openBuilding(id,floor,panel=isCompactLayout()?'spots':'map'){if(!BUILDINGS[id])return;$('#campusComingSoon').hidden=true;state.building=id;let normalizedFloor=floor;if(id==='HBLL'&&floor)normalizedFloor=floor.replace(/N$/,'');if(id==='WSC'&&floor&&/^([1-3])[EW]$/.test(floor))normalizedFloor=floor.slice(0,1);state.floor=normalizedFloor||BUILDINGS[id].groundFloor||BUILDINGS[id].floors[0].id;state.zoom=1;state.selectedSpot=null;state.locatedSpot=null;setBuildingPanel(panel);setView('building')}
 function centerLocatedSpot(id){requestAnimationFrame(()=>requestAnimationFrame(()=>{if(isCompactLayout())setMapInteraction(true);const viewport=$('.plan-scroll'),marker=$$('#floorPlan [data-spot]').find(button=>button.dataset.spot===id);if(!viewport||!marker)return;const vr=viewport.getBoundingClientRect(),mr=marker.getBoundingClientRect();viewport.scrollLeft+=mr.left+mr.width/2-(vr.left+vr.width/2);viewport.scrollTop+=mr.top+mr.height/2-(vr.top+vr.height/2)}))}
-function locateSpotOnMap(id,zoom=2.4){const spot=spotById(id);if(!spot)return;if(state.view!=='building'||state.building!==spot.building||state.floor!==spot.floor)openBuilding(spot.building,spot.floor,'map');else setBuildingPanel('map');state.selectedSpot=spot.id;state.locatedSpot=spot.id;state.selectedRoom=null;state.nooksVisible=true;state.resourcesVisible=false;state.zoom=zoom;renderBuilding();if(buildingPlans(spot.building))centerLocatedSpot(spot.id);else loadPlans(spot.building).then(()=>{if(state.view==='building'&&state.building===spot.building&&state.locatedSpot===spot.id){renderBuilding();centerLocatedSpot(spot.id)}}).catch(()=>showToast('Floor map could not load. Check your connection and try again.'))}
+function locateSpotOnMap(id,zoom=2.4){const spot=spotById(id);if(!spot)return;if(state.view!=='building'||state.building!==spot.building||state.floor!==spot.floor)openBuilding(spot.building,spot.floor,'map');else setBuildingPanel('map');state.selectedSpot=spot.id;state.locatedSpot=spot.id;state.nooksVisible=true;state.resourcesVisible=false;state.zoom=zoom;renderBuilding();if(buildingPlans(spot.building))centerLocatedSpot(spot.id);else loadPlans(spot.building).then(()=>{if(state.view==='building'&&state.building===spot.building&&state.locatedSpot===spot.id){renderBuilding();centerLocatedSpot(spot.id)}}).catch(()=>showToast('Floor map could not load. Check your connection and try again.'))}
 // 7. Floor tools. Fit preserves aspect ratio; zoom multiplies the fitted size.
 function resizeDigitalMap(){
   const plan=buildingPlans()?.[state.floor];if(!plan||!$('#planStage'))return;
@@ -966,20 +973,6 @@ function installMapPan(){
   viewport.addEventListener('pointerup',finish);viewport.addEventListener('pointercancel',finish);viewport.addEventListener('lostpointercapture',finish);
   viewport.addEventListener('click',event=>{if(ignoreClick){event.preventDefault();event.stopPropagation()}},true);
 }
-// Select a room directly on the current floor map.
-function selectRoom(number){
-  const floor=state.floor;
-  const plan=buildingPlans()?.[floor],room=plan?.rooms.find(r=>r.number===number);if(!room)return;
-  state.selectedRoom={number,floor};state.selectedSpot=null;state.locatedSpot=null;state.selectedResource=null;renderBuilding();
-}
-// Keep the SVG highlight and selected-room panel in sync.
-function updateRoomHighlight(){
-  const current=state.selectedRoom?.floor===state.floor?state.selectedRoom:null;
-  const plan=buildingPlans()?.[state.floor];
-  $$('#floorPlan [data-room]').forEach(el=>el.classList.toggle('is-selected',el.dataset.room===current?.number));
-  const panel=$('#selectedRoomPanel');panel.hidden=!current;
-  if(current&&plan){panel.innerHTML=`<div><span class="room-selection-label">On the map</span><h3>Room ${esc(current.number)}</h3><p>${esc(plan.label)} · ${esc(BUILDINGS[state.building].short)}</p></div><button type="button" data-clear-room aria-label="Clear selected room">×</button>`}
-}
 // 8. Dialogs. Keep the original opener across nested dialogs and restore it on close.
 function resetArrivalStage(id=$('#arrivalForm')?.dataset.id){if(!id)return;if(state.arrivalReadySpot===id)state.arrivalReadySpot=null;const button=$$('[data-arrival-stage]').find(item=>item.dataset.arrivalStage===id);if(button){button.textContent='Head Here';button.classList.remove('is-en-route');button.setAttribute('aria-pressed','false')}}
 function closeModal(force=false){if(!force&&reportSubmissionPending&&$('#arrivalForm'))return;const arrivalId=$('#arrivalForm')?.dataset.id;const backdrop=$('#modalBackdrop');backdrop.hidden=true;$('#modal').innerHTML='';$('.app-shell').removeAttribute('inert');document.body.style.overflow='';if(arrivalId){resetArrivalStage(arrivalId);if(state.view==='building')renderBuilding()}if(closeModal.focus?.isConnected)closeModal.focus.focus({preventScroll:true});else focusView()}
@@ -987,14 +980,26 @@ function closeModal(force=false){if(!force&&reportSubmissionPending&&$('#arrival
 function openModal(html){if(reportSubmissionPending)return;if($('#modalBackdrop').hidden)closeModal.focus=document.activeElement;$('#modal').innerHTML=html;$('#modalBackdrop').hidden=false;$('.app-shell').setAttribute('inert','');document.body.style.overflow='hidden';$('#modal').querySelector('button, input, select')?.focus()}
 function modalHeader(title){return `<div class="modal-top"><h2 id="modalTitle">${esc(title)}</h2><button class="modal-close" type="button" data-modal-close aria-label="Close">×</button></div>`}
 // Combine sample spot details with the latest report from the chosen store.
+function latestReportMarkup(spot,report){
+  if(spot.reserved)return `<div class="reservation-info"><p>${reservationLinks[spot.building]?'Reservations are required for this room. Use the BYU reservation link below to check availability and book.':'Reservations are required for this room. Check with the building for booking details.'}</p></div>`;
+  if(!report&&usesDatabase(spot)&&database.error)return `<p class="form-error latest-report-error">${esc(database.error)}</p>`;
+  const noise=report?report.noise:currentNoise(spot),busy=report?report.busy:currentBusy(spot);
+  const noiseText=noiseLabel(noise)||'Not available',busyText=({low:'Light',medium:'Moderate',high:'Busy'})[busy]||'Not available';
+  const busyClass=({low:'forecast-light',medium:'forecast-moderate',high:'forecast-busy'})[busy]||'unknown';
+  const reportedAt=report&&Number.isFinite(Number(report.time))?new Intl.DateTimeFormat(undefined,{month:'short',day:'numeric',year:'numeric'}).format(new Date(Number(report.time))):'';
+  const note=report?.note?.trim();
+  return `<dl class="latest-report-grid"><div><dt>Noise</dt><dd><span class="latest-report-value">${esc(noiseText)}</span></dd></div><div><dt>Forecast</dt><dd><span class="availability ${busyClass}">${esc(busyText)}</span></dd></div></dl>${note?`<div class="latest-report-note"><h4>Student note</h4><p>${esc(note)}</p></div>`:''}<small class="latest-report-meta">${report?(reportedAt?`Reported ${esc(reportedAt)}`:'Latest student report'):'No student report yet · Showing typical conditions'}</small>`;
+}
 function spotDetailContent(s){
   const report=currentReport(s),isSaved=activeLists().some(l=>l.spots.includes(s.id));
-  const reportDetails=s.reserved?'<p>Check open times and book this room on the BYU Library site.</p>':report?`<p>Noise: ${esc(noiseLabel(report.noise))} · Crowding: ${esc(report.busy)}</p>${report.note?`<p>${esc(report.note)}</p>`:''}`:usesDatabase(s)&&database.error?`<p class="form-error">Database reports could not be loaded: ${esc(database.error)}</p>`:`<p>No reports yet. Usually ${esc((noiseLabel(s.noise)||'unknown').toLowerCase())} · ${esc(s.busy||'unknown')} crowding.</p>`;
   const noise=noiseLabel(currentNoise(s));
   const arrivalReady=state.arrivalReadySpot===s.id;
   const arrivalButton=`<button class="primary-button ${arrivalReady?'is-en-route':''}" type="button" data-arrival-stage="${esc(s.id)}" aria-pressed="${arrivalReady}" ${database.loading||!database.configLoaded?'disabled':''}>${arrivalReady?'I\'ve Arrived':'Head Here'}</button>`;
-  const reserveButton=reservationLinks[s.building]?`<a class="secondary-button" href="${esc(reservationLinks[s.building])}" target="_blank" rel="noopener noreferrer">Reserve with BYU ↗</a>`:'';
-  return `<p class="modal-description">${s.building} · ${esc(floorLabel(s))} · ${s.type==='group'?`Group up to ${s.capacity}`:'Individual study'}</p>${s.detail?`<div class="report-box"><h3>Location details</h3><p>${esc(s.detail)}</p></div>`:''}<div class="detail-tags">${noise?`<span class="noise-tag"><span class="tag-prefix">Noise:&nbsp;</span><strong>${esc(noise)}</strong></span>`:''}${powerTag(s)}<span class="layout-tag">${layoutLabel(s)}</span></div><div class="report-box"><h3>${s.reserved?'Reservation required':'Latest report'}</h3>${reportDetails}</div><div class="modal-actions"><button class="secondary-button bookmark-button ${isSaved?'is-saved':''}" type="button" data-save-spot="${esc(s.id)}" aria-label="${isSaved?'Manage saved lists':'Save to a list'}" title="${isSaved?'Manage saved lists':'Save to a list'}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3.75h12a1 1 0 0 1 1 1v16l-7-4.5-7 4.5v-16a1 1 0 0 1 1-1Z"/></svg></button>${reserveButton}${arrivalButton}</div>`;
+  const capacity=Number.isInteger(s.capacity)&&s.capacity>0?s.capacity:1;
+  const seatingLabel=s.type==='group'?`Group seating, ${capacity} seats`:`Individual seating, ${capacity} seat`;
+  const seatingTag=`<span class="seating-tag" role="img" aria-label="${esc(seatingLabel)}" title="${esc(seatingLabel)}">${spotTypeIcon(s)}<span class="pin-capacity">${capacity}</span></span>`;
+  const reserveButton=s.reserved&&reservationLinks[s.building]?`<a class="secondary-button" href="${esc(reservationLinks[s.building])}" target="_blank" rel="noopener noreferrer">Reserve with BYU ↗</a>`:'';
+  return `<p class="modal-description">${s.building} · ${esc(floorLabel(s))}</p>${s.detail?`<div class="report-box"><h3>Location details</h3><p>${esc(s.detail)}</p></div>`:''}<div class="detail-tags">${seatingTag}${noise?`<span class="noise-tag"><span class="tag-prefix">Noise:&nbsp;</span><strong>${esc(noise)}</strong></span>`:''}${powerTag(s)}<span class="layout-tag">${layoutLabel(s)}</span></div><div class="report-box latest-report-box"><h3>${s.reserved?'Reservation required':'Latest report'}</h3>${latestReportMarkup(s,report)}</div><div class="modal-actions"><button class="secondary-button bookmark-button ${isSaved?'is-saved':''}" type="button" data-save-spot="${esc(s.id)}" aria-label="${isSaved?'Manage saved lists':'Save to a list'}" title="${isSaved?'Manage saved lists':'Save to a list'}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3.75h12a1 1 0 0 1 1 1v16l-7-4.5-7 4.5v-16a1 1 0 0 1 1-1Z"/></svg></button>${reserveButton}${arrivalButton}</div>`;
 }
 function openSpot(id,{keepMap=false}={}){
   const s=spotById(id);if(!s)return;
@@ -1183,7 +1188,7 @@ function returnToCampusMap(){searchBuildingQueue=[];searchBuildingIndex=-1;viewH
 
 // 9. Event routing. data-* attributes connect rebuilt controls to shared handlers.
 document.addEventListener('click',event=>{
-  const t=event.target.closest('button,a,[data-room],[data-campus-building]');
+  const t=event.target.closest('button,a,[data-campus-building]');
   if(!t||(t.id!=='navAuth'&&!t.closest('#navMenu')))toggleNavMenu(false);
   if(!t)return;
   if(t.id==='exploreMapButton'){const reducedMotion=window.matchMedia('(prefers-reduced-motion: reduce)').matches;$('#exploreMapSection').scrollIntoView({behavior:reducedMotion?'auto':'smooth'});return}
@@ -1194,8 +1199,8 @@ document.addEventListener('click',event=>{
   if(t.id==='campusInteractMap'){setCampusMapInteraction(t.getAttribute('aria-pressed')!=='true');return}
   if(t.id==='toggleNooks'||t.id==='toggleResources'||t.dataset.resource){
     const viewport=$('.plan-scroll'),scrollLeft=viewport?.scrollLeft||0,scrollTop=viewport?.scrollTop||0;
-    if(t.id==='toggleNooks'){state.nooksVisible=true;state.resourcesVisible=false;state.selectedResource=null;state.selectedRoom=null;state.locatedSpot=null}
-    else if(t.id==='toggleResources'){state.nooksVisible=false;state.resourcesVisible=true;state.selectedResource=null;state.selectedSpot=null;state.locatedSpot=null;state.selectedRoom=null}
+    if(t.id==='toggleNooks'){state.nooksVisible=true;state.resourcesVisible=false;state.selectedResource=null;state.locatedSpot=null}
+    else if(t.id==='toggleResources'){state.nooksVisible=false;state.resourcesVisible=true;state.selectedResource=null;state.selectedSpot=null;state.locatedSpot=null}
     else state.selectedResource=state.selectedResource===t.dataset.resource?null:t.dataset.resource;
     renderBuilding();const nextViewport=$('.plan-scroll');if(nextViewport){nextViewport.scrollLeft=scrollLeft;nextViewport.scrollTop=scrollTop}return
   }
@@ -1203,11 +1208,10 @@ document.addEventListener('click',event=>{
   if(t.hasAttribute('data-dismiss-campus')){$('#campusComingSoon').hidden=true;$$('.campus-building').forEach(el=>el.classList.remove('is-selected'));return}
   if(t.id==='campusZoomIn'||t.id==='campusZoomOut'||t.id==='campusZoomFit'){if(t.id==='campusZoomFit')changeCampusZoom(0,true);else changeCampusZoom(t.id==='campusZoomIn'?.25:-.25);return}
   // Room selection, map labels, and zoom controls.
-  if(t.dataset.room){selectRoom(t.dataset.room);return}
-  if(t.hasAttribute('data-clear-room')){state.selectedRoom=null;updateRoomHighlight();return}
   if(t.id==='zoomFit'){state.zoom=1;resizeDigitalMap();$('.plan-scroll').scrollLeft=0;$('.plan-scroll').scrollTop=0;$('#zoomOut').disabled=true;$('#zoomIn').disabled=false;renderBuilding();return}
   if(t.dataset.locateSpot){locateSpotOnMap(t.dataset.locateSpot);return}
   if(t.hasAttribute('data-clear-located-spot')){state.locatedSpot=null;renderBuilding();return}
+  if(t.hasAttribute('data-back-to-matches')){state.arrivalReadySpot=null;state.selectedSpot=null;state.locatedSpot=null;state.zoom=1;if(isCompactLayout())setBuildingPanel('spots');renderBuilding();($('#spotList .spot-row')||$('#spotList [data-action="edit"]'))?.focus({preventScroll:true});return}
   if(t.matches('[data-modal-close]')){closeModal();return}
   // Main navigation, filter actions, and building selection.
   if(t.id==='homeButton'||t.id==='navExplore'){setView('explore');return}
@@ -1243,12 +1247,12 @@ document.addEventListener('click',event=>{
   if(t.dataset.layout){state.layout=t.dataset.layout;updateFilter();return}
   if(t.dataset.playlist){applyPlaylist(t.dataset.playlist);return}
   // Each building has its own floor keys; retain the side when changing levels.
-  if(t.dataset.floor){state.floor=t.dataset.floor;state.zoom=1;state.selectedSpot=null;state.locatedSpot=null;state.selectedRoom=null;renderBuilding();return}
-  if(t.dataset.wscLevel){const level=Number(t.dataset.wscLevel);state.floor=level<=3?String(level):`${level}E`;state.zoom=1;state.selectedSpot=null;state.locatedSpot=null;state.selectedRoom=null;renderBuilding();return}
-  if(t.dataset.wscSide){state.floor=`${state.floor[0]}${t.dataset.wscSide==='West'?'W':'E'}`;state.zoom=1;state.selectedSpot=null;state.locatedSpot=null;state.selectedRoom=null;renderBuilding();return}
-  if(t.hasAttribute('data-hbll-level')){const level=Number(t.dataset.hbllLevel);state.floor=`L${level}`;state.zoom=1;state.selectedSpot=null;state.locatedSpot=null;state.selectedRoom=null;renderBuilding();return}
-  if(t.dataset.hbllSide){const floor=BUILDINGS.HBLL.floors.find(f=>f.id===state.floor);state.floor=`L${floor.level}${t.dataset.hbllSide==='North'?'N':''}`;state.zoom=1;state.selectedSpot=null;state.locatedSpot=null;state.selectedRoom=null;renderBuilding();return}
-  if(t.dataset.jkbLevel){const floor=BUILDINGS.JKB.floors.find(f=>f.level===Number(t.dataset.jkbLevel));if(!floor)return;state.floor=floor.id;state.zoom=1;state.selectedSpot=null;state.locatedSpot=null;state.selectedRoom=null;renderBuilding();return}
+  if(t.dataset.floor){state.floor=t.dataset.floor;state.zoom=1;state.selectedSpot=null;state.locatedSpot=null;renderBuilding();return}
+  if(t.dataset.wscLevel){const level=Number(t.dataset.wscLevel);state.floor=level<=3?String(level):`${level}E`;state.zoom=1;state.selectedSpot=null;state.locatedSpot=null;renderBuilding();return}
+  if(t.dataset.wscSide){state.floor=`${state.floor[0]}${t.dataset.wscSide==='West'?'W':'E'}`;state.zoom=1;state.selectedSpot=null;state.locatedSpot=null;renderBuilding();return}
+  if(t.hasAttribute('data-hbll-level')){const level=Number(t.dataset.hbllLevel);state.floor=`L${level}`;state.zoom=1;state.selectedSpot=null;state.locatedSpot=null;renderBuilding();return}
+  if(t.dataset.hbllSide){const floor=BUILDINGS.HBLL.floors.find(f=>f.id===state.floor);state.floor=`L${floor.level}${t.dataset.hbllSide==='North'?'N':''}`;state.zoom=1;state.selectedSpot=null;state.locatedSpot=null;renderBuilding();return}
+  if(t.dataset.jkbLevel){const floor=BUILDINGS.JKB.floors.find(f=>f.level===Number(t.dataset.jkbLevel));if(!floor)return;state.floor=floor.id;state.zoom=1;state.selectedSpot=null;state.locatedSpot=null;renderBuilding();return}
   if(t.id==='zoomOut'||t.id==='zoomIn'){changeZoom(t.id==='zoomIn'?.25:-.25);return}
   // Spot details, reports, and saved-list changes.
   if(t.dataset.pinnedResource){const r=database.pinnedResources.find(x=>x.id===t.dataset.pinnedResource);if(r)showToast(`${r.type}: ${r.info}${r.where?` (${r.where})`:''}`);return}
@@ -1287,7 +1291,7 @@ document.addEventListener('change',event=>{
 $('#groupSize').addEventListener('input',e=>{state.groupSize=Number(e.target.value);updateFilter()});
 // SVG room and building controls need explicit Enter and Space handling.
 document.addEventListener('keydown',event=>{if(event.key==='Escape'&&$('#navMenu')&&!$('#navMenu').hidden){toggleNavMenu(false);$('#navAuth')?.focus()}});
-document.addEventListener('keydown',event=>{const campus=event.target.closest('[data-campus-building]');if(campus&&(event.key==='Enter'||event.key===' ')){event.preventDefault();showCampusBuilding(campus.dataset.campusBuilding);return}const room=event.target.closest('#floorPlan .map-room');if(room&&(event.key==='Enter'||event.key===' ')){event.preventDefault();selectRoom(room.dataset.room)}});
+document.addEventListener('keydown',event=>{const campus=event.target.closest('[data-campus-building]');if(campus&&(event.key==='Enter'||event.key===' ')){event.preventDefault();showCampusBuilding(campus.dataset.campusBuilding)}});
 $('#modalBackdrop').addEventListener('click',e=>{if(e.target.id==='modalBackdrop')closeModal()});
 // Wrap Tab within the open dialog; Escape uses the guarded close action.
 document.addEventListener('keydown',e=>{
