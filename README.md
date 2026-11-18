@@ -8,7 +8,7 @@ Nook helps BYU students find a study spot that fits their needs. This README cov
 
 BYU students can spend time walking between buildings because they cannot tell which study spaces fit their needs. Nook provides a campus map and searchable floor plans for the Harold B. Lee Library (HBLL), the Wilkinson Student Center (WSC), and the Joseph F. Smith Building (JKB). Students can filter spaces by individual or group use, capacity, noise level, privacy, and outlets, and search for rooms and resources. A selected spot includes its floor, location details, reservation information when available, and recent reports. Students can save spots in lists and report whether a spot was available, along with current noise and crowding. Signed-in reports enter an AI review workflow, while guest reports use the legacy report table. An admin-only Impact page displays four key results calculated from recorded app activity. Some inventory and pin locations are still illustrative, so the map is a study guide rather than a guarantee of current availability.
 
-The campus overview shows 45 labeled buildings. HBLL, WSC, and JKB open supplied SVG floor plans; other buildings show a coming-soon message. The map supports zoom and pan, and study-spot pins are provisional. Reports are loaded when the page refreshes rather than streamed live.
+The campus overview features over 40 labeled buildings. The active WSC, HBLL, and JKB buildings open supplied SVG floor plans, while all others display a coming-soon message. The map supports zoom, drag/swipe, and reset interactions. Currently, study-spot pins are provisional, and crowding reports load on page refresh rather than via live websocket streaming.
 
 ## How to Use the App
 

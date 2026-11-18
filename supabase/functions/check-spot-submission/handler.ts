@@ -7,12 +7,13 @@ export type Store = {
   // The signed-in user's "User".user_id for this Authorization header, or null (guest, anon key, bad token).
   userIdFor(authorization: string): Promise<number | null>;
   // Ids of pending submissions the AI has not checked yet (and that have tries left).
-  unchecked(opts: { userId?: number; token?: string; olderThanMs?: number; limit: number; newestFirst: boolean }): Promise<number[]>;
+  unchecked(opts: { userId?: number; token?: string; olderThanMs?: number; minAttempts?: number; maxAttempts?: number; limit: number; newestFirst: boolean }): Promise<number[]>;
   // Take the row if it is still pending and unchecked; counts the attempt. null = someone else already handled it.
   claim(id: number): Promise<Row | null>;
   save(id: number, patch: { status?: 'rejected'; ai_reason: string; ai_checked_at: string }): Promise<boolean>;
 };
-export type Deps = { store: Store; classify: (s: Submission) => Promise<Verdict>; cronSecret: () => string | undefined };
+// `background` (EdgeRuntime.waitUntil on Supabase) lets the sweep finish after the response is sent; without it the sweep is awaited.
+export type Deps = { store: Store; classify: (s: Submission) => Promise<Verdict>; cronSecret: () => string | undefined; background?: (work: Promise<unknown>) => void };
 
 const BUILDINGS: Record<number, string> = { 1001: 'Harold B. Lee Library', 1002: 'Wilkinson Student Center', 1003: 'Jesse Knight Building' };
 const KINDS: Record<number, string> = { 1001: 'individual study spot', 1002: 'group study room', 1003: 'private study space' };
@@ -38,6 +39,25 @@ export async function check(deps: Deps, id: number): Promise<Result | null> {
 
 const json = (status: number, body: unknown) => Response.json(body, { status });
 
+// Self-healing without a cron secret: whenever a student sends a report, also give a couple of reports another try
+// when their first check failed (for example a short Gemini outage). Deliberately narrow:
+//  - only reports that were already tried (attempts >= 1), so reports from before the check existed are left to the team;
+//  - only while attempts < SWEEP_MAX_ATTEMPTS, so an outage cannot use up all MAX_ATTEMPTS tries; the rest stay in reserve.
+export const SWEEP_LIMIT = 2;
+export const SWEEP_MAX_ATTEMPTS = 3;
+async function sweep(deps: Deps): Promise<void> {
+  try {
+    const ids = await deps.store.unchecked({ olderThanMs: 60_000, minAttempts: 1, maxAttempts: SWEEP_MAX_ATTEMPTS, limit: SWEEP_LIMIT, newestFirst: false });
+    for (const id of ids) await check(deps, id);
+  } catch (e) {
+    console.error('check-spot-submission sweep failed', String(e));
+  }
+}
+async function afterReply(deps: Deps): Promise<void> {
+  const work = sweep(deps);
+  if (deps.background) deps.background(work); else await work;
+}
+
 export function makeHandler(deps: Deps) {
   return async (req: Request): Promise<Response> => {
     if (req.method !== 'POST') return json(405, { error: 'POST only' });
@@ -60,6 +80,7 @@ export function makeHandler(deps: Deps) {
       const ids = await deps.store.unchecked({ userId, limit: 3, newestFirst: true });
       const results: Result[] = [];
       for (const id of ids) { const r = await check(deps, id); if (r) results.push(r); }
+      await afterReply(deps);
       return json(200, { results });
     }
     // From the report page for a guest: the browser's random token finds only that browser's own unchecked reports.
@@ -69,6 +90,7 @@ export function makeHandler(deps: Deps) {
       const ids = await deps.store.unchecked({ token, limit: 3, newestFirst: true });
       const results: Result[] = [];
       for (const id of ids) { const r = await check(deps, id); if (r) results.push(r); }
+      await afterReply(deps);
       return json(200, { results });
     }
     return json(400, { error: 'check or retry required' });

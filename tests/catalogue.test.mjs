@@ -22,11 +22,11 @@ test('campus labels sit at the visual center of each roof, inside it',async()=>{
     for(const [x,y] of [[b.x,b.y]])if(c.campusPointInside(points,x,y))assert.ok(here>=c.campusEdgeDistance(points,x,y)-4,`${b.id} label is not near the roof center`);
   }
 });
-test('campus map has 45 traced buildings but only the three supported building routes',async()=>{
+test('campus map has 42 traced buildings but only the three supported building routes',async()=>{
   const app=await readFile(new URL('app.js',root),'utf8');
   const catalogue=vm.runInNewContext(app.slice(0,app.indexOf('const STORAGE_KEY'))+'; ({BUILDINGS,CAMPUS_BUILDINGS})');
-  assert.equal(catalogue.CAMPUS_BUILDINGS.length,45);
-  assert.equal(new Set(catalogue.CAMPUS_BUILDINGS.map(b=>b.id)).size,45);
+  assert.equal(catalogue.CAMPUS_BUILDINGS.length,42);
+  assert.equal(new Set(catalogue.CAMPUS_BUILDINGS.map(b=>b.id)).size,42);
   assert.deepEqual(Array.from(catalogue.CAMPUS_BUILDINGS.filter(b=>catalogue.BUILDINGS[b.id]),b=>b.id).sort(),['HBLL','JKB','WSC']);
   for(const building of catalogue.CAMPUS_BUILDINGS){
     const vertices=building.points.split(' ').map(point=>point.split(',').map(Number));assert.ok(vertices.length>=4,building.id);
@@ -90,9 +90,10 @@ test('homepage presents a welcome screen and snaps to the full-height filter and
   assert.match(html,/<h2 id="filterHeading">Find your Nook<\/h2>/);
   assert.match(html,/<h2 id="filterHeading">Find your Nook<\/h2>\s*<p class="kicker">filter by\.\.\.<\/p>/);
   assert.match(html,/<legend>Group size<\/legend>[\s\S]*?role="group" aria-label="Group size"/);
-  assert.match(html,/<strong>Tucked Away<\/strong><\/span><input id="privateFilter"/);
-  assert.match(html,/<strong>Outlets nearby<\/strong><\/span><input id="outletFilter"/);
-  assert.doesNotMatch(html,/<strong>Tucked Away<\/strong><small>|<strong>Outlets nearby<\/strong><small>/);
+  // The Tucked Away (private) filter was retired; power is the only switch left.
+  assert.doesNotMatch(html,/privateFilter|Tucked Away/);
+  assert.match(html,/<strong>Power available<\/strong><\/span><input id="outletFilter"/);
+  assert.doesNotMatch(html,/<strong>Power available<\/strong><small>/);
   assert.match(html,/<button class="chip" data-noise="medium" type="button">Social<\/button>/);
   assert.match(html,/<input id="groupSize" type="range" min="2" max="6" value="4">/);
   assert.match(html,/<div class="range-ends"><span>2<\/span><span>6 max<\/span><\/div>/);
@@ -120,7 +121,7 @@ test('homepage presents a welcome screen and snaps to the full-height filter and
   assert.match(html,/<div class="site-header">[\s\S]*id="databaseWarning"[\s\S]*id="databaseReceipt"/);
   assert.match(html,/<section class="explore-hero" aria-labelledby="exploreTitle">/);
   assert.ok(html.indexOf('<section class="recommendations"')<html.indexOf('<section id="exploreMapSection"'),'"Good places to start" should appear above the map');
-  assert.match(html,/<button id="navReport" class="nav-link nav-report" type="button" aria-label="Report a Spot"><span>Report a Spot<\/span><\/button>/);
+  assert.match(html,/<button id="navReport" class="nav-link nav-report" type="button" aria-label="Report a Spot"><svg[^>]*>[\s\S]*?<\/svg><span class="nav-report-full">Report a Spot<\/span><span class="nav-report-short">Report<\/span><\/button>/);
   assert.match(html,/<button id="navAuth" class="nav-link nav-auth nav-login" type="button">Log in<\/button>/);
   assert.doesNotMatch(html,/<section id="exploreView"[\s\S]*?id="databaseWarning"/);
   assert.match(html,/<h1 id="exploreTitle">Find a <span class="hero-accent">Nook<\/span> that works for you\.<\/h1>/);
@@ -282,9 +283,11 @@ test('building pages omit external map links, source links, and room search',asy
   assert.doesNotMatch(buildingView,/Drag to move · Select a room to locate it/);
   assert.match(app,/#floorSubtitle'\)\.hidden=isDigital/);
   assert.match(app,/#floorDisclaimer'\)\.hidden=isDigital/);
-  assert.match(buildingView,/id="toggleRoomLabels"/);
+  // The map display toggle now switches between study nooks and resources.
+  assert.match(buildingView,/id="toggleNooks"/);assert.match(buildingView,/id="toggleResources"/);
+  assert.doesNotMatch(buildingView,/toggleRoomLabels/);
   assert.match(buildingView,/id="planAssetBar" class="campus-map-heading floor-map-heading"/);
-  assert.match(buildingView,/id="zoomIn"[^>]*>\+<\/button><button id="zoomOut"[^>]*>−<\/button>[\s\S]*?id="zoomFit"[^>]*>Reset/);
+  assert.match(buildingView,/id="zoomIn"[^>]*>\+<\/button><button id="zoomOut"[^>]*>−<\/button>[\s\S]*?id="zoomFit"[^>]*><span class="fit-floor-desktop">Reset<\/span><span class="fit-floor-mobile">Fit floor<\/span>/);
   assert.doesNotMatch(buildingView,/Swipe to scroll the page\. Activate the map to pan and pinch to zoom\./);
   assert.match(buildingView,/<div class="floor-plan-shell">\s*<button id="interactMap" class="secondary-button"[^>]*>Interact with map<\/button>/);
   assert.match(css,/\.floor-plan-shell>#interactMap\{position:absolute;z-index:5;top:24px;right:24px;display:inline-flex;min-height:44px;max-width:145px;padding:10px;font-size:12px;white-space:normal\}/);
