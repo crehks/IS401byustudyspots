@@ -1,5 +1,14 @@
 // Dev page: login, admin-code unlock, Maintain Users, Maintain Records (generic CRUD) and map pin-drop.
 // UI hiding is convenience only; the database enforces admin access (see supabase/migrations/dev-page).
+// HOW THIS PAGE WORKS
+//  1. Log in with email + password (Supabase Auth). The session is kept in cookies (nook_admin_at / nook_admin_rt).
+//  2. Admins then enter a personal admin code. The database checks it and opens a 2-hour "unlocked" session.
+//  3. Only after that do the "Maintain Users" and "Maintain Records" buttons exist on the page.
+//  4. Every create / update / delete is sent to the database as the signed-in user. Row-level security refuses it
+//     unless the admin is unlocked, so hiding buttons here is only a convenience, not the security.
+//  5. Logout locks the admin session, signs out, deletes the cookies and removes every admin screen from the page.
+// Sections: config, table definitions, session cookies, HTTP helpers, screens + routing, login/logout,
+// record maintenance (Create, Read, Update, Delete), campus map pins, floor-plan pins, user maintenance.
 // Same connection rules as the main site (database.js): the local server's /api/config first, then the shipped
 // supabase-config.js (static hosting). Only the public, browser-safe key is ever used here.
 async function loadConfig() {
@@ -12,6 +21,7 @@ async function loadConfig() {
   return null;
 }
 const cfg = await loadConfig();
+// Short helpers: $ selects one element; esc() escapes text so database values can never inject HTML.
 const $ = (sel, root = document) => root.querySelector(sel);
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
 
@@ -25,6 +35,13 @@ const COORDS = [
   {key: 'lat', label: 'Latitude', type: 'number', geo: true},
   {key: 'lng', label: 'Longitude', type: 'number', geo: true}
 ];
+// Each entry describes one table the admin can maintain. Keys:
+//   table / label / pk   the database table, the name shown on screen and its primary-key column
+//   title(row)           text used to name a row in messages (for example in the delete confirmation)
+//   columns[]            one per form field: key, label, type (text, int, bool, fk, select, time...), required, ref
+//                        (the table a foreign key points to) and list:false to hide it from the table view
+//   plan / locked        plan: can be pinned on a floor plan (spots, resources); locked: rows can be added but
+//                        never edited or deleted (floors)
 const TABLES = [
   {table: 'Buildings', label: 'Buildings', pk: 'building_id', title: r => r.building_name || `Building ${r.building_id}`, geo: true, columns: [
     {key: 'building_name', label: 'Name', type: 'text', required: true},
@@ -36,7 +53,7 @@ const TABLES = [
   {table: 'Floors', label: 'Floors', locked: true, pk: 'floor_id', title: r => `Floor ${r.floor_number ?? '?'}`, columns: [
     {key: 'building_id', label: 'Building', type: 'fk', ref: 'Buildings', required: true},
     {key: 'floor_number', label: 'Floor number', type: 'int', required: true}]},
-  {table: 'StudySpot', label: 'Study Spots', pk: 'spot_id', title: r => r.spot_location || `Spot ${r.spot_id}`, plan: true, soft: true, columns: [
+  {table: 'StudySpot', label: 'Study Spots', pk: 'spot_id', title: r => r.spot_location || `Spot ${r.spot_id}`, plan: true, columns: [
     {key: 'spot_location', label: 'Spot / location', type: 'text', required: true},
     {key: 'building_id', label: 'Building', type: 'fk', ref: 'Buildings', required: true},
     {key: 'floor_id', label: 'Floor', type: 'fk', ref: 'Floors'},
@@ -51,7 +68,7 @@ const TABLES = [
     {key: 'type_name', label: 'Name', type: 'text', required: true}]},
   {table: 'ResourceType', label: 'Resource Types', pk: 'resource_type_id', title: r => r.resource_name || `Type ${r.resource_type_id}`, columns: [
     {key: 'resource_name', label: 'Name', type: 'text', required: true}]},
-  {table: 'Resources', label: 'Resources', pk: 'resource_id', title: r => r.resource_info || `Resource ${r.resource_id}`, plan: true, soft: true, columns: [
+  {table: 'Resources', label: 'Resources', pk: 'resource_id', title: r => r.resource_info || `Resource ${r.resource_id}`, plan: true, columns: [
     {key: 'resource_info', label: 'Description', type: 'text', required: true},
     {key: 'resource_type_id', label: 'Type', type: 'fk', ref: 'ResourceType', required: true},
     {key: 'building_id', label: 'Building', type: 'fk', ref: 'Buildings', required: true},
@@ -66,25 +83,32 @@ const TABLES = [
     {key: 'is_closed', label: 'Closed', type: 'bool'},
     {key: 'note', label: 'Note', type: 'text'}]}
 ];
+// Finds a table's definition by its database name.
 const byTable = name => TABLES.find(t => t.table === name);
 
 // ---- Cookie-backed session (cleared on logout). SPA cookies cannot be HttpOnly. ----
 const COOKIES = {access: 'nook_admin_at', refresh: 'nook_admin_rt'};
+// Cookies hold the sign-in. They expire, use SameSite=Lax (other sites cannot send them) and are Secure over https.
 const setCookie = (name, value, maxAge) => {
   document.cookie = `${name}=${encodeURIComponent(value)}; Path=/; Max-Age=${maxAge}; SameSite=Lax${location.protocol === 'https:' ? '; Secure' : ''}`;
 };
+// Reads one cookie by name (empty text when it is missing).
 const getCookie = name => {
   const hit = document.cookie.split('; ').find(c => c.startsWith(name + '='));
   return hit ? decodeURIComponent(hit.slice(name.length + 1)) : '';
 };
+// Logout: expire both cookies immediately so the browser forgets the session.
 const clearCookies = () => { for (const name of Object.values(COOKIES)) setCookie(name, '', 0); };
 
+// What the page remembers: who is signed in, whether the admin code was accepted, cached reference tables.
 const state = {user: null, isAdmin: false, unlocked: false, notice: '', lookups: {}};
+// The tokens that prove who is signed in (also copied into the cookies above).
 let accessToken = '', refreshToken = '';
 
 // The main site keeps its sign-in in localStorage on this same origin. The dev page adopts it, so there is one login.
 const MAIN_SESSION_KEY = 'studybyu.auth.v1';
 const mainSession = () => { try { return JSON.parse(localStorage.getItem(MAIN_SESSION_KEY) || 'null'); } catch { return null; } };
+// Saves the tokens in cookies after a login or a token refresh.
 function storeSession(session) {
   accessToken = session.access_token; refreshToken = session.refresh_token;
   setCookie(COOKIES.access, accessToken, 3600);
@@ -92,6 +116,7 @@ function storeSession(session) {
   // Keep the main site's copy current: refresh tokens rotate, so a stale copy there would stop working.
   try { if (mainSession()) localStorage.setItem(MAIN_SESSION_KEY, JSON.stringify({access_token: accessToken, refresh_token: refreshToken, expires_at: Math.floor(Date.now() / 1000) + (session.expires_in || 3600)})); } catch {}
 }
+// Forgets the tokens, deletes the cookies and clears the signed-in state (logout or an expired session).
 function dropSession() {
   accessToken = ''; refreshToken = '';
   clearCookies();
@@ -99,13 +124,16 @@ function dropSession() {
 }
 
 // ---- HTTP ----
+// Error type that keeps the HTTP status, so callers can tell 'not allowed' (403) from 'bad input' (400/409).
 class ApiError extends Error { constructor(status, body) { super(body?.message || body?.msg || body?.error || `Request failed (${status})`); this.status = status; this.body = body || {}; this.code = body?.error_code || (typeof body?.code === 'string' ? body.code : ''); } }
+// One request to Supabase: always sends the public key, and the signed-in user's token when there is one.
 async function raw(path, {method = 'GET', body, headers = {}, auth = true} = {}) {
   const response = await fetch(cfg.url + path, {method, headers: {apikey: cfg.key, 'Content-Type': 'application/json', ...(auth && accessToken ? {Authorization: `Bearer ${accessToken}`} : {}), ...headers}, body: body === undefined ? undefined : JSON.stringify(body)});
   const text = await response.text();
   let json = null; try { json = text ? JSON.parse(text) : null; } catch { json = {message: text}; }
   return {response, json};
 }
+// Trades the refresh token for a new access token when the old one has expired.
 async function refresh() {
   if (!refreshToken) return false;
   const {response, json} = await raw('/auth/v1/token?grant_type=refresh_token', {method: 'POST', body: {refresh_token: refreshToken}, auth: false});
@@ -113,25 +141,31 @@ async function refresh() {
   storeSession(json); state.user = json.user; state.isAdmin = json.user?.app_metadata?.role === 'admin';
   return true;
 }
+// raw() plus one automatic refresh-and-retry when the server answers 401 (expired token).
 async function api(path, options = {}) {
   let result = await raw(path, options);
   if (result.response.status === 401 && accessToken && await refresh()) result = await raw(path, options);
   if (!result.response.ok) throw new ApiError(result.response.status, result.json);
   return {...result, count: Number((result.response.headers.get('Content-Range') || '').split('/')[1])};
 }
+// True when the database refused the action: not signed in, not an admin, or the admin code has not been entered.
 const isDenied = error => error instanceof ApiError && (error.status === 401 || error.status === 403 || error.code === '42501');
 
 // ---- UI helpers ----
+// Shows (or hides) the message banner under the header.
 function setNotice(message, isError = false) {
   const el = $('#notice');
   el.textContent = message || ''; el.hidden = !message; el.classList.toggle('is-error', !!isError);
 }
+// Only one screen is visible at a time: landing, admin-code, dashboard, records, users or a single table.
 const VIEWS = ['landing', 'code', 'dash', 'records', 'users', 'table'];
+// Shows one screen and hides the others; also swaps the Log in / Log out buttons in the header.
 function show(view) {
   for (const name of VIEWS) $(`#view-${name}`).hidden = name !== view;
   $('#nav-login').hidden = !!state.user; $('#nav-features').hidden = !!state.user;
   $('#nav-user').hidden = !state.user; $('#nav-email').textContent = state.user?.email || '';
 }
+// Asks 'are you sure?' before a delete. Resolves true only if the person clicks the confirm button.
 function confirmDialog(title, text, yesLabel = 'Delete') {
   const dialog = $('#confirm-dialog');
   $('#confirm-title').textContent = title; $('#confirm-text').textContent = text; $('#confirm-yes').textContent = yesLabel;
@@ -140,18 +174,21 @@ function confirmDialog(title, text, yesLabel = 'Delete') {
     dialog.returnValue = 'no'; dialog.showModal();
   });
 }
+// The database said no (for example the 2-hour unlock ended): close open dialogs and return to the code screen.
 async function onDenied() {
   state.unlocked = await checkUnlocked().catch(() => false);
   if (!state.unlocked) {
     for (const dialog of document.querySelectorAll('dialog[open]')) dialog.close();
     state.notice = 'Your admin session expired or was not accepted. Enter your admin code again.'; location.hash = '#/'; render(); }
 }
+// Asks the database whether this admin has entered their code (calls is_admin_unlocked).
 async function checkUnlocked() {
   const {json} = await api('/rest/v1/rpc/is_admin_unlocked', {method: 'POST', body: {}});
   return json === true;
 }
 
 // ---- Routing ----
+// Chooses the screen from the sign-in state and the #/ route. Admin screens are only drawn once unlocked.
 function render() {
   const route = location.hash.replace(/^#\/?/, '');
   setNotice(state.notice, !!state.notice);
@@ -164,24 +201,29 @@ function render() {
   if (section === 'records') return openRecords();
   return openDash();
 }
+// Draws the two main buttons: Maintain Users and Maintain Records. Called only after the admin code is accepted.
 function openDash() {
   $('#view-dash').innerHTML = `<h1>Admin dashboard</h1><p class="muted">Choose what to maintain.</p>
     <div class="dash-actions"><a class="btn btn-primary" id="btn-users" href="#/users">Maintain Users</a><a class="btn btn-primary" id="btn-records" href="#/records">Maintain Records</a></div>`;
   show('dash');
 }
+// Draws one Maintain button for each table in TABLES.
 function openRecords() {
   $('#view-records').innerHTML = `<p class="crumbs"><a href="#/">Dashboard</a> / Records</p><h1>Maintain Records</h1><p class="muted">Pick a table.</p>
     <div class="table-buttons">${TABLES.map(t => `<a class="btn" href="#/records/${encodeURIComponent(t.table)}">Maintain ${esc(t.label)}</a>`).join('')}</div>`;
   show('records');
 }
+// Empties every admin screen so no admin buttons or data stay in the page after logout.
 function clearAdminViews() { for (const name of ['dash', 'records', 'users', 'table']) $(`#view-${name}`).innerHTML = ''; }
 
 // ---- Auth flows ----
+// After a successful login: store the tokens, remember who signed in and their role, and check the unlock state.
 async function startSession(session) {
   storeSession(session);
   state.user = session.user; state.isAdmin = session.user?.app_metadata?.role === 'admin';
   state.unlocked = state.isAdmin ? await checkUnlocked().catch(() => false) : false;
 }
+// Re-checks a saved token with the server before trusting it, so a stale cookie cannot show admin tools.
 async function tryRestore(access, refreshValue) {
   accessToken = access; refreshToken = refreshValue;
   let result = await raw('/auth/v1/user');
@@ -204,6 +246,7 @@ async function restore() {
   }
   dropSession();
 }
+// Turns Supabase's error codes into friendly messages (wrong password, unconfirmed email, too many tries).
 function loginMessage(error) {
   if (error.code === 'invalid_credentials') return 'That email and password do not match an account.';
   if (error.code === 'email_not_confirmed') return 'Confirm your email first, then log in.';
@@ -211,6 +254,7 @@ function loginMessage(error) {
   if (error.status === 429) return 'Too many attempts. Wait a minute and try again.';
   return 'Could not log in. Check the connection and try again.';
 }
+// Logout: lock the admin session in the database, sign out, delete the cookies and remove the admin screens.
 async function logout() {
   try { if (accessToken) await api('/rest/v1/rpc/lock_admin', {method: 'POST', body: {}}); } catch {}
   try { if (accessToken) await raw('/auth/v1/logout', {method: 'POST'}); } catch {}
@@ -222,8 +266,11 @@ async function logout() {
 
 $('#nav-login').addEventListener('click', openLogin);
 $('#hero-login').addEventListener('click', () => state.user ? render() : openLogin());
+// Opens the login dialog. Its fields are named user_email and user_password.
 function openLogin() { $('#login-error').hidden = true; $('#login-dialog').showModal(); $('#user_email').focus(); }
+// Every Cancel button closes the dialog it is inside.
 for (const btn of document.querySelectorAll('[data-close]')) btn.addEventListener('click', () => btn.closest('dialog').close());
+// Login form: sends the email and password to Supabase Auth, then moves on to the admin-code screen.
 $('#login-form').addEventListener('submit', async event => {
   event.preventDefault();
   const email = $('#user_email').value.trim(), password = $('#user_password').value, error = $('#login-error');
@@ -238,6 +285,7 @@ $('#login-form').addEventListener('submit', async event => {
   } catch (e) { error.textContent = loginMessage(e); error.hidden = false; $('#user_password').value = ''; }
   finally { submit.disabled = false; }
 });
+// Admin-code form: the database checks the code (five wrong tries lock the account for 15 minutes) and opens a 2-hour session.
 $('#code-form').addEventListener('submit', async event => {
   event.preventDefault();
   const input = $('#admin_code'), error = $('#code-error');
@@ -249,17 +297,22 @@ $('#code-form').addEventListener('submit', async event => {
     error.hidden = true; state.unlocked = true; state.notice = ''; render();
   } catch (e) { error.textContent = 'Could not check the code. Try again.'; error.hidden = false; }
 });
+// Both Log out buttons (header and code screen) run logout().
 $('#nav-logout').addEventListener('click', logout);
 $('#code-logout').addEventListener('click', logout);
+// Changing the #/ part of the address switches screens without reloading the page.
 window.addEventListener('hashchange', render);
 
 // =====================================================================================
 // Generic record maintenance
 // =====================================================================================
+// Rows are listed newest first by default, so a record you just added is on page 1.
+// Table screens: 15 rows per page; 'view' remembers the sort column, page, search text and which tab is open.
 const PAGE_SIZE = 15;
-const view = {sort: null, dir: 'asc', page: 0, search: '', mode: 'table'};
+const view = {sort: null, dir: 'desc', page: 0, search: '', mode: 'table'};
 let mapCtl = null;
 
+// Loads a whole reference table (for example Buildings) once, so dropdowns and labels show names instead of ids.
 async function lookup(refName, force = false) {
   if (!force && state.lookups[refName]) return state.lookups[refName];
   const ref = byTable(refName);
@@ -267,6 +320,7 @@ async function lookup(refName, force = false) {
   state.lookups[refName] = json;
   return json;
 }
+// Readable text for a foreign-key id, for example 'HBLL (#1001), floor 3'.
 function fkLabel(refName, id) {
   if (id === null || id === undefined) return '';
   const row = (state.lookups[refName] || []).find(r => r[byTable(refName).pk] === id);
@@ -278,6 +332,7 @@ function fkLabel(refName, id) {
   }
   return byTable(refName).title(row);
 }
+// Formats a database value for a table cell (yes/no, times, readable foreign keys).
 function cellText(col, value) {
   if (value === null || value === undefined || value === '') return '';
   if (col.type === 'bool') return value ? 'Yes' : 'No';
@@ -287,10 +342,11 @@ function cellText(col, value) {
   return String(value);
 }
 
+// Builds one Maintain page: heading, search box, Add button, tabs, then loads the rows (or the floor plan / map).
 async function openTable(cfgTable) {
   const host = $('#view-table');
   show('table');
-  if (view.table !== cfgTable.table) Object.assign(view, {table: cfgTable.table, sort: null, dir: 'asc', page: 0, search: '', mode: cfgTable.plan ? 'plan' : 'table'});
+  if (view.table !== cfgTable.table) Object.assign(view, {table: cfgTable.table, sort: null, dir: 'desc', page: 0, search: '', mode: cfgTable.plan ? 'plan' : 'table'});
   host.innerHTML = `<p class="crumbs"><a href="#/">Dashboard</a> / <a href="#/records">Records</a> / ${esc(cfgTable.label)}</p>
     <h1>Maintain ${esc(cfgTable.label)}</h1>
     ${cfgTable.locked ? '<p class="notice">Floors are locked. They can be added but never edited or deleted here, so existing spots and resources stay attached to the right floor.</p>' : ''}
@@ -314,19 +370,21 @@ async function openTable(cfgTable) {
   destroyMap();
   loadRows(cfgTable);
 }
+// Waits until the person stops typing before searching, so we do not query on every keystroke.
 function debounce(fn, ms) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
+// Shows a red message above the table. Permission errors send the person back to the admin-code screen.
 function tableError(error) {
   if (isDenied(error)) return onDenied();
   const el = $('#table-error'); if (!el) return;
   el.textContent = error.message || 'Something went wrong.'; el.hidden = false;
   const body = $('#table-body'); if (body && body.querySelector('.loading')) body.innerHTML = '';
 }
+// READ: fetches one page of rows (sorted, searched, paginated) and draws the table with Edit and Delete buttons.
 async function loadRows(cfgTable) {
   const body = $('#table-body');
   const cols = cfgTable.columns.filter(c => c.list !== false);
   const sort = view.sort || cfgTable.pk;
   const params = new URLSearchParams({select: '*', order: `${sort}.${view.dir}`, limit: String(PAGE_SIZE), offset: String(view.page * PAGE_SIZE)});
-  if (cfgTable.soft) params.set('deleted_at', 'is.null');
   if (view.search) {
     const texts = cfgTable.columns.filter(c => c.type === 'text' || c.type === 'url').map(c => `${c.key}.ilike.*${view.search.replace(/[,()*]/g, ' ')}*`);
     if (texts.length) params.set('or', `(${texts.join(',')})`);
@@ -347,24 +405,23 @@ async function loadRows(cfgTable) {
     $('#next')?.addEventListener('click', () => { view.page++; loadRows(cfgTable); });
   } catch (error) { tableError(error); }
 }
+// DELETE: asks for confirmation, then permanently removes the row. If other records (such as reports or saved lists)
+// still point at it, the database refuses and a message says why.
 async function removeRow(cfgTable, row) {
-  const text = cfgTable.soft ? 'It is hidden everywhere, including the main page. You can restore it from Recently deleted.' : 'This cannot be undone.';
-  if (!await confirmDialog(`Delete ${cfgTable.title(row)}?`, text)) return;
+  if (!await confirmDialog(`Delete ${cfgTable.title(row)}?`, 'This permanently removes it and cannot be undone.')) return;
   try {
-    const target = `/rest/v1/${encodeURIComponent(cfgTable.table)}?${cfgTable.pk}=eq.${row[cfgTable.pk]}`;
-    const {json} = cfgTable.soft
-      ? await api(target, {method: 'PATCH', body: {deleted_at: new Date().toISOString()}, headers: {Prefer: 'return=representation'}})
-      : await api(target, {method: 'DELETE', headers: {Prefer: 'return=representation'}});
+    const {json} = await api(`/rest/v1/${encodeURIComponent(cfgTable.table)}?${cfgTable.pk}=eq.${row[cfgTable.pk]}`, {method: 'DELETE', headers: {Prefer: 'return=representation'}});
     if (!json?.length) return onDenied();
     delete state.lookups[cfgTable.table];
     view.mode === 'map' ? openMap(cfgTable) : view.mode === 'plan' ? openPlan(cfgTable) : loadRows(cfgTable);
   } catch (error) {
-    if (error.status === 409) { const el = $('#table-error'); el.textContent = 'This record is still used by other records. Remove or change those first.'; el.hidden = false; return; }
+    if (error.status === 409) { const el = $('#table-error'); el.textContent = 'This record is still used by other records (for example reports or saved lists). Remove or change those first.'; el.hidden = false; return; }
     tableError(error);
   }
 }
 
 // ---- Form generated from config; used in a dialog (table view) or a side panel (map view) ----
+// Builds one form field from a column definition (text box, number, checkbox, dropdown...).
 function fieldHtml(col, value) {
   const id = `f_${col.key}`, req = col.required ? ' required' : '';
   const label = `<label for="${id}">${esc(col.label)}${col.required ? ' *' : ''}</label>`;
@@ -380,6 +437,7 @@ function fieldHtml(col, value) {
   const hint = col.geo ? '<p class="field-hint">Inside the BYU/Provo area. Set both or neither.</p>' : '';
   return `${label}<input id="${id}" name="${col.key}" type="${type}" value="${esc(v)}"${extra}${req}>${hint}`;
 }
+// Reads the form and validates it (required fields, whole numbers, URLs, map bounds) before anything is sent.
 function readForm(cfgTable, form) {
   const out = {}, problems = [];
   for (const col of cfgTable.columns) {
@@ -405,6 +463,7 @@ function readForm(cfgTable, form) {
   return {values: out, problems};
 }
 // Renders the form into host. Returns {setCoords}. onSaved runs after a successful save.
+// CREATE and UPDATE: draws the form and saves it. POST creates a new row; PATCH changes the row being edited.
 function buildForm(host, cfgTable, record, {onSaved, onCancel, onCoordsTyped, prefill, extra} = {}) {
   const editing = !!record;
   host.innerHTML = `<form novalidate id="record-form"><h2 id="form-title">${editing ? 'Edit' : 'Add'} ${esc(cfgTable.label.replace(/s$/, ''))}</h2>
@@ -442,6 +501,7 @@ function buildForm(host, cfgTable, record, {onSaved, onCancel, onCoordsTyped, pr
     focus() { form.querySelector('input,select')?.focus(); }
   };
 }
+// Shows the Add / Edit form in a popup dialog.
 function openForm(cfgTable, record) {
   const dialog = $('#form-dialog');
   const close = () => dialog.close();
@@ -454,9 +514,12 @@ function openForm(cfgTable, record) {
 // =====================================================================================
 const LEAFLET = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/';
 const CLUSTER = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/';
+// Loads an external script on demand (the map library and the large floor-plan drawings).
 const loadScript = src => new Promise((resolve, reject) => { const s = document.createElement('script'); s.src = src; s.onload = resolve; s.onerror = () => reject(new Error('Could not load the map library.')); document.head.append(s); });
+// Loads a stylesheet once.
 const loadCss = href => { if (!document.querySelector(`link[href="${href}"]`)) { const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = href; document.head.append(l); } };
 let leafletReady = null;
+// Loads the Leaflet map library the first time a map is opened.
 function ensureLeaflet() {
   leafletReady ??= (async () => {
     loadCss(LEAFLET + 'leaflet.min.css'); loadCss(CLUSTER + 'MarkerCluster.min.css'); loadCss(CLUSTER + 'MarkerCluster.Default.min.css');
@@ -464,8 +527,10 @@ function ensureLeaflet() {
   })().catch(error => { leafletReady = null; throw error; });
   return leafletReady;
 }
+// Removes the old map before a new screen is drawn so it does not leak.
 function destroyMap() { if (mapCtl) { mapCtl.map.remove(); mapCtl = null; } }
 
+// Campus map for tables with coordinates (Buildings): click to drop a pin, drag a pin to move it, then save.
 async function openMap(cfgTable) {
   const body = $('#table-body');
   body.innerHTML = '<p class="loading">Loading map...</p>';
@@ -532,18 +597,25 @@ async function openMap(cfgTable) {
 // =====================================================================================
 // Floor-plan pins: drop study spots on the digitized plans; position is stored as percent of the drawing
 // =====================================================================================
+// Which building uses which digitized floor-plan file (matched by building name).
 const PLAN_SETS = [
   {code: 'HBLL', match: /library|hbll/i, global: 'HBLL_PLANS', file: 'hbll-plans.js'},
   {code: 'WSC', match: /wilkinson|wsc/i, global: 'WSC_PLANS', file: 'wsc-plans.js'},
   {code: 'JKB', match: /knight|jkb/i, global: 'JKB_PLANS', file: 'jkb-plans.js'}
 ];
+// Finds the floor-plan set for a building row, or nothing when it has no digitized plans.
 const planSetFor = building => PLAN_SETS.find(set => set.match.test(building?.building_name || ''));
 const planLoads = {};
+// Loads a building's floor-plan drawings once; they are large files.
 const loadPlanSet = set => window[set.global] ? Promise.resolve() : (planLoads[set.code] ??= loadScript(set.file).catch(() => { delete planLoads[set.code]; throw new Error('Could not load the floor plans. Check the connection and try again.'); }));
+// Turns a plan sheet code into a floor number: B is 0, G is 1, otherwise the digits in the code.
 const planFloorNumber = key => /^B/i.test(key) ? 0 : /^G/i.test(key) ? 1 : Number((key.match(/\d+/) || [1])[0]);
+// Keeps a percentage between 0 and 100 so a pin can never leave the drawing.
 const clampPct = value => Math.min(100, Math.max(0, value));
+// Rounds a pin position to two decimals before it is saved.
 const pct = value => Number(clampPct(value).toFixed(2));
 
+// Finds the room number closest to a click so the spot name can be suggested; far-away clicks get no suggestion.
 function nearestRoom(plan, xPct, yPct) {
   const x = xPct / 100 * plan.width, y = yPct / 100 * plan.height;
   let best = null, distance = Infinity;
@@ -553,6 +625,7 @@ function nearestRoom(plan, xPct, yPct) {
   }
   return distance <= 70 ? best : null;
 }
+// Finds the Floors row for this building and floor number, or creates it the first time a pin lands there.
 async function ensureFloor(buildingId, number) {
   const found = (state.lookups.Floors || []).find(f => f.building_id === buildingId && f.floor_number === number);
   if (found) return found.floor_id;
@@ -561,6 +634,7 @@ async function ensureFloor(buildingId, number) {
   (state.lookups.Floors ||= []).push(json[0]);
   return json[0].floor_id;
 }
+// Makes a pin draggable. A tap (no movement) opens its form; a drag reports the new position.
 function dragPin(pin, stage, {onTap, onMove, onDrop}) {
   const point = event => { const r = stage.getBoundingClientRect(); return [pct((event.clientX - r.left) / r.width * 100), pct((event.clientY - r.top) / r.height * 100)]; };
   pin.addEventListener('pointerdown', event => {
@@ -585,47 +659,44 @@ function dragPin(pin, stage, {onTap, onMove, onDrop}) {
   pin.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onTap?.(); } });
 }
 
+// Floor-plan page: pick a building and a plan, click to add a pin, click a pin to edit or delete it, drag to move it.
 async function openPlan(cfgTable) {
   const body = $('#table-body');
   destroyMap();
   body.innerHTML = '<p class="loading">Loading floor plans...</p>';
+  // Load the reference tables and every row. Rows hidden by an older version's soft delete (deleted_at set) are left off the plan; the Table tab can still delete them.
   let spots;
   try {
     await Promise.all([lookup('Buildings', true), lookup('Floors', true), lookup('SpotType', true)]);
     spots = (await api(`/rest/v1/${encodeURIComponent(cfgTable.table)}?select=*&order=${cfgTable.pk}.asc&limit=1000`)).json;
-    var deleted = spots.filter(s => s.deleted_at && s.plan_key);
     spots = spots.filter(s => !s.deleted_at);
   } catch (error) { return tableError(error); }
+  // Only buildings that have digitized floor plans can be pinned.
   const buildings = state.lookups.Buildings.filter(planSetFor);
   if (!buildings.length) { body.innerHTML = '<p class="empty">No building has a digitized floor plan yet. Floor plans exist for the Library, the Wilkinson Student Center and the Joseph Knight Building. Add one under Buildings first.</p>'; return; }
   if (!buildings.some(b => b.building_id === view.planBuilding)) { view.planBuilding = buildings[0].building_id; view.planKey = null; }
   view.planZoom ||= 1;
   const spotForm = {...cfgTable, columns: cfgTable.columns.filter(c => !c.geo && c.key !== 'building_id' && c.key !== 'floor_id')};
 
+  // Page layout: building and plan pickers, zoom buttons, the plan itself and the side form.
   body.innerHTML = `<div class="toolbar plan-toolbar">
       <span class="inline-field"><label for="plan-building">Building</label><select id="plan-building">${buildings.map(b => `<option value="${b.building_id}" ${b.building_id === view.planBuilding ? 'selected' : ''}>${esc(b.building_name)} (#${b.building_id})</option>`).join('')}</select></span>
       <span class="inline-field"><label for="plan-sheet">Floor plan</label><select id="plan-sheet"></select></span>
       <span class="seg" role="group" aria-label="Zoom"><button type="button" id="zoom-out" aria-label="Zoom out">-</button><button type="button" id="zoom-in" aria-label="Zoom in">+</button></span>
     </div>
     <div class="map-layout"><div><div class="plan-scroll" id="plan-scroll" tabindex="0"></div>
-    <p class="map-hint" id="plan-hint"></p><div class="move-bar" id="move-bar" hidden></div></div><aside class="side-panel" id="side-panel" aria-live="polite"></aside></div>
-    <details class="deleted-list" id="deleted-list"${deleted.length ? '' : ' hidden'}><summary>Recently deleted (${deleted.length})</summary><ul>${deleted.map(s => `<li><span>${esc(cfgTable.title(s))} <span class="muted">${esc(fkLabel('Buildings', s.building_id))}, ${esc(s.plan_key)}</span></span><button class="btn btn-sm" type="button" data-restore="${s[cfgTable.pk]}">Restore</button></li>`).join('')}</ul></details>`;
+    <p class="map-hint" id="plan-hint"></p><div class="move-bar" id="move-bar" hidden></div></div><aside class="side-panel" id="side-panel" aria-live="polite"></aside></div>`;
   const scroll = $('#plan-scroll'), panel = $('#side-panel'), hint = $('#plan-hint'), moveBar = $('#move-bar');
   const building = () => buildings.find(b => b.building_id === view.planBuilding);
   const redraw = () => openPlan(cfgTable);
 
-  for (const b of body.querySelectorAll('[data-restore]')) b.addEventListener('click', async () => {
-    try {
-      const {json} = await api(`/rest/v1/${encodeURIComponent(cfgTable.table)}?${cfgTable.pk}=eq.${b.dataset.restore}`, {method: 'PATCH', body: {deleted_at: null}, headers: {Prefer: 'return=representation'}});
-      if (!json?.length) return onDenied();
-      redraw();
-    } catch (error) { if (isDenied(error)) return onDenied(); tableError(error); }
-  });
+  // Changing the building, the plan or the zoom simply redraws the page with the new choice.
   $('#plan-building').addEventListener('change', event => { view.planBuilding = Number(event.target.value); view.planKey = null; redraw(); });
   $('#plan-sheet').addEventListener('change', event => { view.planKey = event.target.value; redraw(); });
   $('#zoom-in').addEventListener('click', () => { view.planZoom = Math.min(3, view.planZoom + 0.5); redraw(); });
   $('#zoom-out').addEventListener('click', () => { view.planZoom = Math.max(1, view.planZoom - 0.5); redraw(); });
 
+  // Load the floor-plan drawings for this building, then pick the plan sheet that is selected.
   const set = planSetFor(building());
   try { await loadPlanSet(set); } catch (error) { scroll.innerHTML = ''; return tableError(error); }
   const plans = window[set.global], keys = Object.keys(plans);
@@ -633,6 +704,7 @@ async function openPlan(cfgTable) {
   const plan = plans[view.planKey];
   $('#plan-sheet').innerHTML = keys.map(k => `<option value="${esc(k)}" ${k === view.planKey ? 'selected' : ''}>${esc(plans[k].label)}</option>`).join('');
 
+  // The pins that belong on the plan being viewed.
   const mine = spots.filter(s => s.building_id === view.planBuilding && s.plan_key === view.planKey && s.plan_x !== null && s.plan_y !== null);
   scroll.innerHTML = `<div class="plan-stage" id="plan-stage" style="width:${view.planZoom * 100}%">${plan.svg}${mine.map((s, i) => `<button type="button" class="plan-pin" data-id="${s[cfgTable.pk]}" style="left:${s.plan_x}%;top:${s.plan_y}%" title="${esc(cfgTable.title(s))}" aria-label="${esc(cfgTable.title(s))}">${i + 1}</button>`).join('')}</div>`;
   const stage = $('#plan-stage');
@@ -642,6 +714,7 @@ async function openPlan(cfgTable) {
   let temp = null;
   const closePanel = () => { panel.innerHTML = ''; temp?.remove(); temp = null; moveBar.hidden = true; hint.textContent = idleHint; };
 
+  // Existing pins: tap to edit or delete, drag to move (a move is only saved after 'Save new position').
   for (const pin of stage.querySelectorAll('.plan-pin')) {
     const row = mine.find(s => String(s[cfgTable.pk]) === pin.dataset.id);
     dragPin(pin, stage, {
@@ -667,6 +740,7 @@ async function openPlan(cfgTable) {
     });
   }
 
+  // CREATE by clicking: drop a temporary pin, suggest the nearest room number as the name, and open the form. The floor row is created if it is missing.
   stage.addEventListener('click', event => {
     if (event.target.closest('.plan-pin')) return;
     const r = stage.getBoundingClientRect();
@@ -692,11 +766,13 @@ async function openPlan(cfgTable) {
 // Maintain Users (calls the admin-users function; the function re-checks the admin session)
 // =====================================================================================
 let users = [];
+// Sends a request to the admin-users function. That function re-checks the admin session before it touches any account.
 async function usersCall(body) {
   const {response, json} = await raw('/functions/v1/admin-users', {method: 'POST', body});
   if (!response.ok) throw new ApiError(response.status, json);
   return json;
 }
+// Maintain Users page: lists every account (READ) with search, an Add button and Edit / Delete per row.
 async function openUsers() {
   show('users');
   const host = $('#view-users');
@@ -708,8 +784,11 @@ async function openUsers() {
   try { users = (await usersCall({action: 'list'})).users; drawUsers(); }
   catch (error) { if (isDenied(error)) return onDenied(); usersError(error.message); $('#users-body').innerHTML = ''; }
 }
+// Shows or hides the red message on the Users page.
 function usersError(message) { const el = $('#users-error'); if (!el) return; el.textContent = message || ''; el.hidden = !message; }
+// Readable date and time, or 'Never' when the account has not signed in yet.
 const fmtDate = value => value ? new Date(value).toLocaleString() : 'Never';
+// Draws the users table. Your own row and protected accounts have Delete turned off.
 function drawUsers() {
   const q = ($('#user-search')?.value || '').trim().toLowerCase();
   const list = users.filter(u => u.email.toLowerCase().includes(q));
@@ -721,12 +800,14 @@ function drawUsers() {
   for (const b of body.querySelectorAll('[data-uedit]')) b.addEventListener('click', () => userForm(users.find(u => u.id === b.dataset.uedit)));
   for (const b of body.querySelectorAll('[data-udel]')) b.addEventListener('click', () => deleteUser(users.find(u => u.id === b.dataset.udel)));
 }
+// DELETE a user: confirm, remove the row at once, and put it back if the server refuses (for example the last admin).
 async function deleteUser(user) {
   if (!await confirmDialog(`Delete ${user.email}?`, 'This removes their login permanently. Accounts with reports or submissions cannot be deleted; disable them instead.')) return;
   const before = users; users = users.filter(u => u.id !== user.id); drawUsers(); usersError('');
   try { await usersCall({action: 'delete', id: user.id}); }
   catch (error) { users = before; drawUsers(); if (isDenied(error)) return onDenied(); usersError(error.message); }
 }
+// CREATE / UPDATE a user: email, password (leave blank to keep it), role and the disable switch.
 function userForm(user) {
   const dialog = $('#form-dialog'), host = $('#form-host'), editing = !!user;
   host.innerHTML = `<form novalidate id="user-form"><h2 id="form-title">${editing ? 'Edit user' : 'Add user'}</h2>
@@ -767,5 +848,6 @@ function userForm(user) {
 }
 
 // ---- Boot ----
+// On page load: restore a saved sign-in if there is one, then draw the right screen.
 await restore();
 render();

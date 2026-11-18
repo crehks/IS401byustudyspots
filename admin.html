@@ -6,11 +6,15 @@
 <title>Nook Dev Portal</title>
 <meta name="description" content="Nook admin area: maintain study spots, buildings and users. Dev portal for the Nook team.">
 <link rel="icon" href="assets/nook-logo.png">
+<!-- Dev-portal styles. Same layout as the main Nook site with a darker palette and an amber DEV MODE ribbon. -->
 <link rel="stylesheet" href="admin.css">
 </head>
 <body>
+<!-- Accessibility: lets keyboard users jump past the header. -->
 <a class="skip" href="#main">Skip to content</a>
+<!-- Amber ribbon on every screen so nobody mistakes this admin tool for the public site. -->
 <div class="dev-ribbon" role="note"><span class="dev-ribbon-tag">Dev mode</span><span class="dev-ribbon-sub">Admin tools for the Nook team. Changes here are real.</span></div>
+<!-- Header: logo, link to the main site, and the Log in / Log out buttons. #nav-user stays hidden until someone is signed in. -->
 <header class="topbar">
   <a class="brand" href="#/" aria-label="Nook dev portal home"><img src="assets/nook-logo.png" alt="" width="40" height="34"><span>Nook <em>Dev</em></span></a>
   <nav aria-label="Primary">
@@ -25,9 +29,13 @@
   </nav>
 </header>
 
+<!-- Main area. Exactly one section is visible at a time (controlled by admin.js):
+      view-landing  public landing page   |  view-code  admin-code screen
+      view-dash / view-records / view-users / view-table  admin screens, filled in by admin.js only after login + code -->
 <main id="main" tabindex="-1">
   <p class="notice" id="notice" role="status" hidden></p>
 
+  <!-- LANDING PAGE (public): headline, picture of the Nook site, a Log in button and three feature cards. -->
   <section id="view-landing">
     <div class="hero">
       <div class="hero-copy">
@@ -40,11 +48,12 @@
     </div>
     <div class="features" id="features">
       <article class="card"><h2>Maintain records</h2><p>Create, edit and delete rows for every table the app uses, with validation and clear errors.</p></article>
-      <article class="card"><h2>Drop a pin</h2><p>Click a floor plan to place a study spot or resource, then fill in its details. Drag to fine-tune; deleted pins can be restored.</p></article>
+      <article class="card"><h2>Drop a pin</h2><p>Click a floor plan to place a study spot or resource, then fill in its details. Drag to fine-tune or delete a pin right on the plan.</p></article>
       <article class="card"><h2>Protected access</h2><p>Admins sign in, then unlock with a personal code. The database enforces it, not just this page.</p></article>
     </div>
   </section>
 
+  <!-- ADMIN CODE SCREEN: shown after a successful login. The database checks the code and opens a 2-hour admin session. -->
   <section id="view-code" hidden>
     <div class="panel narrow">
       <h1>Enter your admin code</h1>
@@ -58,14 +67,18 @@
     </div>
   </section>
 
+  <!-- Admin screens start EMPTY and hidden. Their buttons (Maintain Users, Maintain Records, one per table) are created by
+       admin.js only after login + admin code, and removed again at logout. -->
   <section id="view-dash" hidden></section>
   <section id="view-records" hidden></section>
   <section id="view-users" hidden></section>
   <section id="view-table" hidden></section>
 </main>
 
+<!-- Footer. -->
 <footer class="footer"><p>Nook admin &middot; Tools for the Nook team. Updates made here appear on the live site.</p></footer>
 
+<!-- LOGIN DIALOG: the two fields are named user_email and user_password. Submitting is handled in admin.js. -->
 <dialog id="login-dialog" aria-labelledby="login-title">
   <form id="login-form" method="dialog" novalidate>
     <h2 id="login-title">Log in</h2>
@@ -78,7 +91,9 @@
   </form>
 </dialog>
 
+<!-- Popup used for the Add / Edit record form (its contents are generated from the table definition in admin.js). -->
 <dialog id="form-dialog" aria-labelledby="form-title"><div id="form-host"></div></dialog>
+<!-- Popup that asks 'Are you sure?' before anything is deleted. -->
 <dialog id="confirm-dialog" aria-labelledby="confirm-title">
   <form method="dialog">
     <h2 id="confirm-title">Are you sure?</h2>
@@ -87,7 +102,9 @@
   </form>
 </dialog>
 
+<!-- Public Supabase address and browser-safe key. No secret key is ever placed in the page. -->
 <script src="supabase-config.js"></script>
+<!-- All page behaviour (login, admin code, Create / Read / Update / Delete, logout). -->
 <script type="module" src="admin.js"></script>
 </body>
 </html>
