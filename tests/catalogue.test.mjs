@@ -96,7 +96,7 @@ test('homepage presents a welcome screen and snaps to the full-height filter and
   assert.match(html,/<button class="chip" data-noise="medium" type="button">Social<\/button>/);
   assert.match(html,/<input id="groupSize" type="range" min="2" max="6" value="4">/);
   assert.match(html,/<div class="range-ends"><span>2<\/span><span>6 max<\/span><\/div>/);
-  assert.match(app,/Maximum group size \(2-6\)[\s\S]*?name="capacity" type="number" min="2" max="6"/);
+  assert.match(await readFile(new URL('report.html',root),'utf8'),/Maximum group size \(2-6\)[\s\S]*?name="capacity" type="number" min="2" max="6"/);
   assert.doesNotMatch(html,/mobile-filter-bar|toggleFilters|mobileShowMatches|activeFilterCount/);
   assert.doesNotMatch(html,/matchCount|mobileMatchCount|View Matches/);
   assert.match(html,/<footer class="site-footer"><span class="footer-copy"><span>© 2026 Nook\.<\/span><span>Less wandering, more studying\.<\/span><span>Sincerely, Nook\.<\/span><\/span><span class="footer-links"><a class="footer-button" href="https:\/\/map\.byu\.edu\/"[^>]*>BYU Campus Map<\/a><button id="rateUs" class="footer-button" type="button">Rate Us<\/button><\/span><\/footer>/);

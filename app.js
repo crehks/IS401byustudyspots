@@ -195,7 +195,7 @@ async function loadReservationLinks(){
   catch(error){console.warn('Reservation links unavailable:',error.message);}
 }
 
-let reportSubmissionPending=false,newSpotPending=false;
+let reportSubmissionPending=false;
 const choiceTimer=new ChoiceTimer();
 // Temporary screen choices. Save filters copies a preset into device data.
 const state={view:'explore',building:'HBLL',floor:'L3',zoom:1,selectedSpot:null,locatedSpot:null,arrivalReadySpot:null,selectedRoom:null,nooksVisible:true,resourcesVisible:false,selectedResource:null,selectedList:'favorites',listEditMode:false,study:'any',noise:'any',layout:'any',outlets:false,groupSize:4,buildings:new Set(['HBLL','WSC','JKB'])};
@@ -1004,16 +1004,8 @@ async function openSave(id){
     if(cloud.error||!cloud.ready){showToast(cloud.error||'Your lists are still loading. Try again in a moment.');if(cloud.error)void loadCloudLists();return}
   }
   openModal(`${modalHeader('Save this spot')}<p class="modal-description">Add ${esc(s.name)} to any of your lists.</p><div class="building-checks">${activeLists().map(l=>`<label class="building-check"><input type="checkbox" data-save-list="${esc(l.id)}" ${l.spots.includes(id)?'checked':''}><span>${esc(l.name)}</span></label>`).join('')}</div><div class="modal-actions"><button class="secondary-button" type="button" data-modal-close>Cancel</button><button class="primary-button" type="button" data-save-confirm="${esc(id)}">Save changes</button></div>`)}
-// With Supabase connected, a reported spot is stored as a pending submission for the team to
-// review. It is deliberately not added to the on-page catalogue.
-async function submitNewSpot(form,input){
-  if(newSpotPending)return;
-  const button=form.querySelector('[type="submit"]'),error=$('#newSpotError');
-  newSpotPending=true;button.disabled=true;button.textContent='Sending…';error.hidden=true;
-  try{await database.submitSpot(input);closeModal(true);showToast('Thanks! Your spot was sent to the team for review.');}
-  catch(problem){error.textContent=problem.message;error.hidden=false;}
-  finally{newSpotPending=false;button.disabled=false;button.textContent='Submit Spot';}
-}
+// Radio-style choice group used by the arrival report.
+function radioChoiceField(name,title,choices,selected){return `<fieldset class="form-field choice-field"><legend>${esc(title)}</legend><div class="radio-segments" role="radiogroup" aria-label="${esc(title)}">${choices.map(([value,label],index)=>{const id=`new-${name}-${index}`;return `<label class="radio-option" for="${id}"><input id="${id}" name="${esc(name)}" type="radio" value="${esc(value)}" required ${value===selected?'checked':''}><span>${esc(label)}</span></label>`}).join('')}</div></fieldset>`}
 // SITE RATING: anyone can rate Nook from the footer. Ratings save to the SiteRating table.
 let ratingPending=false;
 function openRating(){
@@ -1034,15 +1026,6 @@ async function submitRating(form){
   catch(problem){error.textContent=problem.message;error.hidden=false;}
   finally{ratingPending=false;button.disabled=false;button.textContent='Send Feedback';}
 }
-// Suggestions stay on this device; their map pins are provisional placements.
-function radioChoiceField(name,title,choices,selected){return `<fieldset class="form-field choice-field"><legend>${esc(title)}</legend><div class="radio-segments" role="radiogroup" aria-label="${esc(title)}">${choices.map(([value,label],index)=>{const id=`new-${name}-${index}`;return `<label class="radio-option" for="${id}"><input id="${id}" name="${esc(name)}" type="radio" value="${esc(value)}" required ${value===selected?'checked':''}><span>${esc(label)}</span></label>`}).join('')}</div></fieldset>`}
-function openNewSpot(buildingId=Object.keys(BUILDINGS)[0],floorId=null){
-  const firstBuilding=BUILDINGS[buildingId]?buildingId:Object.keys(BUILDINGS)[0];
-  const buildingChoices=Object.entries(BUILDINGS).map(([id,b])=>[`${id} · ${b.short}`,`${id} · ${b.short}`]);
-  openModal(`${modalHeader('Report a new spot')}<p class="modal-description">Know a great spot we missed? Submit it below. We review all submissions to keep the map accurate, so it may take a few days to appear. Please don't include personal info.</p><form id="newSpotForm"><div class="form-field"><label for="newName">Name of spot</label><input id="newName" name="name" required maxlength="60" placeholder="Example: east wing tables"></div>${radioChoiceField('building','Building',buildingChoices,buildingChoices.find(([value])=>value.startsWith(`${firstBuilding} ·`))?.[0])}<div id="newFloorChoices"></div>${radioChoiceField('type','Best for',[['Solo study','Solo study'],['Group study','Group study']])}<div class="form-field" id="newCapacityWrap" hidden><label for="newCapacity">Maximum group size (2-6)</label><input id="newCapacity" name="capacity" type="number" min="2" max="6" value="4"></div>${radioChoiceField('noise','Noise level',[['Quiet','Quiet'],['Social','Social']])}${radioChoiceField('layout','Layout',[['Secluded','Secluded'],['Open Area','Open Area']])}${radioChoiceField('power','Power',[['Outlets','Outlets'],['No outlets','No outlets']])}<div class="form-field"><label for="newDetail">How to find it (optional)</label><textarea id="newDetail" name="detail" maxlength="160" placeholder="E.g., Second floor, past the vending machines..."></textarea></div><p class="form-error" id="newSpotError" role="alert" hidden></p><div class="modal-actions"><button type="button" class="secondary-button" data-modal-close>Cancel</button><button type="submit" class="primary-button">Submit Spot</button></div></form>`);
-  updateNewSpotFloors(floorId)
-}
-function updateNewSpotFloors(preferredFloorId=null){const form=$('#newSpotForm');if(!form)return;const buildingChoice=form.elements.building.value,building=Object.entries(BUILDINGS).find(([id,b])=>`${id} · ${b.short}`===buildingChoice)?.[0],previous=form.elements.floor?.value,floors=BUILDINGS[building].floors,defaultFloor=BUILDINGS[building].groundFloor||floors[0].id,preferred=floors.find(f=>f.id===preferredFloorId||floorIds(building,f.id).includes(preferredFloorId))?.label,selected=preferred||(floors.some(f=>f.label===previous)?previous:floors.find(f=>f.id===defaultFloor).label);$('#newFloorChoices').innerHTML=radioChoiceField('floor','Floor',floors.map(f=>[f.label,String(f.level)]),selected);const isGroup=form.elements.type.value==='Group study';$('#newCapacityWrap').hidden=!isGroup;$('#newCapacity').disabled=!isGroup}
 // Favorites is permanent; the prototype supports two additional lists.
 // Apply the checked lists to one spot. Account lists are saved to the database before the page changes.
 async function confirmSave(id,button){
@@ -1218,7 +1201,8 @@ document.addEventListener('click',event=>{
   if(t.id==='navProfile'){setView('profile');return}
   if(t.id==='deleteAccount'){openDeleteAccount();return}
   if(t.dataset.profileList){state.selectedList=t.dataset.profileList;setView('saved');return}
-  if(t.id==='navReport'){openNewSpot(state.view==='building'?state.building:undefined,state.view==='building'?state.floor:null);return}
+  // Reporting a spot has its own page (report.html) with the floor-plan pin. From a building page, open it already set to that building and floor.
+  if(t.id==='navReport'){const from=state.view==='building'?`?building=${encodeURIComponent(state.building)}&floor=${encodeURIComponent(state.floor)}`:'';window.location.href=`report.html${from}`;return}
     if(t.id==='rateUs'){event.preventDefault();openRating();return}
   if(t.id==='navAuth'){if(!auth.signedIn)openAuth('login');else toggleNavMenu();return}
   if(t.id==='navMenuProfile'){toggleNavMenu(false);setView('profile');return}
@@ -1276,8 +1260,6 @@ document.addEventListener('change',event=>{
   if(t.closest('#buildingFilters')){state.buildings=new Set($$('#buildingFilters input:checked').map(x=>x.value));updateFilter()}
   if(t.id==='outletFilter'){state.outlets=t.checked;updateFilter()}
   if(t.id==='buildingSelect'){openBuilding(t.value)}
-  if(t.closest('#newSpotForm')&&t.name==='building')updateNewSpotFloors();
-  if(t.closest('#newSpotForm')&&t.name==='type'){if(t.value==='Group study')$('#newCapacity').value='4';updateNewSpotFloors()}
 });
 // Update the group-size slider immediately.
 $('#groupSize').addEventListener('input',e=>{state.groupSize=Number(e.target.value);updateFilter()});
@@ -1299,22 +1281,6 @@ document.addEventListener('keydown',e=>{
 document.addEventListener('submit',e=>{
   if(e.target.id==='authForm'){e.preventDefault();void submitAuth(e.target);return}
   if(e.target.id==='arrivalForm'){e.preventDefault();void submitArrival(e.target);return}
-  if(e.target.id==='newSpotForm'){
-    e.preventDefault();
-    const f=e.target.elements;
-    const name=f.name.value.trim(),typeChoice=f.type.value,noiseChoice=f.noise.value,
-      layoutChoice=f.layout.value,powerChoice=f.power.value,
-      building=Object.entries(BUILDINGS).find(([id,b])=>`${id} · ${b.short}`===f.building.value)?.[0];
-    const type=typeChoice==='Solo study'?'solo':'group',noise=noiseChoice==='Quiet'?'low':'medium',
-      isPrivate=layoutChoice==='Secluded',outlets=powerChoice==='Outlets',
-      capacity=type==='group'?Number(f.capacity.value):1;
-    if(name.length<3||(type==='group'&&(capacity<2||capacity>6))){$('#newSpotError').textContent='Enter a spot name and a group size from 2 to 6.';$('#newSpotError').hidden=false;return}
-    const chosenFloor=BUILDINGS[building].floors.find(fl=>fl.label===f.floor.value);
-    if(!chosenFloor){$('#newSpotError').textContent='Choose a valid floor for this building.';$('#newSpotError').hidden=false;return}
-    const spot={id:`custom-${Date.now()}`,building,floor:chosenFloor.id,name,type,capacity,private:isPrivate,outlets,noise,busy:null,reserved:false,x:chosenFloor?.defaultX??29,y:chosenFloor?.defaultY??72,detail:f.detail.value.trim()};
-    if(database.config.configured&&database.ready){submitNewSpot(e.target,{building,floorNumber:chosenFloor.level,floorLabel:chosenFloor.label,name,type,capacity,private:isPrivate,outlets,noise,detail:f.detail.value.trim()});return}
-    data.customSpots.push(spot);const saved=save();closeModal();openBuilding(spot.building,spot.floor);render();if(saved)showToast('New spot added on this device.');return
-  }
   if(e.target.id==='ratingForm'){e.preventDefault();void submitRating(e.target);return}
   if(['profileNameForm','profileEmailForm','profilePasswordForm'].includes(e.target.id)){e.preventDefault();void submitProfile(e.target);return}
   if(e.target.id==='deleteAccountForm'){e.preventDefault();void submitDeleteAccount(e.target);return}
@@ -1338,5 +1304,7 @@ window.matchMedia?.(COMPACT_LAYOUT_QUERY).addEventListener('change',()=>{
 render();
 renderDatabaseStatus();
 renderAuthNav();
+// Links from the Report a Spot page can open My Nooks or Profile directly.
+{const wanted=new URLSearchParams(window.location.search).get('view');if(wanted==='saved'||wanted==='profile')setView(wanted)}
 setInterval(()=>{if(database.ready)database.loadConditions().then(render).catch(()=>{})},120000);
 void database.initialize().then(()=>auth.restore()).then(()=>{if(auth.notice)showToast(auth.notice);applyDatabaseCapacities();renderDatabaseStatus();render();loadBuildingHours();loadReservationLinks()}).catch(()=>{database.error='The database connection could not initialize. Check .env and refresh to retry.';renderDatabaseStatus()});
