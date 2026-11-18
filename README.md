@@ -1,79 +1,91 @@
-# Nook
+﻿# Nook — BYU Study Spot Finder
+
+[Open the live site](https://byunook.vercel.app/) · [GitHub repository](https://github.com/crehks/IS401byustudyspots)
+
+Nook helps BYU students find a study spot that fits their needs. This README covers the app, its data model and data flows, the stack, local setup, deployment, and how to verify that a report persists.
 
 ## App Summary
 
-College students frequently struggle to find campus study spaces that accommodate their specific needs, especially when trying to coordinate a spot for a group. Without a reliable way to check space layouts, typical noise levels, or nearby amenities in advance, students waste valuable time wandering around and between buildings. This often leads to individuals and groups settling for unsatisfactory environments that negatively impact their overall productivity. To solve this, our app provides a comprehensive interactive map of campus study spaces designed to help students pinpoint an ideal spot, whether they are planning ahead or actively searching within a crowded building. Users can explore detailed floor plans of popular buildings and apply custom filters for group capacity, privacy requirements, general noise levels, and available outlets. As a supplementary feature, the platform incorporates user-submitted status reports, allowing students to share near real-time crowding conditions to enhance the app's historical busyness data. Ultimately, the app eliminates the guesswork of finding a study spot, ensuring students can quickly secure an environment tailored to their exact needs.
+BYU students can spend time walking between buildings because they cannot tell which study spaces fit their needs. Nook provides a campus map and searchable floor plans for the Harold B. Lee Library (HBLL), the Wilkinson Student Center (WSC), and the Joseph F. Smith Building (JKB). Students can filter spaces by individual or group use, capacity, noise level, privacy, and outlets, and search for rooms and resources. A selected spot includes its floor, location details, reservation information when available, and recent reports. Students can save spots in lists and report whether a spot was available, along with current noise and crowding. Signed-in reports enter an AI review workflow, while guest reports use the legacy report table. An admin-only Impact page displays four key results calculated from recorded app activity. Some inventory and pin locations are still illustrative, so the map is a study guide rather than a guarantee of current availability.
 
-**Live site:** https://byunook.vercel.app (Vercel, backed by Supabase).
-
-This prototype uses illustrative inventory and historical data; reports are loaded on page refresh, not streamed live.
-
-HBLL uses ten supplied drawings, WSC uses nine, and JKB uses four (floors 1–4). All are searchable, zoomable SVG maps. Study-spot pins remain provisional.
-
-The campus overview traces 42 labeled buildings from the supplied map. Blue JKB, HBLL, and WSC shapes open floor maps; all other buildings show a coming-soon message. Zoom, drag/swipe, and reset are available. Raised building edges are illustrative, not measured heights.
+The campus overview features over 40 labeled buildings. The active WSC, HBLL, and JKB buildings open supplied SVG floor plans, while all others display a coming-soon message. The map supports zoom, drag/swipe, and reset interactions. Currently, study-spot pins are provisional, and crowding reports load on page refresh rather than via live websocket streaming.
 
 ## How to Use the App
 
-No setup is needed to try it: open **https://byunook.vercel.app** in any browser.
+Open [the live site](https://byunook.vercel.app/) in a browser.
 
-1. **Explore the campus map.** The home page shows 45 BYU buildings. Click a blue building (HBLL, WSC, or JKB) to open its floor plans. Other buildings show a "coming soon" message. Drag to pan, scroll or pinch to zoom, and use **Reset** to recenter. On a phone, tap **Interact with map** to drag and zoom; tap **Done** to scroll the page again.
-2. **Pick a floor.** Choose a floor tab to see its study-spot pins. Each pin shows how many seats the spot has.
-3. **Filter spots.** Set group size, privacy, noise level, and outlets. The match count updates as you change filters, and **Clear** resets them. On mobile, switch between **Map** and **Study spots** to see results as a list.
-4. **Open a spot.** Click a pin or a search result to see its details, including the latest crowd and noise report ("No recent data" if nobody has reported in the last 45 minutes).
-5. **Choose a spot and report conditions.** Click **Choose this spot**, set noise and crowding, add an optional note, and click **Confirm report**. Other students see this the next time they load the page.
-6. **Create an account (optional).** Click **Log in**, then sign up with your email and confirm it from the link we send you. Signed-in users can save spots to **Favorites** and custom lists under **My Nooks**, and their reports are checked by AI before they affect the map.
-7. **Report a new spot.** Click **Report a Spot** in the navigation to open its own page (`/report.html`); no account is needed. Pick a building and floor plan, click the plan to drop a pin (drag it to fine-tune), fill in the spot details, and send it. Reports wait as pending until the team reviews them, so they do not appear on the map right away. Signed-in users can open the **Recent reports** tab on that page to see each report as Pending, Added, or Denied, with filters for each.
-8. **Admins only.** Admin accounts see extra menu items: **Dev tools** (`/admin.html`: Maintain Users, Maintain Records, and floor-plan pin editors, unlocked with an admin code) and **Impact** (`/okr.html`: objectives and key results computed from real app activity).
+1. **Explore campus.** Select HBLL, WSC, or JKB on the campus map to open its building view.
+2. **Find spots.** Choose a floor, adjust the study filters, and review the matching spots. On mobile, switch between the map and the spot list. Select a spot card or map pin to see its details.
+3. **Head to a spot and share conditions.** Select **Head Here**, then **I've Arrived** when you reach it. The arrival form lets you report whether you found a seat, the current crowding and noise, and an optional note.
+4. **Save spots.** Sign in to save spots in **Favorites** or custom lists under **My Nooks**.
+5. **Suggest a spot.** Select **Report a Spot** in the navigation, fill in the details, and submit it for team review. New suggestions remain pending until reviewed.
+6. **Admin tools.** Admin accounts have access to the development tools and the Impact dashboard.
 
 ## ERD
 
-![Nook ERD](docs/erd.png)
+The following logical ERD is embedded as required by the Module 5 README assignment.
 
-The core schema uses six ERD tables: `Buildings`, `Floors`, `SpotType`, `Study Spot`, `User`, and `ReportSpotStatus`. Buildings contain floors; study spots reference a building, floor, and type; reports reference a spot and user. All six contain sample rows. Later migrations in `supabase/migrations/` add accounts, favorites, spot submissions, AI-tagged reports (`spot_reports`), OKR tracking, and the admin gate.
+![Nook entity relationship diagram](docs/erd.png)
+
+The diagram uses crow's-foot notation: a single bar means one, and a crow's foot means many. Examples include Building 1-to-many Floor, Study Spot 1-to-many ReportSpotStatus, and FavoritesList many-to-many Study Spot through Favorites.
+
+The ERD captures the team's logical model. The implementation has since gained additional tables and separate report paths; follow the current schema notes in [docs/YOUR_EXISTING_TABLES.md](docs/YOUR_EXISTING_TABLES.md) and migrations under [supabase/migrations](supabase/migrations/) when working with the deployed database.
 
 ## Data Flow Diagrams
 
-**Level 0 (context diagram)**
+These diagrams are embedded to meet the final presentation assignment's README requirement.
 
-![Level 0 DFD](docs/level0_dfd.png)
+### Level 0
 
-**Level 1 (processes and data stores)**
+![Level 0 data flow diagram for Nook](docs/level0_dfd.png)
 
-![Level 1 DFD](docs/level1_dfd.png)
+The context diagram shows students, Nook, the Gemini API, and BYU Reservations as external actors or systems.
 
-**Level 1 (logical)**
+### Level 1
 
-![Level 1 logical DFD](docs/level1_dfd_logical.png)
+![Level 1 data flow diagram for Nook](docs/level1_dfd.png)
+
+The expanded diagram shows login, browsing, report and spot submissions, record maintenance, and AI report tagging.
+
+### Level 1 logical
+
+![Level 1 logical data flow diagram for Nook](docs/level1_dfd_logical.png)
 
 ## Tech Stack
 
-- **Frontend:** hand-built HTML, CSS, JavaScript, and SVG floor maps (no framework or build step).
-- **Backend/database:** Supabase (PostgreSQL, REST API, Auth, row-level security, Edge Functions in `supabase/functions/`).
-- **AI tagging and spam filtering:** Gemini, called only from the `tag-report` (status reports) and `check-spot-submission` (new-spot reports) Edge Functions.
-- **Local server:** Node.js 22+ (`server.mjs`) loads connection settings from `.env` and serves the app.
-- **Hosting:** Vercel serves the static files (`vercel.json`); Supabase hosts the data and functions.
-- **Tests:** Node's built-in test runner, with `linkedom` and `@electric-sql/pglite` as dev dependencies.
+| Layer | Technology | Purpose |
+| --- | --- | --- |
+| Front end | HTML, CSS, JavaScript, and SVG | Custom responsive interface, interactive campus map, and floor plans |
+| Static hosting | Vercel | Serves the web app from the repository using [vercel.json](vercel.json) |
+| Database and API | Supabase / PostgreSQL | Stores study spots, reports, favorites, OKR events, and related data; exposes the API used by the app |
+| Authentication | Supabase Auth | Supports signed-in reporting and account-based saved lists |
+| AI automation | Google Gemini through a Supabase Edge Function | Classifies signed-in report text, validates the report, and assigns noise and crowding levels |
+| Local development | Node.js 22+ | Runs the small local server in [server.mjs](server.mjs), which reads optional local settings and serves the app |
 
-This approach keeps our custom map interface easy to edit while Supabase handles database hosting, authentication, and API access.
+This stack keeps the maps and interface easy to modify while Supabase provides the hosted database, authentication, and function runtime. Vercel serves the front end; it does not run the Supabase Edge Function.
 
-| Path | Purpose |
-| --- | --- |
-| `index.html`, `app.js`, `styles.css` | Main app: map, filters, spot dialog, favorites |
-| `database.js`, `auth.js`, `supabase-config.js` | Supabase data access, authentication, and config |
-| `admin.*`, `okr.*` | Admin portal and Impact (OKR) page |
-| `report.*` | Report a Spot page: form plus a draggable floor-plan pin |
-| `hbll-plans.js`, `wsc-plans.js`, `jkb-plans.js`, `assets/` | Floor-plan data and source drawings |
-| `server.mjs` | Local server and `/api/config` |
-| `supabase/` | Migrations, seed data, and Edge Functions |
-| `tests/`, `tools/` | Automated tests and helper scripts |
+## Data and Persistence
+
+| Data | When Supabase is connected | Local preview or offline behavior |
+| --- | --- | --- |
+| Signed-in study-spot reports | Saved in `spot_reports`; sent through AI review | Reports cannot enter the AI workflow without a signed-in account and database connection |
+| Guest study-spot reports | Saved in `ReportSpotStatus`; this legacy path is not AI-reviewed | Saved in browser storage only when the database is unavailable |
+| Saved lists | Saved in `FavoritesList` and `Favorites` for signed-in users | Saved in this browser's local storage |
+| New spot suggestions | Inserted as pending rows in `SpotSubmission` for team review; they do not appear in the catalogue automatically | Saved only in this browser's local storage |
+| Accounts | Managed by Supabase Auth; the app stores a browser session, not passwords in its own tables | Sign-in and account-backed features are unavailable |
+| OKR activity | Stored as database events and returned as aggregates to the protected dashboard | No cloud OKR activity is recorded |
+
+### Pages and views
+
+The main site is a single-page application. `index.html` contains the **Explore**, **Building**, **My Nooks**, and **Profile** views; **Report a Spot** opens a form from the main site. The separate [admin.html](admin.html) provides protected development and catalogue tools, and [okr.html](okr.html) provides the protected Impact dashboard. The project has three top-level HTML files, with additional screens implemented as views inside `index.html`.
 
 ## How to Get It Running
 
-Only needed if you want to run your own copy; otherwise use the live site above.
+### Local development
 
-1. Clone this repository and open the folder containing `package.json` in a terminal.
-2. Install Node.js 22 or newer, then run `npm install` (only needed for the tests).
-3. Copy `.env.example` to `.env` and enter your Supabase project URL and browser-safe publishable key:
+1. Clone the [repository](https://github.com/crehks/IS401byustudyspots) and open its folder in VS Code.
+2. Install Node.js 22 or newer.
+3. The repository includes browser-safe Supabase settings in [supabase-config.js](supabase-config.js) for the team's project. To use a different Supabase project locally, copy `.env.example` to `.env` and set:
 
    ```dotenv
    SUPABASE_URL=https://YOUR_PROJECT.supabase.co
@@ -81,39 +93,100 @@ Only needed if you want to run your own copy; otherwise use the live site above.
    SUPABASE_REPORTS_TABLE=ReportSpotStatus
    ```
 
-   `.env` is Git-ignored. Never commit real settings or use a secret/service-role key.
-4. In your Supabase project, run the SQL files in `supabase/migrations/` in filename order (the `dev-page/` subfolder holds the admin tools), then `supabase/seed.sql` for sample data. Do not rerun them on a database that already has data.
-5. Run `npm run check:db` to confirm the connection, then `npm start`.
-6. Open [http://127.0.0.1:3000](http://127.0.0.1:3000). If port 3000 is busy, set another port first (PowerShell: `$env:PORT="3001"`).
+   The `.env` file is ignored by Git. Use only a publishable key in browser code; never add a secret or service-role key to the front end or repository. The app relies on Supabase row-level security (RLS) to protect data.
+4. In a terminal in the project folder, run:
 
-| Command | What it does |
-| --- | --- |
-| `npm start` | Serve the app locally |
-| `npm run check:db` | Verify the Supabase connection and report tables |
-| `npm test` | Run the main automated tests |
-| `npm run test:admin` | Run admin-gate and pinned-spot tests |
-| `npm run dev:backend` / `npm run dev:app` | Local stand-in for Supabase, for admin-page development |
+   ```bash
+   npm start
+   ```
 
-The static site is deployed to Vercel. GitHub Pages cannot run `server.mjs` or read `.env`.
+   No package installation is needed to run the app. The local server reads `.env` when present and listens on `127.0.0.1:3000`.
+5. Open [http://127.0.0.1:3000](http://127.0.0.1:3000). Keep the terminal open while using the site. If port 3000 is busy, set `PORT` to another available port before starting the server.
+
+To check a custom local Supabase configuration, fill in `.env` and run:
+
+```bash
+npm run check:db
+```
+
+This read-only check validates the connection and reads the report table and latest-report view. It does not submit a report or create tables. For setup against the team's existing schema, follow [docs/YOUR_EXISTING_TABLES.md](docs/YOUR_EXISTING_TABLES.md); do not rerun seed or setup scripts against the live project.
+
+### Vercel deployment
+
+The live app is [byunook.vercel.app](https://byunook.vercel.app/). Vercel serves the static HTML, CSS, JavaScript, and assets described in `vercel.json`; `server.mjs` is for local development. The browser loads the public Supabase configuration from `supabase-config.js`. Supabase migrations and Edge Functions are deployed separately from the Vercel front end.
+
+For a separate deployment, connect the repository to a Vercel project and deploy from the repository root. Update `supabase-config.js` to the intended Supabase project using its URL and publishable key. Apply the matching database migrations and configure the Supabase Edge Function secrets described below. Do not put a service-role key in Vercel's static files or any browser-visible setting.
 
 ## Verifying the Vertical Slice
 
-### Test the report
+This section follows the Module 5 assignment's vertical-slice requirement: submit a report, confirm the interface response, refresh the page, and confirm that the database row remains.
 
-1. Select **WSC → Floor 1 → East → East hall tables (sample)**, then click **Choose this spot**.
-2. Choose noise and crowding levels, enter a distinctive fictional note such as `Refresh proof 42`, and click **Confirm report**.
-3. The app inserts into `ReportSpotStatus` and displays the saved values and database-generated report ID. Reopen the spot to see **Latest report**.
-4. Refresh the entire page and reopen that same spot. The note and report ID should remain: the app reads them again from `latest_report_spot_status`, not browser storage.
-5. Confirm that same report ID exists in Supabase's `ReportSpotStatus` table.
+1. Configure the intended Supabase connection. `npm run check:db` checks the legacy `ReportSpotStatus` table and its latest-report view; it does not verify the AI function.
+2. Open a built-in, non-reservable study spot, such as **WSC → Floor 1 → East → East hall tables**.
+3. Choose **Head Here**, then **I've Arrived**. Submit whether the spot was available, its current noise and crowding, and an optional fictional note.
+4. For the original guest vertical slice, submit while signed out. The app saves the report to `ReportSpotStatus`; after a full refresh, reopen the spot and confirm the latest report is still shown. In Supabase Table Editor, confirm the row remains.
+5. To verify the AI path, submit while signed in. Confirm the row in `spot_reports`, then check its status. Approved reports can update the recent crowding/noise forecast for 45 minutes; pending and rejected reports persist but do not contribute to public conditions.
 
-Noise/crowding use **1 = Low, 2 = Medium, 3 = High**. The test spot uses ID **1008**, and guest reports use fictional demo user **1001**. Signed-in reports go to `spot_reports` instead (next section).
+Use fictional test notes and avoid personal information. The spot catalogue and some placements are prototypes; reports describe a student's observation at a point in time, not guaranteed occupancy. For previous checks and their scope, see [docs/verification.md](docs/verification.md).
 
-## AI-tagged crowd/noise reports
+## AI Workflow Automation
 
-Signed-in users report a space; the `tag-report` Edge Function asks Gemini to tag noise and crowd (low/medium/high) and flag spam. Pins and filters show only approved reports from the last 45 minutes, otherwise "No recent data". Guests still post to the `ReportSpotStatus` table, which feeds the spot dialog's "Latest report" but not the pins.
+The signed-in report workflow is implemented in [supabase/functions/tag-report](supabase/functions/tag-report/):
 
-- Migration: `supabase/migrations/20261109_001_ai_tagged_reports.sql` (`spot_reports`, rate limit of 3 per user per space per hour, `space_conditions()` RPC).
-- Function: `supabase/functions/tag-report/`. The only provider-specific code is `llm.ts`; swap Gemini for Groq by replacing `classify()`.
-- Secrets (never in the repo): `supabase secrets set GEMINI_API_KEY=... CRON_SECRET=... [GEMINI_MODEL=...]`. Check current free-tier limits in Google AI Studio.
-- Failures (429, timeout, bad output) leave the report `pending`. Retry with `POST /functions/v1/tag-report {"retry":true}` and header `x-cron-secret`, manually or from pg_cron (10 reports per run, max 5 attempts).
-- Staleness window: change the default in `space_conditions()` and `loadConditions()` in `database.js`.
+1. An authenticated student submits report text and self-selected noise/crowding levels.
+2. The app writes the report as `pending` in `spot_reports`.
+3. The Supabase Edge Function sends the report text and selected levels to Google Gemini. Gemini returns structured labels for validity, noise, crowding, and a short reason.
+4. Valid reports become `approved`; invalid or spam-like reports become `rejected`. Approved reports can contribute to recent conditions for the spot. The conditions aggregate uses approved reports from the latest 45 minutes.
+5. If Gemini fails or returns unusable output, the report stays pending for retry rather than being treated as approved.
+
+The database limits authenticated users to three reports per spot per hour. Guests use the separate legacy `ReportSpotStatus` table and do not enter the AI review flow.
+
+To configure this workflow in a separate Supabase project, apply the appropriate migrations and deploy the `tag-report` function. Set `GEMINI_API_KEY` and `CRON_SECRET` as Supabase Function secrets; optional model overrides are `GEMINI_MODEL` and `GEMINI_FALLBACK_MODEL`. Never commit these secrets. See [docs/YOUR_EXISTING_TABLES.md](docs/YOUR_EXISTING_TABLES.md) and the function source for the project-specific setup.
+
+## Objectives and Key Results
+
+The protected Impact dashboard at [okr.html](okr.html) displays four key results from Supabase aggregates. Baselines and targets are defined in [okr.js](okr.js); current values come from recorded activity through the `okr_metrics()` function. The dashboard polls for updates every five seconds. It does not use hard-coded current results.
+
+| Objective | Key result | Baseline → target | How it is measured |
+| --- | --- | --- | --- |
+| Reduce friction and frustration by showing spots that fit students' needs | **O1-KR1:** Increase the share of arrival reports that say a spot was available | 0% → 50% | Yes answers divided by all answered arrival-availability questions |
+| Reduce friction and frustration by showing spots that fit students' needs | **O1-KR2:** Reduce the average time to choose a study spot | 3 minutes → 60 seconds | Average seconds recorded from app entry to a spot-choice action |
+| Provide a consistent, quality experience for long-term users | **O2-KR1:** Increase registered users who return at least twice within 14 days | 0% → 50% | Registered users with at least two recorded visits in the rolling 14-day window, divided by all registered users |
+| Provide a consistent, quality experience for long-term users | **O2-KR2:** Increase registered users who submit more than one report within 14 days | 0% → 40% | Registered users with at least two reports in the rolling 14-day window, divided by all registered users |
+
+The database returns aggregates only to an authorized admin session; the browser does not read the raw visit and choice-event tables. The target values are goals, not claims about current performance.
+
+## Definition of Done and Accessibility
+
+The final-project assignment calls for five functional pages, all four OKRs tracking real activity, at least one working AI automation, responsive desktop and mobile layouts, end-to-end functionality, an Accessibility score of at least 90 in Lighthouse, embedded Level 0 and Level 1 DFDs in this README, a cloud-hosted site, and code merged to `main`.
+
+Lighthouse Accessibility results provided by the team:
+
+| Page | Device | Score |
+| --- | --- | ---: |
+| Main page | Desktop | 96 |
+| Main page | Mobile | 96 |
+| Impact | Not specified | 100 |
+| Dev tools | Not specified | 100 |
+
+All reported scores meet the 90-point Accessibility target. The measurement date and browser version were not provided.
+
+## Project Notes
+
+- [docs/FILE_GUIDE.md](docs/FILE_GUIDE.md) explains the main files, map IDs, data storage boundaries, and safe editing practices.
+- [docs/YOUR_EXISTING_TABLES.md](docs/YOUR_EXISTING_TABLES.md) covers the team's existing Supabase schema and report persistence flow.
+- [docs/verification.md](docs/verification.md) records historical checks and their limits; check its dates before treating a result as current.
+- `supabase/migrations/` contains the database changes; review the matching migration before applying anything to a Supabase project.
+- Prototype building inventory and map placements are illustrative. Crowding is based on user reports and does not mean live head counts.
+
+## Automated Checks
+
+Install the development dependencies before running the repository checks:
+
+```bash
+npm ci
+npm test
+npm run test:admin
+```
+
+The automated checks use local fixtures. They do not verify that the currently hosted Vercel deployment, Supabase project, or Gemini function is reachable.
