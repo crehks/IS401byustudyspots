@@ -67,15 +67,27 @@ test('before the pin columns exist, the report still goes through with the pin k
     return 'plan_key' in body?Response.json({code:'PGRST204',message:"Could not find the 'plan_key' column of 'SpotSubmission' in the schema cache"},{status:400}):new Response(null,{status:201});
   });
   await client.submitSpot({...base,planKey:'1E',planX:41.2,planY:60,detail:'By the windows'});
-  assert.equal(bodies.length,2);
-  assert.equal('plan_key' in bodies[1],false);
-  assert.equal(bodies[1].location_details,'By the windows [Pin 1E 41.2%, 60%]');
-  assert.ok(bodies[1].location_details.length<=160);
+  assert.equal(bodies.length,3,'full row, then without the device token, then without the pin');
+  assert.equal('client_token' in bodies[1],false);assert.equal(bodies[1].plan_key,'1E');
+  assert.equal('plan_key' in bodies[2],false);
+  assert.equal(bodies[2].location_details,'By the windows [Pin 1E 41.2%, 60%]');
+  assert.ok(bodies[2].location_details.length<=160);
   // Other failures are still reported, never retried.
   bodies.length=0;
   const denied=clientWith(async()=>{bodies.push(1);return Response.json({code:'42501'},{status:403})});
   await assert.rejects(denied.submitSpot({...base,planKey:'1E',planX:1,planY:1}),/denied/);
   assert.equal(bodies.length,1);
+});
+
+test('with only the pin columns applied (no device-token column yet), the pin still goes in its own columns',async()=>{
+  const bodies=[];
+  const client=clientWith(async(url,options)=>{
+    const body=JSON.parse(options.body);bodies.push(body);
+    return 'client_token' in body?Response.json({code:'PGRST204',message:"Could not find the 'client_token' column of 'SpotSubmission' in the schema cache"},{status:400}):new Response(null,{status:201});
+  });
+  await client.submitSpot({...base,planKey:'L3',planX:40,planY:55,detail:'By the windows'});
+  assert.equal(bodies.length,2);
+  assert.deepEqual([bodies[1].plan_key,bodies[1].plan_x,bodies[1].plan_y,bodies[1].location_details],['L3',40,55,'By the windows']);
 });
 
 test('migration lets the public insert a valid pin and rejects half-set or out-of-range pins',async()=>{
