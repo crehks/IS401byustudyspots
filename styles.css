@@ -81,6 +81,8 @@ h3{color:#17344c}
 .primary-button:hover{background:#15476e}
 .secondary-button{background:#fff;border:1px solid #a9c4d4;color:var(--navy)}
 .secondary-button:hover{background:#eef6fa}
+.ghost-button{display:inline-flex;align-items:center;justify-content:center;border:1px solid transparent;border-radius:10px;padding:12px 16px;background:transparent;color:var(--espresso);font-size:13px;font-weight:800;text-decoration:none;white-space:nowrap}
+.ghost-button:hover{background:var(--beige)}
 .danger-button{background:#fff;border:1px solid #e4b6ad;color:#9c382d}
 .wide{width:100%;justify-content:space-between;margin-top:12px}
 .wide span{background:#ffffff29;border-radius:6px;padding:2px 6px}
@@ -256,18 +258,13 @@ h3{color:#17344c}
 .report-box h3{font-size:13px;margin:0 0 7px}
 .report-box p{margin:6px 0 0;color:#4d6675;font-size:12px;line-height:1.45}
 .report-box small{color:var(--muted);font-size:10px}
-.trend{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin-top:10px}
-.trend span{display:block;height:9px;background:#d7e8ee;border-radius:3px}
-.trend span.medium{background:#96c2cf}
-.trend span.high{background:#4e94aa}
-.trend-labels{display:flex;justify-content:space-between;color:var(--muted);font-size:10px;margin-top:6px}
 .modal-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-top:18px}
 .form-field{display:grid;gap:7px;margin:14px 0}
 .form-field label,.form-field>span{font-size:12px;color:#28465c;font-weight:800}
 .choice-field{min-width:0;padding:0;border:0}
 .choice-field legend{padding:0;font-size:12px;color:var(--espresso);font-weight:800}
 .radio-segments{display:flex;flex-wrap:wrap;gap:7px}
-.radio-option{position:relative;display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:10px 14px;border:2px solid var(--espresso);border-radius:8px;background:transparent;color:var(--espresso);font-size:12px;font-weight:700;line-height:1.25;cursor:pointer;transition:background .16s,border-color .16s}
+.radio-option{position:relative;display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:10px 14px;border:2px solid var(--espresso);border-radius:8px;background:transparent;color:var(--espresso);font-family:inherit;font-size:12px;font-weight:700;line-height:1.25;cursor:pointer;transition:background .16s,border-color .16s}
 .radio-option:hover{border-color:var(--sage);background:var(--beige)}
 .radio-option:has(input:checked){border-color:var(--sage);background:var(--sage);color:var(--accent-ink)}
 .radio-option:has(input:focus-visible){outline:3px solid var(--terracotta);outline-offset:3px}
@@ -277,6 +274,13 @@ h3{color:#17344c}
 #newSpotForm .choice-field{gap:0}
 #newSpotForm .radio-segments{gap:8px;padding-top:12px}
 #newSpotForm .modal-actions{margin-top:0;padding-top:14px;border-top:1px solid var(--line)}
+#arrivalForm{display:grid;gap:16px}
+#arrivalForm>.form-field,#arrivalForm>.choice-field{margin:0}
+#arrivalForm .choice-field{gap:0}
+#arrivalForm .radio-segments{gap:8px;padding-top:12px}
+#arrivalForm .modal-actions{margin-top:0;padding-top:14px;border-top:1px solid var(--line)}
+#arrivalForm textarea{border:2px solid var(--line);border-radius:8px;background:transparent}
+#arrivalForm textarea:hover,#arrivalForm textarea:focus,#arrivalForm textarea:focus-visible{border-color:var(--line);outline:none;box-shadow:none}
 #newSpotForm input:not([type="radio"]):not([type="checkbox"]):not([type="button"]):not([type="submit"]),#newSpotForm textarea,.profile-card input:not([type="radio"]):not([type="checkbox"]):not([type="button"]):not([type="submit"]),.profile-card textarea{border:2px solid var(--line);border-radius:8px;background:transparent}
 #newSpotForm input:not([type="radio"]):not([type="checkbox"]):not([type="button"]):not([type="submit"]):hover,#newSpotForm input:not([type="radio"]):not([type="checkbox"]):not([type="button"]):not([type="submit"]):focus,#newSpotForm input:not([type="radio"]):not([type="checkbox"]):not([type="button"]):not([type="submit"]):focus-visible,#newSpotForm textarea:hover,#newSpotForm textarea:focus,#newSpotForm textarea:focus-visible,.profile-card input:not([type="radio"]):not([type="checkbox"]):not([type="button"]):not([type="submit"]):hover,.profile-card input:not([type="radio"]):not([type="checkbox"]):not([type="button"]):not([type="submit"]):focus,.profile-card input:not([type="radio"]):not([type="checkbox"]):not([type="button"]):not([type="submit"]):focus-visible,.profile-card textarea:hover,.profile-card textarea:focus,.profile-card textarea:focus-visible{border-color:var(--line);outline:none;box-shadow:none}
 .form-field textarea{min-height:82px;resize:vertical}
@@ -636,7 +640,7 @@ button{transition:background-color .16s,border-color .16s,box-shadow .16s}
  * Short landscape phones use the same layout as portrait phones/tablets.
  */
 @media(max-width:800px), (max-width:1100px) and (max-height:500px){
-  .nav-link,.primary-button,.secondary-button,.danger-button,.subtle-button,.building-check,.saved-card button{min-height:44px}
+  .nav-link,.primary-button,.secondary-button,.ghost-button,.danger-button,.subtle-button,.building-check,.saved-card button{min-height:44px}
   .nav-link,.saved-card button{min-width:44px}
   .filter-panel{padding:14px}
   .panel-topline h2{padding-left:3px}
@@ -726,8 +730,6 @@ h1,h2,h3,.filter-group legend,.switch-row strong,.range-wrap strong,.form-field 
 .floor-spot i,.legend-dot.open{background:var(--sage)}
 .legend-dot.reserved,.legend-dot.amenity{background:var(--terracotta)}
 .spot-card.is-selected{border-color:var(--sage);background:var(--beige)}
-.trend span{background:#d4ccbd}
-.trend span.medium,.trend span.high{background:var(--sage)}
 .choice-row label:has(input:checked),.spot-card.is-selected .spot-row{color:var(--espresso)}
 .form-error{color:#8f4033}
 .toast{box-shadow:0 10px 25px #3d383233}
@@ -790,8 +792,6 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   .spot-card.is-selected{border-color:var(--sage);background:#454035}
   .spot-row{background:var(--surface);border-color:var(--line);color:var(--espresso)}
   .spot-card.is-selected .spot-row{background:#454035}
-  .trend span{background:#5a5143}
-  .trend span.medium,.trend span.high{background:var(--sage)}
   .campus-map-digital{--campus-ground:#27241f;--campus-lawn:#465342;--campus-road:#454035;--campus-road-edge:#5a5143;--campus-path:#373229;--campus-roof:#5a5143;--campus-wall:#756d5e;--campus-label:#f1eadc;--campus-available:#aabd9e;--campus-available-wall:#65775c;--campus-context:#c5bbab}
   .campus-building-status{fill:var(--espresso)}
   .is-available .campus-building-roof{stroke:var(--sage)}
@@ -851,7 +851,6 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .rec-building,.saved-tab.is-selected{color:var(--espresso);border-bottom-color:var(--sage)}
 .availability.high{background:#e8c5b8;border:1px solid var(--terracotta);color:var(--espresso)}
 .availability.medium{background:#eae3d2;border:1px solid #c27a6570;color:var(--espresso)}
-.trend span.high{background:var(--terracotta)}
 .toast{border:1px solid var(--terracotta)}
 
 @media(prefers-color-scheme:dark){
@@ -951,6 +950,7 @@ html.explore-snap .site-footer{scroll-snap-align:end}
 .located-spot-panel span{color:var(--muted);font-size:11px;line-height:1.35}
 .located-spot-panel button{width:40px;height:40px;flex:none;border:0;border-radius:7px;background:transparent;color:var(--espresso);font-size:23px}
 .located-spot-panel button:hover{background:var(--beige)}
+.located-spot-panel .arrival-stage-action{width:auto;height:auto;min-height:44px;padding:10px 12px;border:1px solid var(--terracotta);border-radius:10px;font-size:12px;white-space:nowrap}
 .mobile-nav-icon{display:none}
 .nav-report-short{display:none}
 .fit-floor-mobile{display:none}
@@ -968,7 +968,7 @@ html.explore-snap .site-footer{scroll-snap-align:end}
   .topnav .nav-link.nav-auth .auth-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:10ch}
   .nav-auth .auth-chevron{width:14px;height:14px;flex:none}
   .building-title-row h1{font-size:clamp(24px,7vw,29px);line-height:1.08}
-  .located-spot-panel{top:12px;left:12px;max-width:calc(100% - 24px)}
+  .located-spot-panel{top:12px;left:12px;max-width:calc(100% - 24px);flex-wrap:wrap}
 }
 @media(max-width:360px){
   .topbar{padding-right:10px;padding-left:10px}
@@ -1047,15 +1047,32 @@ html.explore-snap .site-footer{scroll-snap-align:end}
 .profile-list h3 span{font-size:11px;color:var(--muted);margin-left:4px}
 .profile-list p{font-size:12px;color:var(--muted);margin:0}
 .profile-danger{border-color:#c27a6570}
-/* Seat-count pins: a pill with a person icon so the number reads as seats, not a cluster of spots. */
+/* Study-spot pins pair a type icon with a distinct seat-capacity count. */
 .plan-pin.seat-pin{width:auto;height:26px;padding:0 8px 0 6px;border-radius:999px}
 .pin-badge{display:inline-flex;align-items:center;gap:3px;font-style:normal;font-size:12px;font-weight:800;line-height:1}
-.pin-seat-icon{width:11px;height:11px;flex:none;fill:currentColor}
-.legend-seat-pin{display:inline-flex;align-items:center;gap:2px;height:18px;padding:0 6px 0 4px;border-radius:999px;background:var(--sage);color:var(--accent-ink);font-style:normal;font-size:10px;font-weight:800}
-.legend-seat-pin .pin-seat-icon{width:9px;height:9px}
+.pin-type-icon{width:14px;height:14px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.pin-capacity{min-width:12px;padding-left:5px;border-left:1px solid currentColor;text-align:center}
+.legend-type-icon{display:inline-grid;place-items:center;width:16px;height:16px;color:var(--sage)}
+.legend-type-icon .pin-type-icon{width:14px;height:14px}
 /* Phones: keep a 44px tap area around a smaller visible pill. */
 @media(max-width:800px),(max-width:1100px) and (max-height:500px){
   .plan-pin.seat-pin,.plan-pin.seat-pin:hover,.plan-pin.seat-pin.is-selected{width:auto;min-width:44px;height:44px;padding:0;border:0;border-radius:0;background:transparent;box-shadow:none}
   .plan-pin.seat-pin>.pin-badge{height:26px;padding:0 8px 0 6px;border:2px solid #fff;border-radius:999px;background:var(--sage);color:var(--accent-ink);box-shadow:0 2px 8px #102b3c66}
   .plan-pin.seat-pin:hover>.pin-badge,.plan-pin.seat-pin.is-selected>.pin-badge{background:var(--terracotta)}
 }
+
+/* The arrival stage stands out while the student is heading to a selected spot. */
+.primary-button.is-en-route{background:var(--terracotta);border-color:var(--terracotta);color:var(--accent-ink)}
+.primary-button.is-en-route:hover{background:var(--sage);border-color:var(--sage);color:var(--accent-ink)}
+
+@media(min-width:801px) and (min-height:501px){
+  .results-panel{min-height:0;transition:min-height .42s ease}
+  .results-panel.is-arrival-focused{display:flex;flex-direction:column;min-height:670px}
+  .results-panel.is-arrival-focused .results-head,.results-panel.is-arrival-focused .active-filters,.results-panel.is-arrival-focused .keep-searching{flex:none}
+  .results-panel.is-arrival-focused .spot-list{display:flex;flex:1;flex-direction:column;min-height:0}
+  .results-panel.is-arrival-focused .spot-card{display:flex;flex:1;flex-direction:column}
+  .results-panel.is-arrival-focused .spot-row{flex:none}
+  .results-panel.is-arrival-focused .spot-detail{flex:1;align-content:space-between;animation:arrival-details-expand .42s ease-out both}
+}
+@keyframes arrival-details-expand{from{opacity:0;clip-path:inset(0 0 92% 0);transform:translateY(-6px)}to{opacity:1;clip-path:inset(0);transform:translateY(0)}}
+@media(prefers-reduced-motion:reduce){.results-panel{transition:none}.results-panel.is-arrival-focused .spot-detail{animation:none}}

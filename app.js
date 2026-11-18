@@ -36,31 +36,31 @@ function floorExists(building,floor){return !!BUILDINGS[building]?.floors.some(f
 // Spot IDs also appear in database.js and the SQL samples. Keep them aligned.
 // These are prototype spots and illustrative placements, not verified room inventory or live availability.
 const DEMO_SPOTS = [
-  {id:'hbll-commons',building:'HBLL',floor:'L3',name:'Entry level open tables',type:'solo',capacity:1,private:false,outlets:true,noise:'medium',busy:'medium',reserved:false,x:28,y:27,typical:[1,2,2,1,2]},
-  {id:'hbll-west',building:'HBLL',floor:'L3',name:'West study corner',type:'solo',capacity:1,private:false,outlets:true,noise:'low',busy:'low',reserved:false,x:73,y:25,typical:[1,1,2,2,1]},
-  {id:'hbll-group',building:'HBLL',floor:'L3',name:'Group study room',type:'group',capacity:6,private:true,outlets:true,noise:'medium',busy:null,reserved:true,x:73,y:72,typical:[]},
-  {id:'hbll-think',building:'HBLL',floor:'L2',name:'Think Tank area',type:'group',capacity:6,private:false,outlets:true,noise:'medium',busy:'low',reserved:false,x:28,y:27,typical:[2,2,1,1,2]},
-  {id:'hbll-reading',building:'HBLL',floor:'L2',name:'Reading Room area',type:'solo',capacity:1,private:false,outlets:false,noise:'low',busy:'medium',reserved:false,x:73,y:25,typical:[1,2,2,2,1]},
-  {id:'hbll-single',building:'HBLL',floor:'L2',name:'Single-user study room',type:'solo',capacity:1,private:true,outlets:true,noise:'low',busy:null,reserved:true,x:73,y:72,typical:[]},
-  {id:'hbll-upper',building:'HBLL',floor:'L4',name:'Upper level tables',type:'solo',capacity:1,private:false,outlets:true,noise:'low',busy:'low',reserved:false,x:28,y:27,typical:[1,2,1,1,2]},
-  {id:'wsc-tables',building:'WSC',floor:'1E',name:'East hall tables',type:'group',capacity:4,private:false,outlets:true,noise:'medium',busy:'medium',reserved:false,x:23,y:42,typical:[2,2,3,2,2]},
-  {id:'wsc-lounge',building:'WSC',floor:'1E',name:'East open seating',type:'solo',capacity:1,private:false,outlets:false,noise:'medium',busy:'low',reserved:false,x:62,y:29,typical:[1,2,3,2,1]},
-  {id:'wsc-1w-atrium',building:'WSC',floor:'1W',name:'West atrium seating',type:'group',capacity:6,private:false,outlets:false,noise:'medium',busy:'low',reserved:false,x:26,y:52,typical:[1,2,2,1,2]},
-  {id:'wsc-1w-nook',building:'WSC',floor:'1W',name:'West side nook',type:'solo',capacity:1,private:false,outlets:true,noise:'low',busy:'medium',reserved:false,x:50,y:44,typical:[1,1,2,2,1]},
-  {id:'wsc-upper',building:'WSC',floor:'2E',name:'Second-floor tables',type:'group',capacity:6,private:false,outlets:true,noise:'medium',busy:'low',reserved:false,x:20,y:43,typical:[1,2,2,1,1]},
-  {id:'wsc-2e-seating',building:'WSC',floor:'2E',name:'East seating area',type:'solo',capacity:1,private:false,outlets:false,noise:'medium',busy:'medium',reserved:false,x:20,y:67,typical:[2,2,3,2,1]},
-  {id:'wsc-2w-open',building:'WSC',floor:'2W',name:'West open area',type:'group',capacity:6,private:false,outlets:true,noise:'medium',busy:'low',reserved:false,x:39,y:34,typical:[1,2,2,1,2]},
-  {id:'wsc-2w-corner',building:'WSC',floor:'2W',name:'Southwest corner',type:'solo',capacity:1,private:false,outlets:false,noise:'low',busy:'medium',reserved:false,x:28,y:76,typical:[1,2,2,1,1]},
-  {id:'wsc-3e-hall',building:'WSC',floor:'3E',name:'Third-floor hall',type:'group',capacity:4,private:false,outlets:true,noise:'medium',busy:'medium',reserved:false,x:23,y:31,typical:[1,2,3,2,1]},
-  {id:'wsc-3e-corner',building:'WSC',floor:'3E',name:'East quiet corner',type:'solo',capacity:1,private:false,outlets:false,noise:'low',busy:'low',reserved:false,x:51,y:65,typical:[1,1,2,1,1]},
-  {id:'wsc-3w-open',building:'WSC',floor:'3W',name:'West open area',type:'group',capacity:8,private:false,outlets:true,noise:'medium',busy:'low',reserved:false,x:35,y:43,typical:[1,2,2,1,1]},
-  {id:'wsc-3w-south',building:'WSC',floor:'3W',name:'West corridor nook',type:'solo',capacity:1,private:false,outlets:false,noise:'low',busy:'low',reserved:false,x:48,y:73,typical:[1,1,2,1,1]},
-  {id:'wsc-4f',building:'WSC',floor:'4E',name:'Fourth-floor alcove',type:'solo',capacity:1,private:false,outlets:false,noise:'low',busy:'low',reserved:false,x:68,y:33,typical:[1,2,1,1,1]},
-  {id:'wsc-5f',building:'WSC',floor:'5E',name:'Fifth-floor seating',type:'solo',capacity:1,private:false,outlets:true,noise:'low',busy:'medium',reserved:false,x:34,y:43,typical:[1,2,2,1,1]},
-  {id:'wsc-6f',building:'WSC',floor:'6E',name:'Sixth-floor open area',type:'group',capacity:4,private:false,outlets:false,noise:'medium',busy:'low',reserved:false,x:34,y:54,typical:[1,2,2,1,2]},
-  {id:'jkb-tables',building:'JKB',floor:'G',name:'Ground level tables',type:'solo',capacity:1,private:false,outlets:true,noise:'low',busy:'low',reserved:false,x:28,y:27,typical:[1,1,2,1,2]},
-  {id:'jkb-nook',building:'JKB',floor:'G',name:'Quiet study nook',type:'solo',capacity:1,private:true,outlets:false,noise:'low',busy:'medium',reserved:false,x:73,y:73,typical:[1,2,2,1,1]},
-  {id:'jkb-group',building:'JKB',floor:'L2',name:'Group table area',type:'group',capacity:8,private:false,outlets:true,noise:'medium',busy:'low',reserved:false,x:28,y:28,typical:[2,2,1,2,1]}
+  {id:'hbll-commons',building:'HBLL',floor:'L3',name:'Entry level open tables',type:'solo',capacity:1,private:false,outlets:true,noise:'medium',busy:'medium',reserved:false,x:28,y:27},
+  {id:'hbll-west',building:'HBLL',floor:'L3',name:'West study corner',type:'solo',capacity:1,private:false,outlets:true,noise:'low',busy:'low',reserved:false,x:73,y:25},
+  {id:'hbll-group',building:'HBLL',floor:'L3',name:'Group study room',type:'group',capacity:6,private:true,outlets:true,noise:'medium',busy:null,reserved:true,x:73,y:72},
+  {id:'hbll-think',building:'HBLL',floor:'L2',name:'Think Tank area',type:'group',capacity:6,private:false,outlets:true,noise:'medium',busy:'low',reserved:false,x:28,y:27},
+  {id:'hbll-reading',building:'HBLL',floor:'L2',name:'Reading Room area',type:'solo',capacity:1,private:false,outlets:false,noise:'low',busy:'medium',reserved:false,x:73,y:25},
+  {id:'hbll-single',building:'HBLL',floor:'L2',name:'Single-user study room',type:'solo',capacity:1,private:true,outlets:true,noise:'low',busy:null,reserved:true,x:73,y:72},
+  {id:'hbll-upper',building:'HBLL',floor:'L4',name:'Upper level tables',type:'solo',capacity:1,private:false,outlets:true,noise:'low',busy:'low',reserved:false,x:28,y:27},
+  {id:'wsc-tables',building:'WSC',floor:'1E',name:'East hall tables',type:'group',capacity:4,private:false,outlets:true,noise:'medium',busy:'medium',reserved:false,x:23,y:42},
+  {id:'wsc-lounge',building:'WSC',floor:'1E',name:'East open seating',type:'solo',capacity:1,private:false,outlets:false,noise:'medium',busy:'low',reserved:false,x:62,y:29},
+  {id:'wsc-1w-atrium',building:'WSC',floor:'1W',name:'West atrium seating',type:'group',capacity:6,private:false,outlets:false,noise:'medium',busy:'low',reserved:false,x:26,y:52},
+  {id:'wsc-1w-nook',building:'WSC',floor:'1W',name:'West side nook',type:'solo',capacity:1,private:false,outlets:true,noise:'low',busy:'medium',reserved:false,x:50,y:44},
+  {id:'wsc-upper',building:'WSC',floor:'2E',name:'Second-floor tables',type:'group',capacity:6,private:false,outlets:true,noise:'medium',busy:'low',reserved:false,x:20,y:43},
+  {id:'wsc-2e-seating',building:'WSC',floor:'2E',name:'East seating area',type:'solo',capacity:1,private:false,outlets:false,noise:'medium',busy:'medium',reserved:false,x:20,y:67},
+  {id:'wsc-2w-open',building:'WSC',floor:'2W',name:'West open area',type:'group',capacity:6,private:false,outlets:true,noise:'medium',busy:'low',reserved:false,x:39,y:34},
+  {id:'wsc-2w-corner',building:'WSC',floor:'2W',name:'Southwest corner',type:'solo',capacity:1,private:false,outlets:false,noise:'low',busy:'medium',reserved:false,x:28,y:76},
+  {id:'wsc-3e-hall',building:'WSC',floor:'3E',name:'Third-floor hall',type:'group',capacity:4,private:false,outlets:true,noise:'medium',busy:'medium',reserved:false,x:23,y:31},
+  {id:'wsc-3e-corner',building:'WSC',floor:'3E',name:'East quiet corner',type:'solo',capacity:1,private:false,outlets:false,noise:'low',busy:'low',reserved:false,x:51,y:65},
+  {id:'wsc-3w-open',building:'WSC',floor:'3W',name:'West open area',type:'group',capacity:8,private:false,outlets:true,noise:'medium',busy:'low',reserved:false,x:35,y:43},
+  {id:'wsc-3w-south',building:'WSC',floor:'3W',name:'West corridor nook',type:'solo',capacity:1,private:false,outlets:false,noise:'low',busy:'low',reserved:false,x:48,y:73},
+  {id:'wsc-4f',building:'WSC',floor:'4E',name:'Fourth-floor alcove',type:'solo',capacity:1,private:false,outlets:false,noise:'low',busy:'low',reserved:false,x:68,y:33},
+  {id:'wsc-5f',building:'WSC',floor:'5E',name:'Fifth-floor seating',type:'solo',capacity:1,private:false,outlets:true,noise:'low',busy:'medium',reserved:false,x:34,y:43},
+  {id:'wsc-6f',building:'WSC',floor:'6E',name:'Sixth-floor open area',type:'group',capacity:4,private:false,outlets:false,noise:'medium',busy:'low',reserved:false,x:34,y:54},
+  {id:'jkb-tables',building:'JKB',floor:'G',name:'Ground level tables',type:'solo',capacity:1,private:false,outlets:true,noise:'low',busy:'low',reserved:false,x:28,y:27},
+  {id:'jkb-nook',building:'JKB',floor:'G',name:'Quiet study nook',type:'solo',capacity:1,private:true,outlets:false,noise:'low',busy:'medium',reserved:false,x:73,y:73},
+  {id:'jkb-group',building:'JKB',floor:'L2',name:'Group table area',type:'group',capacity:8,private:false,outlets:true,noise:'medium',busy:'low',reserved:false,x:28,y:28}
 ];
 
 // Footprints follow the supplied 1238 x 807 campus-map screenshot, not guessed blocks.
@@ -126,7 +126,7 @@ function loadData(){
       const floor=spot.building==='WSC'?({G:'1E',L2:'2E'}[spot.floor]||spot.floor):spot.floor;
       if(!floorExists(spot.building,floor))continue;
       const type=spot.type==='group'?'group':'solo';
-      clean.customSpots.push({...spot,floor,name:spot.name.trim().slice(0,60),type,capacity:type==='group'?Math.min(8,Math.max(2,Math.round(Number(spot.capacity)||4))):1,private:!!spot.private,outlets:!!spot.outlets,noise:['low','medium','high'].includes(spot.noise)?spot.noise:'low',busy:null,reserved:false,x:Number.isFinite(spot.x)?Math.min(100,Math.max(0,spot.x)):50,y:Number.isFinite(spot.y)?Math.min(100,Math.max(0,spot.y)):50,typical:[],detail:typeof spot.detail==='string'?spot.detail.slice(0,160):''});
+      clean.customSpots.push({...spot,floor,name:spot.name.trim().slice(0,60),type,capacity:type==='group'?Math.min(8,Math.max(2,Math.round(Number(spot.capacity)||4))):1,private:!!spot.private,outlets:!!spot.outlets,noise:['low','medium','high'].includes(spot.noise)?spot.noise:'low',busy:null,reserved:false,x:Number.isFinite(spot.x)?Math.min(100,Math.max(0,spot.x)):50,y:Number.isFinite(spot.y)?Math.min(100,Math.max(0,spot.y)):50,detail:typeof spot.detail==='string'?spot.detail.slice(0,160):''});
       seen.add(spot.id);
     }
     // Restore lists after spots so stale spot references can be removed safely.
@@ -198,7 +198,7 @@ async function loadReservationLinks(){
 let reportSubmissionPending=false,newSpotPending=false;
 const choiceTimer=new ChoiceTimer();
 // Temporary screen choices. Save filters copies a preset into device data.
-const state={view:'explore',building:'HBLL',floor:'L3',zoom:1,selectedSpot:null,locatedSpot:null,selectedRoom:null,nooksVisible:true,resourcesVisible:false,selectedResource:null,selectedList:'favorites',listEditMode:false,study:'any',noise:'any',layout:'any',outlets:false,groupSize:4,buildings:new Set(['HBLL','WSC','JKB'])};
+const state={view:'explore',building:'HBLL',floor:'L3',zoom:1,selectedSpot:null,locatedSpot:null,arrivalReadySpot:null,selectedRoom:null,nooksVisible:true,resourcesVisible:false,selectedResource:null,selectedList:'favorites',listEditMode:false,study:'any',noise:'any',layout:'any',outlets:false,groupSize:4,buildings:new Set(['HBLL','WSC','JKB'])};
 // Pin positions use the original PDF page; rendering subtracts the crop offset.
 const WILK_STUDY_POINTS={
   'wsc-tables':[255,253],'wsc-lounge':[698,350],
@@ -593,8 +593,13 @@ function pinnedSpots(){return database.pinnedSpots.filter(s=>floorExists(s.build
 function allSpots(){return [...(SHOW_SAMPLE_SPOTS?DEMO_SPOTS:[]),...pinnedSpots(),...data.customSpots]}
 function floorResources(){return database.pinnedResources.filter(r=>r.building===state.building&&floorIds(state.building,state.floor).includes(r.floor))}
 function spotById(id){return allSpots().find(s=>s.id===id)}
-// Person icon shown on study-spot pins so the number reads as seats, not a group of spots.
-const SEAT_ICON='<svg class="pin-seat-icon" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="4.5" r="3"/><path d="M2.5 15c0-3.3 2.5-5.5 5.5-5.5s5.5 2.2 5.5 5.5z"/></svg>';
+// Simple furniture silhouettes show spot type; the adjacent badge shows seat capacity.
+const SPOT_TYPE_ICON={
+  solo:'<svg class="pin-type-icon" viewBox="0 0 20 20" aria-hidden="true"><path d="M6 3h8v8H6zM4 8v7h12V8M4 12h12M6 15v2m8-2v2"/></svg>',
+  group:'<svg class="pin-type-icon" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 6h14v3H3zM5 9v8m10-8v8"/></svg>'
+};
+function spotTypeLabel(spot){return spot.type==='group'?'Group study':'Individual study'}
+function spotTypeIcon(spot){return SPOT_TYPE_ICON[spot.type==='group'?'group':'solo']}
 // Use the database's seat counts for the built-in spots so pins, filters, and spot details all agree.
 function applyDatabaseCapacities(){for(const s of DEMO_SPOTS){const n=database.capacities?.[s.id];if(Number.isInteger(n)&&n>0)s.capacity=n}}
 // Two noise levels exist on the site: Quiet (stored low) and Social (stored medium). Old high values read as Social.
@@ -684,7 +689,7 @@ async function submitAuth(form){
   }catch(problem){show(problem.message);if(problem.code==='email_not_confirmed')$('#resendConfirm').hidden=false}finally{btn.disabled=false}
 }
 function renderDatabaseStatus(){
-  $$('[data-confirm-spot]').forEach(button=>{button.disabled=database.loading;});
+  $$('[data-arrival-stage]').forEach(button=>{button.disabled=database.loading||!database.configLoaded;});
   $('#databaseWarning').hidden=database.loading||(!database.error&&database.config.configured&&database.ready);
 }
 // The returned database row is the persistence proof shown after a remote save.
@@ -714,7 +719,7 @@ async function submitArrival(form){
     else if(remote){const report=await database.submitReport(id,input);closeModal(true);render();renderDatabaseStatus();renderDatabaseReceipt(report);showToast('Thanks! Your report was submitted.');}
     else{const report={...input,time:Date.now(),source:'local'};(data.reports[id]??=[]).unshift(report);data.reports[id]=data.reports[id].slice(0,10);const saved=save();closeModal(true);render();if(saved)showToast('Local preview: report saved only on this device.');}
   }catch(problem){error.textContent=problem.message;error.hidden=false;database.error=problem.message;renderDatabaseStatus();}
-  finally{reportSubmissionPending=false;button.disabled=false;button.textContent='Confirm report';}
+  finally{reportSubmissionPending=false;button.disabled=false;button.textContent='Submit';}
 }
 // 6. Views. Reuse building checkboxes so updates preserve keyboard focus.
 const COMPACT_LAYOUT_QUERY='(max-width:800px), (max-width:1100px) and (max-height:500px)';
@@ -796,7 +801,7 @@ function renderBuilding(){
     $('#resourceFilters').hidden=!(isDigital&&state.resourcesVisible&&resourceCount>0);
     $('#mapModeEmptyNotice').hidden=!(isDigital&&(state.nooksVisible?!spots.length:!resourceCount));
     $('#mapModeEmptyNotice').textContent=state.nooksVisible?'No Nooks are listed on this floor yet.':'No resources are listed on this floor yet.';
-    const nookPins=state.nooksVisible?spots.map(s=>{let x,y;const label=String(Number.isInteger(s.capacity)&&s.capacity>0?s.capacity:1);[x,y]=pinPercent(digital,s,studyPoints);return `<button type="button" class="plan-pin seat-pin ${s.reserved?'reserved':''} ${matches(s)?'':'is-dimmed'} ${state.selectedSpot===s.id||state.locatedSpot===s.id?'is-selected':''}" style="left:${x}%;top:${y}%" data-spot="${esc(s.id)}" title="${esc(s.name)} · seats ${label}" aria-label="${esc(s.name)}, seats ${label}"><i class="pin-badge" aria-hidden="true">${SEAT_ICON}${label}</i></button>`}).join(''):'';
+    const nookPins=state.nooksVisible?spots.map(s=>{let x,y;const label=String(Number.isInteger(s.capacity)&&s.capacity>0?s.capacity:1);[x,y]=pinPercent(digital,s,studyPoints);return `<button type="button" class="plan-pin seat-pin ${s.reserved?'reserved':''} ${matches(s)?'':'is-dimmed'} ${state.selectedSpot===s.id||state.locatedSpot===s.id?'is-selected':''}" style="left:${x}%;top:${y}%" data-spot="${esc(s.id)}" title="${esc(s.name)} · ${spotTypeLabel(s)} · seats ${label}" aria-label="${esc(s.name)}, ${spotTypeLabel(s)}, seats ${label}"><i class="pin-badge" aria-hidden="true">${spotTypeIcon(s)}<span class="pin-capacity">${label}</span></i></button>`}).join(''):'';
     const resourcePins=state.resourcesVisible&&isHbll?resources.map(([name],i)=>{const [px,py]=resourcePoints[i],x=(px-digital.crop[0])/digital.width*100,y=(py-digital.crop[1])/digital.height*100,selected=selectedResource===`${state.floor}:${i}`;return `<button type="button" class="resource-pin ${selected?'is-selected':''} ${selectedResource!==null&&!selected?'is-dimmed':''}" style="left:${x}%;top:${y}%" data-resource="${state.floor}:${i}" title="${resourceLetters(i)} · ${esc(resourceTooltip(name))}" aria-label="Resource ${resourceLetters(i)}: ${esc(resourceTooltip(name))}">${resourceLetters(i)}</button>`}).join(''):'';
     const pinnedResources=state.resourcesVisible?addedResources.map(r=>{const [rx,ry]=pinPercent(digital,r,studyPoints);return `<button type="button" class="plan-pin pinned-resource-pin" style="left:${rx}%;top:${ry}%" data-pinned-resource="${esc(r.id)}" title="${esc(r.type)}: ${esc(r.info)}" aria-label="${esc(r.type)}: ${esc(r.info)}${r.where?`, ${esc(r.where)}`:''}">${esc(r.type.charAt(0).toUpperCase())}</button>`}).join(''):'';
     plan.innerHTML=`<div class="plan-scroll"><div class="plan-canvas"><div id="planStage" class="plan-stage">${digital.svg}${nookPins}${resourcePins}${pinnedResources}</div></div></div>`;
@@ -804,7 +809,7 @@ function renderBuilding(){
       const serviceResources=Object.assign({},...floorIds('HBLL',state.floor).map(id=>HBLL_SERVICE_ROOM_RESOURCES[id]||{}));
       $$('#floorPlan .map-space-service[data-room]').forEach(area=>{const name=serviceResources[area.dataset.room],title=area.querySelector('title');if(name&&title)title.textContent=resourceTooltip(name)});
     }
-    $('#floorLegend').innerHTML=`<span><i class="map-key-swatch room"></i>Rooms</span><span><i class="map-key-swatch open"></i>Open areas</span>`+(state.nooksVisible?`<span><i class="legend-seat-pin" aria-hidden="true">${SEAT_ICON}4</i>Seats at a study spot</span>`:`<span><i class="map-key-swatch service"></i>Resources</span>`)+(addedResources.length?'<span><i class="legend-dot resource"></i>Added resources</span>':'')+(digital.hasStairTargets?'<span><i class="stair-entrance-key"></i>Hover stairs for entrance</span>':'');
+    $('#floorLegend').innerHTML=`<span><i class="map-key-swatch room"></i>Rooms</span><span><i class="map-key-swatch open"></i>Open areas</span>`+(state.nooksVisible?`<span><i class="legend-type-icon">${SPOT_TYPE_ICON.solo}</i>Individual</span><span><i class="legend-type-icon">${SPOT_TYPE_ICON.group}</i>Group</span><span>Number shows seats</span>`:`<span><i class="map-key-swatch service"></i>Resources</span>`)+(addedResources.length?'<span><i class="legend-dot resource"></i>Added resources</span>':'')+(digital.hasStairTargets?'<span><i class="stair-entrance-key"></i>Hover stairs for entrance</span>':'');
     $('#mapNorth').innerHTML=`N <span style="display:inline-block;transform:rotate(${digital.north}deg)">↑</span>`;
     mapResizeObserver.disconnect();mapResizeObserver.observe(plan);
     setMapInteraction(!isCompactLayout());resizeDigitalMap();installMapPan();updateRoomHighlight();
@@ -821,15 +826,17 @@ function renderBuilding(){
   }
   const matched=spots.filter(matches).sort((a,b)=>rank(a)-rank(b));
   const selected=spots.find(s=>s.id===state.selectedSpot);
-  const displayed=selected&&!matched.some(s=>s.id===selected.id)?[selected,...matched]:matched;
-  $('#mobileSpotCount').textContent=matched.length;
-  $('#resultsSummary').textContent=`${matched.length} matching ${matched.length===1?'spot':'spots'} on this floor`;
+  const arrivalFocus=spots.find(s=>s.id===state.arrivalReadySpot);
+  $('#studyResults').classList.toggle('is-arrival-focused',!!arrivalFocus);
+  const displayed=arrivalFocus?[arrivalFocus]:selected&&!matched.some(s=>s.id===selected.id)?[selected,...matched]:matched;
+  $('#mobileSpotCount').textContent=arrivalFocus?1:matched.length;
+  $('#resultsSummary').textContent=arrivalFocus?`Heading to ${arrivalFocus.name}`:`${matched.length} matching ${matched.length===1?'spot':'spots'} on this floor`;
   const chips=[];if(state.study==='group')chips.push(`Group ${state.groupSize}+`);else if(state.study==='solo')chips.push('Solo');if(state.noise==='low')chips.push('Quiet');if(state.noise==='medium')chips.push('Social');if(state.layout!=='any')chips.push(state.layout==='open'?'Open Area':'Secluded');if(state.outlets)chips.push('Power');
   $('#activeFilterBar').innerHTML=chips.map(c=>`<span>${esc(c)}</span>`).join('')||'<span>All study types</span>';
   $('#spotList').innerHTML=displayed.length?displayed.map(s=>`<article class="spot-card ${state.selectedSpot===s.id?'is-selected':''}"><button type="button" class="spot-row" data-spot="${esc(s.id)}" aria-expanded="${state.selectedSpot===s.id}" aria-controls="spotDetail-${esc(s.id)}"><div class="spot-row-top"><h3>${esc(s.name)}</h3>${forecastTag(s)}</div><p>${s.type==='group'?`Group up to ${s.capacity}`:'Individual'} · ${layoutLabel(s)} ${powerTag(s)}</p><span class="spot-location">${esc(spotLocationSummary(s))}</span></button><div class="spot-card-actions"><button type="button" class="subtle-button locate-spot-button" data-locate-spot="${esc(s.id)}">Locate on map</button></div>${state.selectedSpot===s.id?`<div class="spot-detail" id="spotDetail-${esc(s.id)}">${spotDetailContent(s)}</div>`:''}</article>`).join(''):`<div class="empty-state"><h3>No matching spots on this floor</h3><p>Try another floor or update your filters.</p><button type="button" class="secondary-button" data-action="edit">Edit filters</button></div>`;
   const located=spots.find(s=>s.id===state.locatedSpot),locatedPanel=$('#locatedSpotPanel');
   locatedPanel.hidden=!(isDigital&&located);
-  if(isDigital&&located){const room=located.room||located.roomNumber;locatedPanel.innerHTML=`<div><strong>${esc(located.name)}</strong><span>${esc(floorLabel(located))}${room?` · Room ${esc(room)}`:located.detail?` · ${esc(located.detail)}`:''}</span></div><button type="button" data-clear-located-spot aria-label="Clear located spot">×</button>`}
+  if(isDigital&&located){const room=located.room||located.roomNumber,arrivalAction=state.arrivalReadySpot===located.id?`<button type="button" class="primary-button is-en-route arrival-stage-action" data-arrival-stage="${esc(located.id)}" aria-pressed="true" ${database.loading||!database.configLoaded?'disabled':''}>I've Arrived</button>`:'';locatedPanel.innerHTML=`<div><strong>${esc(located.name)}</strong><span>${esc(floorLabel(located))}${room?` · Room ${esc(room)}`:located.detail?` · ${esc(located.detail)}`:''}</span></div>${arrivalAction}<button type="button" data-clear-located-spot aria-label="Clear located spot">×</button>`}
   const queueIndex=searchBuildingQueue.indexOf(state.building);if(queueIndex>=0)searchBuildingIndex=queueIndex;else if(searchBuildingQueue.length)searchBuildingIndex=searchBuildingQueue.length-1;
   const nextBuilding=searchBuildingQueue[searchBuildingIndex+1];$('#keepSearching').textContent=nextBuilding?`Try the ${nextBuilding} next`:'Back to campus map';$('#keepSearching').hidden=false;
   $$('#floorTabs button,#floorSideTabs button').forEach(button=>button.setAttribute('aria-pressed',button.classList.contains('is-selected')));
@@ -879,7 +886,7 @@ function goBack(){state.view=viewHistory.pop()||'explore';render();focusView();i
 // Changing drawings clears the previous room and spot selection.
 function openBuilding(id,floor,panel=isCompactLayout()?'spots':'map'){if(!BUILDINGS[id])return;$('#campusComingSoon').hidden=true;state.building=id;let normalizedFloor=floor;if(id==='HBLL'&&floor)normalizedFloor=floor.replace(/N$/,'');if(id==='WSC'&&floor&&/^([1-3])[EW]$/.test(floor))normalizedFloor=floor.slice(0,1);state.floor=normalizedFloor||BUILDINGS[id].groundFloor||BUILDINGS[id].floors[0].id;state.zoom=1;state.selectedSpot=null;state.locatedSpot=null;state.selectedRoom=null;setBuildingPanel(panel);setView('building')}
 function centerLocatedSpot(id){requestAnimationFrame(()=>requestAnimationFrame(()=>{if(isCompactLayout())setMapInteraction(true);const viewport=$('.plan-scroll'),marker=$$('#floorPlan [data-spot]').find(button=>button.dataset.spot===id);if(!viewport||!marker)return;const vr=viewport.getBoundingClientRect(),mr=marker.getBoundingClientRect();viewport.scrollLeft+=mr.left+mr.width/2-(vr.left+vr.width/2);viewport.scrollTop+=mr.top+mr.height/2-(vr.top+vr.height/2)}))}
-function locateSpotOnMap(id){const spot=spotById(id);if(!spot)return;if(state.view!=='building'||state.building!==spot.building||state.floor!==spot.floor)openBuilding(spot.building,spot.floor,'map');else setBuildingPanel('map');state.selectedSpot=spot.id;state.locatedSpot=spot.id;state.selectedRoom=null;state.nooksVisible=true;state.resourcesVisible=false;state.zoom=2.4;renderBuilding();if(buildingPlans(spot.building))centerLocatedSpot(spot.id);else loadPlans(spot.building).then(()=>{if(state.view==='building'&&state.building===spot.building&&state.locatedSpot===spot.id){renderBuilding();centerLocatedSpot(spot.id)}}).catch(()=>showToast('Floor map could not load. Check your connection and try again.'))}
+function locateSpotOnMap(id,zoom=2.4){const spot=spotById(id);if(!spot)return;if(state.view!=='building'||state.building!==spot.building||state.floor!==spot.floor)openBuilding(spot.building,spot.floor,'map');else setBuildingPanel('map');state.selectedSpot=spot.id;state.locatedSpot=spot.id;state.selectedRoom=null;state.nooksVisible=true;state.resourcesVisible=false;state.zoom=zoom;renderBuilding();if(buildingPlans(spot.building))centerLocatedSpot(spot.id);else loadPlans(spot.building).then(()=>{if(state.view==='building'&&state.building===spot.building&&state.locatedSpot===spot.id){renderBuilding();centerLocatedSpot(spot.id)}}).catch(()=>showToast('Floor map could not load. Check your connection and try again.'))}
 // 7. Floor tools. Fit preserves aspect ratio; zoom multiplies the fitted size.
 function resizeDigitalMap(){
   const plan=buildingPlans()?.[state.floor];if(!plan||!$('#planStage'))return;
@@ -959,29 +966,34 @@ function updateRoomHighlight(){
   if(current&&plan){panel.innerHTML=`<div><span class="room-selection-label">On the map</span><h3>Room ${esc(current.number)}</h3><p>${esc(plan.label)} · ${esc(BUILDINGS[state.building].short)}</p></div><button type="button" data-clear-room aria-label="Clear selected room">×</button>`}
 }
 // 8. Dialogs. Keep the original opener across nested dialogs and restore it on close.
-function closeModal(force=false){if(!force&&reportSubmissionPending&&$('#arrivalForm'))return;const backdrop=$('#modalBackdrop');backdrop.hidden=true;$('#modal').innerHTML='';$('.app-shell').removeAttribute('inert');document.body.style.overflow='';if(closeModal.focus?.isConnected)closeModal.focus.focus({preventScroll:true});else focusView()}
+function resetArrivalStage(id=$('#arrivalForm')?.dataset.id){if(!id)return;if(state.arrivalReadySpot===id)state.arrivalReadySpot=null;const button=$$('[data-arrival-stage]').find(item=>item.dataset.arrivalStage===id);if(button){button.textContent='Head Here';button.classList.remove('is-en-route');button.setAttribute('aria-pressed','false')}}
+function closeModal(force=false){if(!force&&reportSubmissionPending&&$('#arrivalForm'))return;const arrivalId=$('#arrivalForm')?.dataset.id;const backdrop=$('#modalBackdrop');backdrop.hidden=true;$('#modal').innerHTML='';$('.app-shell').removeAttribute('inert');document.body.style.overflow='';if(arrivalId){resetArrivalStage(arrivalId);if(state.view==='building')renderBuilding()}if(closeModal.focus?.isConnected)closeModal.focus.focus({preventScroll:true});else focusView()}
 // Make the background inert; the keyboard handler below keeps Tab inside.
 function openModal(html){if(reportSubmissionPending)return;if($('#modalBackdrop').hidden)closeModal.focus=document.activeElement;$('#modal').innerHTML=html;$('#modalBackdrop').hidden=false;$('.app-shell').setAttribute('inert','');document.body.style.overflow='hidden';$('#modal').querySelector('button, input, select')?.focus()}
 function modalHeader(title){return `<div class="modal-top"><h2 id="modalTitle">${esc(title)}</h2><button class="modal-close" type="button" data-modal-close aria-label="Close">×</button></div>`}
 // Combine sample spot details with the latest report from the chosen store.
 function spotDetailContent(s){
   const report=currentReport(s),isSaved=activeLists().some(l=>l.spots.includes(s.id));
-  const trend=s.typical?.length?`<div class="trend" aria-label="Illustrative typical crowding across five periods">${s.typical.map(n=>`<span class="${n===2?'medium':n===3?'high':''}"></span>`).join('')}</div><div class="trend-labels"><span>Earlier</span><span>Later</span></div>`:'<p>Typical crowding is not available for this spot.</p>';
   const reportDetails=s.reserved?'<p>Check open times and book this room on the BYU Library site.</p>':report?`<p>Noise: ${esc(noiseLabel(report.noise))} · Crowding: ${esc(report.busy)}</p>${report.note?`<p>${esc(report.note)}</p>`:''}`:usesDatabase(s)&&database.error?`<p class="form-error">Database reports could not be loaded: ${esc(database.error)}</p>`:`<p>No reports yet. Usually ${esc((noiseLabel(s.noise)||'unknown').toLowerCase())} · ${esc(s.busy||'unknown')} crowding.</p>`;
   const noise=noiseLabel(currentNoise(s));
-  return `<p class="modal-description">${s.building} · ${esc(floorLabel(s))} · ${s.type==='group'?`Group up to ${s.capacity}`:'Individual study'}</p>${s.detail?`<div class="report-box"><h3>Location details</h3><p>${esc(s.detail)}</p></div>`:''}<div class="detail-tags">${noise?`<span class="noise-tag"><span class="tag-prefix">Noise:&nbsp;</span><strong>${esc(noise)}</strong></span>`:''}${powerTag(s)}<span class="layout-tag">${layoutLabel(s)}</span></div><div class="report-box"><h3>${s.reserved?'Reservation required':'Latest report'}</h3>${reportDetails}</div><div class="report-box"><h3>Typical crowding</h3>${trend}</div><div class="modal-actions"><button class="secondary-button bookmark-button ${isSaved?'is-saved':''}" type="button" data-save-spot="${esc(s.id)}" aria-label="${isSaved?'Manage saved lists':'Save to a list'}" title="${isSaved?'Manage saved lists':'Save to a list'}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3.75h12a1 1 0 0 1 1 1v16l-7-4.5-7 4.5v-16a1 1 0 0 1 1-1Z"/></svg></button>${s.reserved?`${reservationLinks[s.building]?`<a class="primary-button" href="${esc(reservationLinks[s.building])}" target="_blank" rel="noopener noreferrer">Reserve with BYU ↗</a>`:''}`:`<button class="primary-button" type="button" data-confirm-spot="${esc(s.id)}" ${database.loading||!database.configLoaded?'disabled':''}>Choose Spot</button>`}</div>`;
+  const arrivalReady=state.arrivalReadySpot===s.id;
+  const arrivalButton=`<button class="primary-button ${arrivalReady?'is-en-route':''}" type="button" data-arrival-stage="${esc(s.id)}" aria-pressed="${arrivalReady}" ${database.loading||!database.configLoaded?'disabled':''}>${arrivalReady?'I\'ve Arrived':'Head Here'}</button>`;
+  const reserveButton=reservationLinks[s.building]?`<a class="secondary-button" href="${esc(reservationLinks[s.building])}" target="_blank" rel="noopener noreferrer">Reserve with BYU ↗</a>`:'';
+  return `<p class="modal-description">${s.building} · ${esc(floorLabel(s))} · ${s.type==='group'?`Group up to ${s.capacity}`:'Individual study'}</p>${s.detail?`<div class="report-box"><h3>Location details</h3><p>${esc(s.detail)}</p></div>`:''}<div class="detail-tags">${noise?`<span class="noise-tag"><span class="tag-prefix">Noise:&nbsp;</span><strong>${esc(noise)}</strong></span>`:''}${powerTag(s)}<span class="layout-tag">${layoutLabel(s)}</span></div><div class="report-box"><h3>${s.reserved?'Reservation required':'Latest report'}</h3>${reportDetails}</div><div class="modal-actions"><button class="secondary-button bookmark-button ${isSaved?'is-saved':''}" type="button" data-save-spot="${esc(s.id)}" aria-label="${isSaved?'Manage saved lists':'Save to a list'}" title="${isSaved?'Manage saved lists':'Save to a list'}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3.75h12a1 1 0 0 1 1 1v16l-7-4.5-7 4.5v-16a1 1 0 0 1 1-1Z"/></svg></button>${reserveButton}${arrivalButton}</div>`;
 }
 function openSpot(id,{keepMap=false}={}){
   const s=spotById(id);if(!s)return;
   const collapsing=state.selectedSpot===s.id;
+  if(!collapsing&&state.selectedSpot!==s.id)state.arrivalReadySpot=null;
   state.selectedSpot=collapsing?null:s.id;
   if(isCompactLayout()&&!keepMap&&!collapsing)setBuildingPanel('spots');
   if(state.view==='building')renderBuilding();
 }
+function arrivalAvailabilityField(){return `<fieldset class="form-field choice-field"><legend>Did you find a seat?</legend><div class="radio-segments" role="group" aria-label="Did you find a seat?"><label class="radio-option" for="arrivalAvailable"><input id="arrivalAvailable" type="checkbox" checked><span>Yes!</span></label><input type="hidden" name="available" value="yes"></div></fieldset>`}
 // Collect arrival reports. Reserved spots use BYU's external booking link instead.
 function openArrival(id){
   const s=spotById(id);if(!s)return;
-  openModal(`${modalHeader('Once you arrive…')}<p class="modal-description">How is ${esc(s.name)} right now? ${usesDatabase(s)?'Do not include names or private information.':'This report will be saved on this device only.'}</p><form id="arrivalForm" data-id="${esc(s.id)}"><fieldset class="report-choice"><legend class="choice-label">Was this spot available when you arrived?</legend><div class="choice-row">${[['yes','Yes'],['no','No']].map(([v,name],i)=>`<label><input type="radio" name="available" value="${v}" ${i===0?'required':''}>${name}</label>`).join('')}</div></fieldset><fieldset class="report-choice"><legend class="choice-label">Noise level</legend><div class="choice-row">${[['low','Quiet'],['medium','Social']].map(([v,name],i)=>`<label><input type="radio" name="noise" value="${v}" ${i===0?'required':''}>${name}</label>`).join('')}</div></fieldset><fieldset class="report-choice"><legend class="choice-label">How busy is it?</legend><div class="choice-row">${['low','medium','high'].map((v,i)=>`<label><input type="radio" name="busy" value="${v}" ${i===0?'required':''}>${v[0].toUpperCase()+v.slice(1)}</label>`).join('')}</div></fieldset><div class="form-field"><label for="reportNote">Other details (optional)</label><textarea id="reportNote" name="note" maxlength="240" placeholder="Anything useful for the next student?"></textarea></div><p id="arrivalError" class="form-error" role="alert" hidden></p><div class="modal-actions"><button type="button" class="secondary-button" data-modal-close>Not there yet</button><button type="submit" class="primary-button">Confirm report</button></div></form>`);
+  openModal(`${modalHeader('Once you arrive…')}<p class="modal-description">Help keep the map accurate. What does this spot look like right now?</p><form id="arrivalForm" data-id="${esc(s.id)}">${arrivalAvailabilityField()}${radioChoiceField('noise','Noise level',[['low','Quiet'],['medium','Social']])}${radioChoiceField('busy','How busy is it right now?',[['low','Light'],['medium','Moderate'],['high','Busy']])}<div class="form-field"><label for="reportNote">Other details (optional)</label><textarea id="reportNote" name="note" maxlength="240" placeholder="Anything useful for the next student?"></textarea></div><p id="arrivalError" class="form-error" role="alert" hidden></p><div class="modal-actions"><button type="button" class="ghost-button" data-modal-close>Cancel</button><button type="submit" class="primary-button">Submit</button></div></form>`);
 }
 // Apply all list checkbox choices together when Save changes is selected.
 async function openSave(id){
@@ -1024,7 +1036,12 @@ async function submitRating(form){
 }
 // Suggestions stay on this device; their map pins are provisional placements.
 function radioChoiceField(name,title,choices,selected){return `<fieldset class="form-field choice-field"><legend>${esc(title)}</legend><div class="radio-segments" role="radiogroup" aria-label="${esc(title)}">${choices.map(([value,label],index)=>{const id=`new-${name}-${index}`;return `<label class="radio-option" for="${id}"><input id="${id}" name="${esc(name)}" type="radio" value="${esc(value)}" required ${value===selected?'checked':''}><span>${esc(label)}</span></label>`}).join('')}</div></fieldset>`}
-function openNewSpot(buildingId=Object.keys(BUILDINGS)[0],floorId=null){const firstBuilding=BUILDINGS[buildingId]?buildingId:Object.keys(BUILDINGS)[0],buildingChoices=Object.entries(BUILDINGS).map(([id,b])=>[`${id} · ${b.short}`,`${id} · ${b.short}`]);openModal(`${modalHeader('Report a new spot')}<p class="modal-description">Know a great spot we missed? Submit it below. We review all submissions to keep the map accurate, so it may take a few days to appear. Please don't include personal info.</p><form id="newSpotForm"><div class="form-field"><label for="newName">Name of spot</label><input id="newName" name="name" required maxlength="60" placeholder="Example: east wing tables"></div>${radioChoiceField('building','Building',buildingChoices,buildingChoices.find(([value])=>value.startsWith(`${firstBuilding} ·`))?.[0])}<div id="newFloorChoices"></div>${radioChoiceField('type','Best for',[['Solo study','Solo study'],['Group study','Group study']])}<div class="form-field" id="newCapacityWrap" hidden><label for="newCapacity">Maximum group size (2-6)</label><input id="newCapacity" name="capacity" type="number" min="2" max="6" value="4"></div>${radioChoiceField('noise','Noise level',[['Quiet','Quiet'],['Social','Social']])}${radioChoiceField('layout','Layout',[['Secluded','Secluded'],['Open Area','Open Area']])}${radioChoiceField('power','Power',[['Outlets','Outlets'],['No outlets','No outlets']])}<div class="form-field"><label for="newDetail">How to find it (optional)</label><textarea id="newDetail" name="detail" maxlength="160" placeholder="E.g., Second floor, past the vending machines..."></textarea></div><p class="form-error" id="newSpotError" role="alert" hidden></p><div class="modal-actions"><button type="button" class="secondary-button" data-modal-close>Cancel</button><button type="submit" class="primary-button">Submit Spot</button></div></form>`);updateNewSpotFloors(floorId)}
+function openNewSpot(buildingId=Object.keys(BUILDINGS)[0],floorId=null){
+  const firstBuilding=BUILDINGS[buildingId]?buildingId:Object.keys(BUILDINGS)[0];
+  const buildingChoices=Object.entries(BUILDINGS).map(([id,b])=>[`${id} · ${b.short}`,`${id} · ${b.short}`]);
+  openModal(`${modalHeader('Report a new spot')}<p class="modal-description">Know a great spot we missed? Submit it below. We review all submissions to keep the map accurate, so it may take a few days to appear. Please don't include personal info.</p><form id="newSpotForm"><div class="form-field"><label for="newName">Name of spot</label><input id="newName" name="name" required maxlength="60" placeholder="Example: east wing tables"></div>${radioChoiceField('building','Building',buildingChoices,buildingChoices.find(([value])=>value.startsWith(`${firstBuilding} ·`))?.[0])}<div id="newFloorChoices"></div>${radioChoiceField('type','Best for',[['Solo study','Solo study'],['Group study','Group study']])}<div class="form-field" id="newCapacityWrap" hidden><label for="newCapacity">Maximum group size (2-6)</label><input id="newCapacity" name="capacity" type="number" min="2" max="6" value="4"></div>${radioChoiceField('noise','Noise level',[['Quiet','Quiet'],['Social','Social']])}${radioChoiceField('layout','Layout',[['Secluded','Secluded'],['Open Area','Open Area']])}${radioChoiceField('power','Power',[['Outlets','Outlets'],['No outlets','No outlets']])}<div class="form-field"><label for="newDetail">How to find it (optional)</label><textarea id="newDetail" name="detail" maxlength="160" placeholder="E.g., Second floor, past the vending machines..."></textarea></div><p class="form-error" id="newSpotError" role="alert" hidden></p><div class="modal-actions"><button type="button" class="secondary-button" data-modal-close>Cancel</button><button type="submit" class="primary-button">Submit Spot</button></div></form>`);
+  updateNewSpotFloors(floorId)
+}
 function updateNewSpotFloors(preferredFloorId=null){const form=$('#newSpotForm');if(!form)return;const buildingChoice=form.elements.building.value,building=Object.entries(BUILDINGS).find(([id,b])=>`${id} · ${b.short}`===buildingChoice)?.[0],previous=form.elements.floor?.value,floors=BUILDINGS[building].floors,defaultFloor=BUILDINGS[building].groundFloor||floors[0].id,preferred=floors.find(f=>f.id===preferredFloorId||floorIds(building,f.id).includes(preferredFloorId))?.label,selected=preferred||(floors.some(f=>f.label===previous)?previous:floors.find(f=>f.id===defaultFloor).label);$('#newFloorChoices').innerHTML=radioChoiceField('floor','Floor',floors.map(f=>[f.label,String(f.level)]),selected);const isGroup=form.elements.type.value==='Group study';$('#newCapacityWrap').hidden=!isGroup;$('#newCapacity').disabled=!isGroup}
 // Favorites is permanent; the prototype supports two additional lists.
 // Apply the checked lists to one spot. Account lists are saved to the database before the page changes.
@@ -1231,11 +1248,13 @@ document.addEventListener('click',event=>{
   if(t.dataset.pinnedResource){const r=database.pinnedResources.find(x=>x.id===t.dataset.pinnedResource);if(r)showToast(`${r.type}: ${r.info}${r.where?` (${r.where})`:''}`);return}
   if(t.dataset.spot){const s=spotById(t.dataset.spot);if(!s)return;const isMapPin=t.classList.contains('plan-pin');if(isMapPin){state.locatedSpot=s.id;state.nooksVisible=true;state.resourcesVisible=false}if(state.view==='explore'){openBuilding(s.building,s.floor,isCompactLayout()?'spots':'map')}openSpot(s.id,{keepMap:isMapPin});if(isMapPin&&isCompactLayout())setMapInteraction(true);return}
   if(t.dataset.openSaved){const s=spotById(t.dataset.openSaved);openBuilding(s.building,s.floor,isCompactLayout()?'spots':'map');openSpot(s.id);return}
-  if(t.dataset.confirmSpot){
+  if(t.dataset.arrivalStage){
+    const id=t.dataset.arrivalStage;
+    if(state.arrivalReadySpot!==id){state.arrivalReadySpot=id;locateSpotOnMap(id,3.5);return}
     // OKR: time from starting the search to choosing a spot; the timer restarts for the next choice.
     const seconds=choiceTimer.lap();
     if(seconds)void database.logChoice(seconds);
-    openArrival(t.dataset.confirmSpot);return}
+    openArrival(id);return}
   if(t.dataset.saveSpot){openSave(t.dataset.saveSpot);return}
   if(t.dataset.saveConfirm){void confirmSave(t.dataset.saveConfirm,t);return}
   if(t.id==='editFilters'||t.dataset.action==='edit'){setView('explore');$('#filterHeading').scrollIntoView({behavior:'smooth'});$('#clearFilters').focus({preventScroll:true});return}
@@ -1253,6 +1272,7 @@ document.addEventListener('click',event=>{
 // Native input changes update filters or dependent form fields.
 document.addEventListener('change',event=>{
   const t=event.target;
+  if(t.id==='arrivalAvailable'){const available=$('#arrivalForm [name="available"]');available.value=t.checked?'yes':'no';t.closest('.radio-option').querySelector('span').textContent=t.checked?'Yes!':'No'}
   if(t.closest('#buildingFilters')){state.buildings=new Set($$('#buildingFilters input:checked').map(x=>x.value));updateFilter()}
   if(t.id==='outletFilter'){state.outlets=t.checked;updateFilter()}
   if(t.id==='buildingSelect'){openBuilding(t.value)}
@@ -1279,7 +1299,22 @@ document.addEventListener('keydown',e=>{
 document.addEventListener('submit',e=>{
   if(e.target.id==='authForm'){e.preventDefault();void submitAuth(e.target);return}
   if(e.target.id==='arrivalForm'){e.preventDefault();void submitArrival(e.target);return}
-  if(e.target.id==='newSpotForm'){e.preventDefault();const f=e.target.elements;const name=f.name.value.trim(),typeChoice=f.type.value,noiseChoice=f.noise.value,layoutChoice=f.layout.value,powerChoice=f.power.value,building=Object.entries(BUILDINGS).find(([id,b])=>`${id} · ${b.short}`===f.building.value)?.[0];const type=typeChoice==='Solo study'?'solo':'group',noise=noiseChoice==='Quiet'?'low':'medium',isPrivate=layoutChoice==='Secluded',outlets=powerChoice==='Outlets',capacity=type==='group'?Number(f.capacity.value):1;if(name.length<3||(type==='group'&&(capacity<2||capacity>6))){$('#newSpotError').textContent='Enter a spot name and a group size from 2 to 6.';$('#newSpotError').hidden=false;return}const chosenFloor=BUILDINGS[building].floors.find(fl=>fl.label===f.floor.value);if(!chosenFloor){$('#newSpotError').textContent='Choose a valid floor for this building.';$('#newSpotError').hidden=false;return}const spot={id:`custom-${Date.now()}`,building,floor:chosenFloor.id,name,type,capacity,private:isPrivate,outlets,noise,busy:null,reserved:false,x:chosenFloor?.defaultX??29,y:chosenFloor?.defaultY??72,typical:[],detail:f.detail.value.trim()};if(database.config.configured&&database.ready){submitNewSpot(e.target,{building,floorNumber:chosenFloor.level,floorLabel:chosenFloor.label,name,type,capacity,private:isPrivate,outlets,noise,detail:f.detail.value.trim()});return}data.customSpots.push(spot);const saved=save();closeModal();openBuilding(spot.building,spot.floor);render();if(saved)showToast('New spot added on this device.');return}
+  if(e.target.id==='newSpotForm'){
+    e.preventDefault();
+    const f=e.target.elements;
+    const name=f.name.value.trim(),typeChoice=f.type.value,noiseChoice=f.noise.value,
+      layoutChoice=f.layout.value,powerChoice=f.power.value,
+      building=Object.entries(BUILDINGS).find(([id,b])=>`${id} · ${b.short}`===f.building.value)?.[0];
+    const type=typeChoice==='Solo study'?'solo':'group',noise=noiseChoice==='Quiet'?'low':'medium',
+      isPrivate=layoutChoice==='Secluded',outlets=powerChoice==='Outlets',
+      capacity=type==='group'?Number(f.capacity.value):1;
+    if(name.length<3||(type==='group'&&(capacity<2||capacity>6))){$('#newSpotError').textContent='Enter a spot name and a group size from 2 to 6.';$('#newSpotError').hidden=false;return}
+    const chosenFloor=BUILDINGS[building].floors.find(fl=>fl.label===f.floor.value);
+    if(!chosenFloor){$('#newSpotError').textContent='Choose a valid floor for this building.';$('#newSpotError').hidden=false;return}
+    const spot={id:`custom-${Date.now()}`,building,floor:chosenFloor.id,name,type,capacity,private:isPrivate,outlets,noise,busy:null,reserved:false,x:chosenFloor?.defaultX??29,y:chosenFloor?.defaultY??72,detail:f.detail.value.trim()};
+    if(database.config.configured&&database.ready){submitNewSpot(e.target,{building,floorNumber:chosenFloor.level,floorLabel:chosenFloor.label,name,type,capacity,private:isPrivate,outlets,noise,detail:f.detail.value.trim()});return}
+    data.customSpots.push(spot);const saved=save();closeModal();openBuilding(spot.building,spot.floor);render();if(saved)showToast('New spot added on this device.');return
+  }
   if(e.target.id==='ratingForm'){e.preventDefault();void submitRating(e.target);return}
   if(['profileNameForm','profileEmailForm','profilePasswordForm'].includes(e.target.id)){e.preventDefault();void submitProfile(e.target);return}
   if(e.target.id==='deleteAccountForm'){e.preventDefault();void submitDeleteAccount(e.target);return}
