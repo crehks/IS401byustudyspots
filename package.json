@@ -9,7 +9,7 @@
     "start": "node server.mjs",
     "dev": "node server.mjs",
     "check:db": "node tools/check-database.mjs",
-    "test": "node --test tests/catalogue.test.mjs tests/database.test.mjs tests/server.test.mjs tests/storage.test.mjs tests/auth.test.mjs tests/favorites.test.mjs tests/mobile.test.mjs tests/okr.test.mjs tests/okr-metrics.test.mjs tests/report-page.test.mjs tests/spot-spam-check.test.mjs",
+    "test": "node --test tests/catalogue.test.mjs tests/database.test.mjs tests/server.test.mjs tests/storage.test.mjs tests/auth.test.mjs tests/favorites.test.mjs tests/mobile.test.mjs tests/okr.test.mjs tests/okr-metrics.test.mjs tests/report-page.test.mjs tests/spot-spam-check.test.mjs tests/tag-report-rules.test.mjs",
     "dev:backend": "node tools/dev-backend.mjs",
     "dev:app": "node tools/dev-app.mjs",
     "test:admin": "node --test tests/admin-gate.test.mjs tests/pinned-spots.test.mjs"

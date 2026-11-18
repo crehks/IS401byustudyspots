@@ -15,9 +15,10 @@ const store: Store = {
     const { data: row } = await db.from('User').select('user_id').eq('auth_id', data.user.id).maybeSingle();
     return row?.user_id ?? null;
   },
-  async unchecked({ userId, token, olderThanMs, limit, newestFirst }) {
+  async unchecked({ userId, token, olderThanMs, minAttempts, maxAttempts, limit, newestFirst }) {
     let q = db.from('SpotSubmission').select('submission_id')
-      .eq('status', 'pending').is('ai_checked_at', null).lt('attempts', MAX_ATTEMPTS);
+      .eq('status', 'pending').is('ai_checked_at', null).lt('attempts', maxAttempts ?? MAX_ATTEMPTS);
+    if (minAttempts !== undefined) q = q.gte('attempts', minAttempts);
     if (userId !== undefined) q = q.eq('user_id', userId);
     if (token !== undefined) q = q.eq('client_token', token);
     if (olderThanMs) q = q.lt('created_at', new Date(Date.now() - olderThanMs).toISOString());
@@ -47,7 +48,15 @@ const cors = {
   'Access-Control-Allow-Headers': 'authorization, apikey, content-type, x-client-info, x-cron-secret',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
-const handle = makeHandler({ store, classify: classifySubmission, cronSecret: () => Deno.env.get('CRON_SECRET') });
+// EdgeRuntime.waitUntil lets the sweep of older unchecked reports finish after the student already has their answer.
+// deno-lint-ignore no-explicit-any
+const edge = (globalThis as any).EdgeRuntime;
+const handle = makeHandler({
+  store,
+  classify: classifySubmission,
+  cronSecret: () => Deno.env.get('CRON_SECRET'),
+  background: edge?.waitUntil ? (work) => edge.waitUntil(work) : undefined,
+});
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
