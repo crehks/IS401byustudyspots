@@ -321,13 +321,13 @@ let hbllPlanSource=null,hbllDisplayPlans=null,wscPlanSource=null,wscDisplayPlans
 const WSC_CONNECTIONS={1:{east:'1177',west:'1901'},2:{east:'2200',west:'2902'},3:{east:'3208',west:'3901'}};
 function combinedWscPlan(east,west,level){
   // Align each pair on its mapped service core so the two drawings share a single connection point.
-  const header=28,connection=WSC_CONNECTIONS[level];
+  const header=0,connection=WSC_CONNECTIONS[level];
   const eastAnchor=east.rooms.find(room=>room.number===connection.east),westAnchor=west.rooms.find(room=>room.number===connection.west);
   const dx=(eastAnchor?.x??east.width/2)-(westAnchor?.x??west.width/2),dy=(eastAnchor?.y??east.height/2)-(westAnchor?.y??west.height/2);
   const minX=Math.min(0,dx),minY=Math.min(0,dy),eastX=-minX,westX=dx-minX,eastY=-minY,westY=dy-minY;
   const width=Math.max(eastX+east.width,westX+west.width),height=header+Math.max(eastY+east.height,westY+west.height);
   const inner=plan=>plan.svg.slice(plan.svg.indexOf('>')+1,plan.svg.lastIndexOf('</svg>')).replace(/<title>.*?<\/title>/,'').replace(/<desc>.*?<\/desc>/,'');
-  const svg=`<svg xmlns="http://www.w3.org/2000/svg" class="digital-floor-svg" viewBox="0 0 ${width} ${height}" role="group" aria-label="Wilkinson Student Center Floor ${level} combined East and West floor plan"><title>Wilkinson Student Center Floor ${level}</title><desc>East and West floor plans are aligned at a shared service core.</desc><g aria-hidden="true" fill="var(--map-text,#23495f)" font-family="Arial,Helvetica,sans-serif" font-size="18" font-weight="700"><text x="${eastX+east.width/2}" y="20" text-anchor="middle">EAST</text><text x="${westX+west.width/2}" y="20" text-anchor="middle">WEST</text></g><g transform="translate(${eastX} ${header+eastY})">${inner(east)}</g><g transform="translate(${westX} ${header+westY})">${inner(west)}</g></svg>`;
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" class="digital-floor-svg" viewBox="0 0 ${width} ${height}" role="group" aria-label="Wilkinson Student Center Floor ${level} combined floor plan"><title>Wilkinson Student Center Floor ${level}</title><desc>The two floor sections are aligned at a shared service core.</desc><g transform="translate(${eastX} ${header+eastY})">${inner(east)}</g><g transform="translate(${westX} ${header+westY})">${inner(west)}</g></svg>`;
   return {file:`${east.file} + ${west.file}`,label:`Floor ${level}`,width,height,crop:[0,0,width,height],north:east.north,rooms:[...east.rooms,...west.rooms],svg,combined:true,eastTransform:{x:eastX,y:header+eastY,width:east.width,height:east.height},westTransform:{x:westX,y:header+westY,width:west.width,height:west.height},pointPositions:{}};
 }
 function wscPlans(plans){
@@ -628,6 +628,7 @@ function forecastTag(spot){const value=forecastValue(spot);return value?`<span c
 function isSecluded(spot){return !!(spot.private||spot.reserved||/\b(?:nook|corner|alcove|room)\b/i.test(spot.name||''))}
 function layoutLabel(spot){return isSecluded(spot)?'Secluded':'Open Area'}
 const POWER_ICON='<svg class="power-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M13.2 1.8 4.4 13h6l-.8 9.2L19.6 11h-6.2l-.2-9.2Z"/></svg>';
+const GROUND_FLOOR_STAR='<svg class="ground-floor-star" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2 2.9 6.1 6.8.9-5 4.8 1.2 6.8-5.9-3.2-5.9 3.2 1.2-6.8-5-4.8 6.8-.9L12 2Z"/></svg>';
 function powerTag(spot){return spot.outlets?`<span class="power-tag">${POWER_ICON} Power</span>`:''}
 function showToast(message){const toast=$('#toast');toast.textContent=message;toast.hidden=false;clearTimeout(showToast.timer);showToast.timer=setTimeout(()=>toast.hidden=true,3500)}
 // 5. Reporting. Keep the connection banner short; show details in the dialog.
@@ -746,7 +747,7 @@ function renderFilters(){
 // Show scenario presets rather than recommendations for specific rooms.
 function renderRecommendations(){
   const playlistPower=`<span class="playlist-power">${POWER_ICON} Power</span>`;
-  const playlists=[['deep-focus','Deep Focus',`Noise: Quiet · Secluded · ${playlistPower}`],['group-project','Group Project','Noise: Social · Open Area · Group 4+'],['quick-touchdown','In Between Classes','Open Area · Noise: Social'],['dead-battery','Dead Battery',`${playlistPower} · Solo study`]];
+  const playlists=[['deep-focus','Deep Focus',`Noise: Quiet · Secluded · ${playlistPower}`],['group-project','Group Project','Noise: Social · Open Area · Group 4+'],['quick-touchdown','Between Classes','Open Area · Noise: Social'],['dead-battery','Dead Battery',`${playlistPower} · Solo study`]];
   $('#recommendationsList').innerHTML=playlists.map(([id,title,filters])=>`<button type="button" class="playlist-card" data-playlist="${id}"><span class="playlist-title">${title}</span><span class="playlist-filters">${filters}</span></button>`).join('');
 }
 // Select the drawing and controls for the active building, floor, and side.
@@ -765,10 +766,10 @@ function renderBuilding(){
   const hasSides=isDigital&&building.floors.filter(f=>f.level===floor.level).length>1;
   const levels=[...new Set(building.floors.map(f=>f.level))].sort((a,b)=>a-b);
     const groundLevel=building.floors.find(f=>f.id===building.groundFloor)?.level;
-  $('#floorTitle').innerHTML=`${esc(floor.label)}${floor.level===groundLevel?' <span class="ground-floor-badge">Ground floor</span>':''}`;
-  $('#floorSubtitle').hidden=isDigital;
-  $('#floorSubtitle').textContent=loadingPlans?'Loading floor map…':`${building.short} · schematic study area guide`;
-  $('#floorTabs').innerHTML=loadingPlans?'':isDigital?levels.map(level=>`<button class="floor-tab ${floor.level===level?'is-selected':''} ${level===groundLevel?'is-ground':''}" data-${state.building.toLowerCase()}-level="${level}" type="button" aria-label="${level===0?'Basement':`Floor ${level}`}${level===groundLevel?', ground floor':''}" title="${level===groundLevel?'Ground floor':''}">${level===0?'B':level}</button>`).join(''):building.floors.map(f=>`<button class="floor-tab ${f.id===state.floor?'is-selected':''}" data-floor="${f.id}" type="button">${esc(f.label)}</button>`).join('');
+  $('#planFloorLabel').textContent=floor.label;
+  $('#planGroundFloorBadge').innerHTML=`${GROUND_FLOOR_STAR}<span>Ground Floor</span>`;
+  $('#planGroundFloorBadge').hidden=floor.level!==groundLevel;
+  $('#floorTabs').innerHTML=loadingPlans?'':isDigital?levels.map(level=>`<button class="floor-tab ${floor.level===level?'is-selected':''} ${level===groundLevel?'is-ground':''}" data-${state.building.toLowerCase()}-level="${level}" type="button" aria-label="${level===0?'Basement':`Floor ${level}`}${level===groundLevel?', ground floor':''}" title="${level===groundLevel?'Ground floor':''}">${level===groundLevel?GROUND_FLOOR_STAR:''}<span>${level===0?'B':level}</span></button>`).join(''):building.floors.map(f=>`<button class="floor-tab ${f.id===state.floor?'is-selected':''} ${f.level===groundLevel?'is-ground':''}" data-floor="${f.id}" type="button" aria-label="${esc(f.label)}${f.level===groundLevel?', ground floor':''}" title="${f.level===groundLevel?'Ground floor':''}">${f.level===groundLevel?GROUND_FLOOR_STAR:''}<span>${esc(f.label)}</span></button>`).join('');
   $('#floorSideTabs').hidden=!hasSides;
   $('#floorSideTabs').innerHTML=hasSides?sides.map(side=>`<button class="floor-tab ${floor.side===side?'is-selected':''}" data-${isHbll?'hbll':'wsc'}-side="${side}" type="button">${side}</button>`).join(''):'';
   $('#planAssetBar').hidden=!isDigital;
@@ -781,7 +782,7 @@ function renderBuilding(){
   $('#toggleResources').setAttribute('aria-pressed',String(state.resourcesVisible));
   $('#resourceFilters').hidden=!(isDigital&&state.resourcesVisible);
   if(!isDigital)$('#selectedRoomPanel').hidden=true;
-  if(isDigital){$('#zoomValue').textContent=`${Math.round(state.zoom*100)}%`;$('#zoomOut').disabled=state.zoom<=1;$('#zoomIn').disabled=state.zoom>=8}
+  if(isDigital){$('#zoomOut').disabled=state.zoom<=1;$('#zoomIn').disabled=state.zoom>=8}
   const spots=allSpots().filter(s=>s.building===state.building&&floorIds(state.building,state.floor).includes(s.floor));
   $('#mapModeEmptyNotice').hidden=true;
   const plan=$('#floorPlan');
@@ -830,10 +831,25 @@ function renderBuilding(){
   $('#studyResults').classList.toggle('is-arrival-focused',!!arrivalFocus);
   const displayed=arrivalFocus?[arrivalFocus]:selected&&!matched.some(s=>s.id===selected.id)?[selected,...matched]:matched;
   $('#mobileSpotCount').textContent=arrivalFocus?1:matched.length;
-  $('#resultsSummary').textContent=arrivalFocus?`Heading to ${arrivalFocus.name}`:`${matched.length} matching ${matched.length===1?'spot':'spots'} on this floor`;
-  const chips=[];if(state.study==='group')chips.push(`Group ${state.groupSize}+`);else if(state.study==='solo')chips.push('Solo');if(state.noise==='low')chips.push('Quiet');if(state.noise==='medium')chips.push('Social');if(state.layout!=='any')chips.push(state.layout==='open'?'Open Area':'Secluded');if(state.outlets)chips.push('Power');
-  $('#activeFilterBar').innerHTML=chips.map(c=>`<span>${esc(c)}</span>`).join('')||'<span>All study types</span>';
-  $('#spotList').innerHTML=displayed.length?displayed.map(s=>`<article class="spot-card ${state.selectedSpot===s.id?'is-selected':''}"><button type="button" class="spot-row" data-spot="${esc(s.id)}" aria-expanded="${state.selectedSpot===s.id}" aria-controls="spotDetail-${esc(s.id)}"><div class="spot-row-top"><h3>${esc(s.name)}</h3>${forecastTag(s)}</div><p>${s.type==='group'?`Group up to ${s.capacity}`:'Individual'} · ${layoutLabel(s)} ${powerTag(s)}</p><span class="spot-location">${esc(spotLocationSummary(s))}</span></button><div class="spot-card-actions"><button type="button" class="subtle-button locate-spot-button" data-locate-spot="${esc(s.id)}">Locate on map</button></div>${state.selectedSpot===s.id?`<div class="spot-detail" id="spotDetail-${esc(s.id)}">${spotDetailContent(s)}</div>`:''}</article>`).join(''):`<div class="empty-state"><h3>No matching spots on this floor</h3><p>Try another floor or update your filters.</p><button type="button" class="secondary-button" data-action="edit">Edit filters</button></div>`;
+  $('#resultsHeading').textContent=`Study spots (${arrivalFocus?1:matched.length})`;
+  const activeFilters=[];
+  if(state.study==='group')activeFilters.push(['study',`Group ${state.groupSize}+`]);else if(state.study==='solo')activeFilters.push(['study','Solo']);
+  if(state.noise==='low')activeFilters.push(['noise','Quiet']);if(state.noise==='medium')activeFilters.push(['noise','Social']);
+  if(state.layout!=='any')activeFilters.push(['layout',state.layout==='open'?'Open Area':'Secluded']);if(state.outlets)activeFilters.push(['outlets','Power']);
+  $('#activeFilterBar').innerHTML=activeFilters.map(([filter,label])=>`<span>${esc(label)}<button type="button" class="active-filter-dismiss" data-dismiss-filter="${filter}" aria-label="Remove ${esc(label)} filter" title="Remove ${esc(label)} filter"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 4 8 8M12 4l-8 8"/></svg></button></span>`).join('')||'<span>All study types</span>';
+  const activeCardFilters=[];
+  if(state.study==='solo')activeCardFilters.push('Individual');
+  if(state.layout==='open')activeCardFilters.push('Open Area');else if(state.layout==='secluded')activeCardFilters.push('Secluded');
+  if(state.outlets)activeCardFilters.push('Power');
+  $('#spotList').innerHTML=displayed.length?displayed.map(s=>{
+    const attributes=[];
+    const studyAttribute=s.type==='group'?`Group up to ${s.capacity}`:'Individual';
+    if(!activeCardFilters.includes(studyAttribute))attributes.push(esc(studyAttribute));
+    const layoutAttribute=layoutLabel(s);if(!activeCardFilters.includes(layoutAttribute))attributes.push(esc(layoutAttribute));
+    if(s.outlets&&!activeCardFilters.includes('Power'))attributes.push(powerTag(s));
+    const attributeMarkup=attributes.length?`<p>${attributes.join(' · ')}</p>`:'';
+    return `<article class="spot-card ${state.selectedSpot===s.id?'is-selected':''}"><button type="button" class="spot-row" data-spot="${esc(s.id)}" aria-expanded="${state.selectedSpot===s.id}" aria-controls="spotDetail-${esc(s.id)}"><div class="spot-row-top"><h3>${esc(s.name)}</h3>${forecastTag(s)}</div>${attributeMarkup}<span class="spot-location">${esc(spotLocationSummary(s))}</span></button><div class="spot-card-actions"><button type="button" class="subtle-button locate-spot-button" data-locate-spot="${esc(s.id)}">Locate on map</button></div>${state.selectedSpot===s.id?`<div class="spot-detail" id="spotDetail-${esc(s.id)}">${spotDetailContent(s)}</div>`:''}</article>`
+  }).join(''):`<div class="empty-state"><h3>No matching spots on this floor</h3><p>Try another floor or update your filters.</p><button type="button" class="secondary-button" data-action="edit">Edit filters</button></div>`;
   const located=spots.find(s=>s.id===state.locatedSpot),locatedPanel=$('#locatedSpotPanel');
   locatedPanel.hidden=!(isDigital&&located);
   if(isDigital&&located){const room=located.room||located.roomNumber,arrivalAction=state.arrivalReadySpot===located.id?`<button type="button" class="primary-button is-en-route arrival-stage-action" data-arrival-stage="${esc(located.id)}" aria-pressed="true" ${database.loading||!database.configLoaded?'disabled':''}>I've Arrived</button>`:'';locatedPanel.innerHTML=`<div><strong>${esc(located.name)}</strong><span>${esc(floorLabel(located))}${room?` · Room ${esc(room)}`:located.detail?` · ${esc(located.detail)}`:''}</span></div>${arrivalAction}<button type="button" data-clear-located-spot aria-label="Clear located spot">×</button>`}
@@ -905,7 +921,7 @@ function changeZoom(delta){
   state.zoom=Math.max(1,Math.min(8,Math.round((state.zoom+delta)*100)/100));resizeDigitalMap();
   const planView=$('#floorPlan');planView.classList.toggle('subdued-room-labels',state.zoom<=1&&!state.locatedSpot);planView.classList.toggle('show-nearby-room-labels',!!state.locatedSpot||state.zoom>1);
   viewport.scrollLeft=centerX*state.zoom/oldZoom-viewport.clientWidth/2;viewport.scrollTop=centerY*state.zoom/oldZoom-viewport.clientHeight/2;
-  $('#zoomValue').textContent=`${Math.round(state.zoom*100)}%`;$('#zoomOut').disabled=state.zoom<=1;$('#zoomIn').disabled=state.zoom>=8;
+  $('#zoomOut').disabled=state.zoom<=1;$('#zoomIn').disabled=state.zoom>=8;
 }
 // Start dragging after a movement threshold and suppress the click after a drag.
 function installMapPan(){
@@ -960,7 +976,6 @@ function selectRoom(number){
 function updateRoomHighlight(){
   const current=state.selectedRoom?.floor===state.floor?state.selectedRoom:null;
   const plan=buildingPlans()?.[state.floor];
-  if(plan)$('#planAssetBar > span').textContent=current?`Room ${current.number} selected`:'Floor plan';
   $$('#floorPlan [data-room]').forEach(el=>el.classList.toggle('is-selected',el.dataset.room===current?.number));
   const panel=$('#selectedRoomPanel');panel.hidden=!current;
   if(current&&plan){panel.innerHTML=`<div><span class="room-selection-label">On the map</span><h3>Room ${esc(current.number)}</h3><p>${esc(plan.label)} · ${esc(BUILDINGS[state.building].short)}</p></div><button type="button" data-clear-room aria-label="Clear selected room">×</button>`}
@@ -1190,7 +1205,7 @@ document.addEventListener('click',event=>{
   // Room selection, map labels, and zoom controls.
   if(t.dataset.room){selectRoom(t.dataset.room);return}
   if(t.hasAttribute('data-clear-room')){state.selectedRoom=null;updateRoomHighlight();return}
-  if(t.id==='zoomFit'){state.zoom=1;resizeDigitalMap();$('.plan-scroll').scrollLeft=0;$('.plan-scroll').scrollTop=0;$('#zoomValue').textContent='100%';$('#zoomOut').disabled=true;$('#zoomIn').disabled=false;renderBuilding();return}
+  if(t.id==='zoomFit'){state.zoom=1;resizeDigitalMap();$('.plan-scroll').scrollLeft=0;$('.plan-scroll').scrollTop=0;$('#zoomOut').disabled=true;$('#zoomIn').disabled=false;renderBuilding();return}
   if(t.dataset.locateSpot){locateSpotOnMap(t.dataset.locateSpot);return}
   if(t.hasAttribute('data-clear-located-spot')){state.locatedSpot=null;renderBuilding();return}
   if(t.matches('[data-modal-close]')){closeModal();return}
@@ -1210,6 +1225,13 @@ document.addEventListener('click',event=>{
   if(t.id==='resendConfirm'){const email=$('#authEmail')?.value.trim();if(!email){showToast('Enter your email first.');return}t.disabled=true;void auth.resendConfirmation(email).then(()=>showToast('Confirmation email sent. Check your inbox and spam.'),e=>showToast(e.message)).finally(()=>{t.disabled=false});return}
   if(t.dataset.authSwitch){const after=openAuth.after;openAuth(t.dataset.authSwitch,after);return}
   if(t.dataset.openReported){const s=spotById(t.dataset.openReported);if(s){openBuilding(s.building,s.floor);openSpot(s.id)}return}
+  if(t.dataset.dismissFilter){
+    if(t.dataset.dismissFilter==='study')state.study='any';
+    else if(t.dataset.dismissFilter==='noise')state.noise='any';
+    else if(t.dataset.dismissFilter==='layout')state.layout='any';
+    else if(t.dataset.dismissFilter==='outlets')state.outlets=false;
+    updateFilter();($('#activeFilterBar button')||$('#editFilters'))?.focus({preventScroll:true});return
+  }
   if(t.id==='clearFilters'||t.dataset.action==='clear'){resetFilters();return}
   if(t.dataset.buildingAction){state.buildings=t.dataset.buildingAction==='all'?new Set(Object.keys(BUILDINGS)):new Set();updateFilter();return}
   if(t.id==='saveFilters'){data.savedFilters={study:state.study,noise:state.noise,layout:state.layout,outlets:state.outlets,groupSize:state.groupSize,buildings:[...state.buildings]};if(save())showToast('Filters saved on this device.');return}

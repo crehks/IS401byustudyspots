@@ -41,7 +41,7 @@ const numericSpotIds=['hbll-commons','hbll-west','hbll-group','hbll-think','hbll
       const live={deleted_at:'is.null',plan_x:'gte.0'};
       try {
         const rows=await get('StudySpot',{select:'spot_id,building_id,spot_location,group_type,capacity,outlets,reservable,is_private,noise_level,plan_key,plan_x,plan_y',...live,order:'spot_id.asc'});
-        this.pinnedSpots=rows.map(r=>({id:`db-${r.spot_id}`,dbId:Number(r.spot_id),building:codeOf(r.building_id),floor:r.plan_key,name:String(r.spot_location||'').trim(),type:r.group_type==='group'?'group':'solo',capacity:Number(r.capacity)||1,private:!!r.is_private,outlets:!!r.outlets,noise:r.noise_level==='low'?'low':'medium',busy:null,reserved:!!r.reservable,pin:[Number(r.plan_x),Number(r.plan_y)]})).filter(s=>s.building&&s.name&&s.floor&&s.pin.every(Number.isFinite));
+        this.pinnedSpots=rows.map(r=>({id:`db-${r.spot_id}`,dbId:Number(r.spot_id),building:codeOf(r.building_id),floor:r.plan_key,name:String(r.spot_location||'').trim(),type:r.group_type==='group'?'group':'solo',capacity:Number(r.capacity)||1,private:!!r.is_private,outlets:!!r.outlets,noise:r.noise_level==='low'?'low':'medium',busy:null,reserved:!!r.reservable,pin:[Number(r.plan_x),Number(r.plan_y)],typical:[]})).filter(s=>s.building&&s.name&&s.floor&&s.pin.every(Number.isFinite));
         this.pinnedIds=new Set(this.pinnedSpots.map(s=>s.dbId));
       } catch {}
             // Seat counts for every spot, including the built-in sample spots (spot_id 1001-1025).
@@ -96,7 +96,7 @@ const numericSpotIds=['hbll-commons','hbll-west','hbll-group','hbll-think','hbll
     // Translate API failures without exposing credentials or raw response contents.
     async apiError(response) {
       let result={};try {result=await response.json();} catch {}
-      if (result.code==='PGRST205' || result.code==='42P01') return new Error(this.config.table==='ReportSpotStatus'?'ReportSpotStatus or latest_report_spot_status is missing from the API. Check that the tables exist and are exposed in the Supabase Data API.':'The reports table or latest-report view is missing from the Supabase API. Check that the tables exist in Supabase.');
+      if (result.code==='PGRST205' || result.code==='42P01') return new Error(this.config.table==='ReportSpotStatus'?'ReportSpotStatus or latest_report_spot_status is missing from the API. Use SETUP_PRESERVE_EXISTING.sql for the confirmed schema and check Data API exposure. Do not reset existing rows.':'The reports table or latest-report view is missing from the Supabase API. Run the matching setup file for your schema; do not reset existing tables.');
       if (result.code==='PGRST204' || result.code==='42703') return new Error('The report columns do not match the adapter. Check the README column contract.');
       if (response.status===403 || result.code==='42501') return new Error('Supabase denied this action. Check table grants and row-level security policies.');
       if (response.status===401) return new Error('Supabase could not authorize this request. Check that the running app uses the same project settings as check:db.');
@@ -300,28 +300,6 @@ const numericSpotIds=['hbll-commons','hbll-west','hbll-group','hbll-think','hbll
       if (!Array.isArray(rows)||rows.length!==1||!rows[0].list_ID) throw new Error('The list was not saved. Try again.');
       return {dbId:Number(rows[0].list_ID),name:String(rows[0].list_name),spots:[]};
     }
-    async renameList(dbId,name) {
-      this.requireUser();
-      const id=Number(dbId),clean=String(name||'').trim();
-      if (!Number.isInteger(id)||id<1) throw new Error('Choose a valid list.');
-      if (clean.length<1||clean.length>28) throw new Error('Enter a list name from 1 to 28 characters.');
-      const query=new URLSearchParams({list_ID:`eq.${id}`});
-      const response=await this.request(this.listUrl('FavoritesList',query),{method:'PATCH',headers:this.headers({'Content-Type':'application/json',Prefer:'return=representation'}),body:JSON.stringify({list_name:clean})});
-      if (!response.ok) throw await this.listError(response);
-      const rows=await response.json();
-      if (!Array.isArray(rows)||rows.length!==1) throw new Error('The list name could not be updated. Try again.');
-      return {dbId:id,name:String(rows[0].list_name||clean)};
-    }
-    async deleteList(dbId) {
-      this.requireUser();
-      const id=Number(dbId);
-      if (!Number.isInteger(id)||id<1) throw new Error('Choose a valid list.');
-      const query=new URLSearchParams({list_ID:`eq.${id}`});
-      const response=await this.request(this.listUrl('FavoritesList',query),{method:'DELETE',headers:this.headers({Prefer:'return=representation'})});
-      if (!response.ok) throw await this.listError(response);
-      const rows=await response.json();
-      if (!Array.isArray(rows)||rows.length!==1) throw new Error('The list could not be deleted. Try again.');
-    }
     // changes: [{dbId, has, want}] for one spot. Adds and removes only what differs.
     async setSpotLists(spotId,changes) {
       this.requireUser();
@@ -364,92 +342,9 @@ const numericSpotIds=['hbll-commons','hbll-west','hbll-group','hbll-think','hbll
       const payload={building_id:buildingId,floor_number:Number.isInteger(input.floorNumber)?input.floorNumber:null,floor_label:String(input.floorLabel||'').trim().slice(0,60),spot_name:name,spot_type_id:group?1002:input.private?1003:1001,capacity,noise_level:levelNumber[input.noise],outlets:!!input.outlets,is_private:!!input.private,location_details:detail||null};
       if(this.userId)payload.user_id=this.userId;
       if (!payload.floor_label) throw new Error('Choose a floor.');
-      // Optional floor-plan pin from the report page: the sheet key plus x/y as percent of the drawing (same as dev-page pins).
-      const hasPin=input.planKey!==undefined&&input.planKey!==null;
-      let pin=null;
-      if (hasPin) {
-        const x=Number(input.planX),y=Number(input.planY),key=String(input.planKey||'').trim();
-        if (!key||key.length>20||!(x>=0&&x<=100)||!(y>=0&&y<=100)) throw new Error('Drop the pin on the floor plan before sending.');
-        pin={plan_key:key,plan_x:Number(x.toFixed(2)),plan_y:Number(y.toFixed(2))};
-        Object.assign(payload,pin);
-      }
-      // Random per-browser id: limits each device and lets the spam check find a guest's own report.
-      const token=this.clientToken();
-      if (token) payload.client_token=token;
-      const send=body=>this.request(`${this.config.url}/rest/v1/SpotSubmission`,{method:'POST',headers:this.headers({'Content-Type':'application/json',Prefer:'return=minimal'}),body:JSON.stringify(body)});
-      let response=await send(payload);
-      // Until the pin and spam-check migrations are applied, the database rejects the extra columns. Send the report
-      // anyway: first without the device token (keeping the pin in its own columns), then, if the pin columns are
-      // missing too, with the pin kept in the details text.
-      const columnMissing=async r=>{const p=await r.clone().json().catch(()=>({}));return p.code==='PGRST204'||p.code==='42703'};
-      if (!response.ok&&token&&await columnMissing(response)) {
-        const {client_token,...withoutToken}=payload;
-        response=await send(withoutToken);
-      }
-      if (!response.ok&&pin&&await columnMissing(response)) {
-        const {plan_key,plan_x,plan_y,client_token,...plain}=payload;
-        const note=`[Pin ${plan_key} ${plan_x}%, ${plan_y}%]`;
-        plain.location_details=`${detail.slice(0,160-note.length-1)} ${note}`.trim();
-        response=await send(plain);
-      }
-      if (!response.ok) {
-        const problem=await response.clone().json().catch(()=>({}));
-        if (problem.code==='P0001'&&typeof problem.message==='string') throw new Error(problem.message);
-        throw await this.apiError(response);
-      }
-      this.error='';
-      return this.checkSubmission();
-    }
-    // Spam filter: asks the check-spot-submission function (Gemini) about the report just sent. Spam comes back
-    // 'rejected' with a reason; anything else, including any failure, stays 'pending' for the team and the retry job.
-    // Anonymous id kept in this browser only (never tied to a name or email). Empty if storage is unavailable.
-    clientToken() {
-      try {
-        const store=scope.localStorage;
-        let token=store?.getItem('studybyu.reporter')||'';
-        if (!/^[A-Za-z0-9-]{16,64}$/.test(token)) {
-          token=scope.crypto?.randomUUID?scope.crypto.randomUUID():Array.from({length:32},()=>Math.floor(Math.random()*16).toString(16)).join('');
-          store?.setItem('studybyu.reporter',token);
-        }
-        return token;
-      } catch {return '';}
-    }
-    async checkSubmission() {
-      const result={status:'pending',reason:''};
-      const token=this.accessToken?'':this.clientToken();
-      if (!this.accessToken&&!token) return result;
-      const request=this.accessToken?{check:'mine'}:{check:'token',token};
-      const started=Date.now();
-      for (let attempt=0;attempt<2&&Date.now()-started<12000;attempt++) {
-        if (attempt) await new Promise(resolve=>setTimeout(resolve,2000));
-        try {
-          const response=await this.request(`${this.config.url}/functions/v1/check-spot-submission`,{method:'POST',headers:this.headers({'Content-Type':'application/json'}),body:JSON.stringify(request)});
-          if (!response.ok) { if (response.status<500) break; continue; }
-          const newest=(await response.json())?.results?.[0];
-          if (newest?.status==='rejected') return {status:'rejected',reason:String(newest.reason||'').slice(0,500)};
-          if (newest?.status==='checked') return result;
-        } catch {}
-      }
-      return result;
-    }
-    // The signed-in user's own recent reports with their review status (pending, approved, rejected).
-    // Row-level security returns only this user's rows; guests get none.
-    async loadMySubmissions(limit=50) {
-      if (!this.config.configured) throw new Error('Supabase is not connected.');
-      if (!this.accessToken||!this.userId) throw new Error('Log in to see your reports.');
-      const fetchRows=columns=>this.request(`${this.config.url}/rest/v1/SpotSubmission?${new URLSearchParams({select:columns,order:'created_at.desc',limit:String(limit)})}`,{headers:this.headers()});
-      const base='submission_id,created_at,spot_name,building_id,floor_label,status';
-      // ai_reason exists once the spam-check migration is applied; until then read without it.
-      let response=await fetchRows(`${base},ai_reason`);
-      if (!response.ok) {
-        const problem=await response.clone().json().catch(()=>({}));
-        if (problem.code==='42703'||problem.code==='PGRST204'||problem.code==='42501') response=await fetchRows(base);
-      }
+      const response=await this.request(`${this.config.url}/rest/v1/SpotSubmission`,{method:'POST',headers:this.headers({'Content-Type':'application/json',Prefer:'return=minimal'}),body:JSON.stringify(payload)});
       if (!response.ok) throw await this.apiError(response);
-      const rows=await response.json();
-      if (!Array.isArray(rows)) throw new Error('Supabase returned an unexpected reports response.');
-      const codeOf=id=>Object.keys(buildingIds).find(k=>buildingIds[k]===Number(id))||'';
-      return rows.map(r=>({id:Number(r.submission_id),name:String(r.spot_name||''),building:codeOf(r.building_id),floor:String(r.floor_label||''),status:['approved','rejected'].includes(r.status)?r.status:'pending',reason:r.status==='rejected'?String(r.ai_reason||'').slice(0,500):'',time:Date.parse(r.created_at)||0}));
+      this.error='';
     }
   }
   // Time-to-choose timer: starts when created, and every lap() restarts it for the next choice.
