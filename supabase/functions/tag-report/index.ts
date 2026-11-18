@@ -1,5 +1,6 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
-import { classify } from './llm.ts';
+import { classify, type Verdict } from './llm.ts';
+import { ruleCheck } from './rules.ts';
 
 const MAX_ATTEMPTS = 8;
 const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
@@ -8,20 +9,27 @@ async function tag(id: number): Promise<string> {
   const { data: row } = await db.from('spot_reports')
     .select('id, body, self_noise, self_crowd, attempts').eq('id', id).eq('status', 'pending').maybeSingle();
   if (!row) return 'skipped';
-  await db.from('spot_reports').update({ attempts: row.attempts + 1 }).eq('id', id);
+  const attempt = row.attempts + 1;
+  await db.from('spot_reports').update({ attempts: attempt }).eq('id', id);
+  let v: Verdict | null = null;
   try {
-    const v = await classify(row.body, row.self_noise, row.self_crowd);
-    const patch = v.valid
-      ? { status: 'approved', noise_level: v.noise, crowd_level: v.crowd, ai_reason: v.reason }
-      : { status: 'rejected', noise_level: null, crowd_level: null, ai_reason: v.reason };
-    const { error } = await db.from('spot_reports')
-      .update({ ...patch, tagged_at: new Date().toISOString() }).eq('id', id).eq('status', 'pending');
-    if (error) throw error;
-    return patch.status;
+    v = await classify(row.body, row.self_noise, row.self_crowd);
   } catch (e) {
-    console.error('tag-report failed, left pending', { id, attempt: row.attempts + 1, error: String(e) });
+    console.error('gemini failed', { id, attempt, error: String(e) });
+    // First failure stays pending (the browser retries seconds later); after that, hard-coded rules decide.
+    if (attempt >= 2) v = ruleCheck(row.body, row.self_noise, row.self_crowd);
+  }
+  if (!v) return 'pending';
+  const patch = v.valid
+    ? { status: 'approved', noise_level: v.noise, crowd_level: v.crowd, ai_reason: v.reason }
+    : { status: 'rejected', noise_level: null, crowd_level: null, ai_reason: v.reason };
+  const { error } = await db.from('spot_reports')
+    .update({ ...patch, tagged_at: new Date().toISOString() }).eq('id', id).eq('status', 'pending');
+  if (error) {
+    console.error('tag-report save failed, left pending', { id, error: String(error) });
     return 'pending';
   }
+  return patch.status;
 }
 
 const cors = {
