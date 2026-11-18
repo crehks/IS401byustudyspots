@@ -365,6 +365,24 @@ function markStairEntrances(plan,{label,rooms=[]}){
   svg=svg.replace('</svg>',`${targets.join('')}</svg>`);
   return {...plan,svg,hasStairTargets:true};
 }
+function filterHbllServiceHighlights(plan,key){
+  const serviceRooms=plan.rooms.filter(room=>room.kind==='service');
+  const retained=new Set(HBLL_STAIR_ROOMS[key]?.rooms||[]);
+  for(const [,x,y] of HBLL_RESOURCES[key]||[]){
+    let nearest=null,distance=Infinity;
+    for(const room of serviceRooms){
+      const next=Math.hypot(room.x-x,room.y-y);
+      if(next<distance){nearest=room;distance=next}
+    }
+    if(nearest&&distance<=45)retained.add(nearest.number);
+  }
+  const svg=plan.svg.replace(/<path class="map-space map-space-service"([^>]*)>([\s\S]*?)<\/path>/g,(path,attrs,contents)=>{
+    const title=contents.match(/<title>([\s\S]*?)<\/title>/)?.[1]||'';
+    if(title.split(',').some(number=>retained.has(number.trim())))return path;
+    return path.replace('map-space map-space-service','map-space map-space-room');
+  });
+  return {...plan,svg};
+}
 function combinedHbllPlan(north,south,northAnchor,southAnchor){
   const n=north.rooms.find(room=>room.number===northAnchor),s=south.rooms.find(room=>room.number===southAnchor);
   const dx=(n?.x||north.width/2)-(s?.x||south.width/2),dy=(n?.y||north.height/2)-(s?.y||south.height/2);
@@ -378,7 +396,8 @@ function hbllPlans(plans){
   if(!plans)return null;
   if(plans!==hbllPlanSource){
     hbllPlanSource=plans;hbllDisplayPlans={...plans};
-    for(const [key,plan] of Object.entries(plans))if(HBLL_STAIR_ROOMS[key])hbllDisplayPlans[key]=markStairEntrances(plan,HBLL_STAIR_ROOMS[key]);
+    for(const [key,plan] of Object.entries(plans))hbllDisplayPlans[key]=filterHbllServiceHighlights(plan,key);
+    for(const [key,plan] of Object.entries(hbllDisplayPlans))if(HBLL_STAIR_ROOMS[key])hbllDisplayPlans[key]=markStairEntrances(plan,HBLL_STAIR_ROOMS[key]);
     for(const level of [1,2,3]){const anchors=HBLL_STAIR_ANCHORS[level],north=hbllDisplayPlans[anchors.north[0]],south=hbllDisplayPlans[anchors.south[0]];if(north&&south)hbllDisplayPlans[`L${level}`]=combinedHbllPlan(north,south,anchors.north[1],anchors.south[1])}
     for(const key of ['B','L1N','L2N','L3N','L6'])delete hbllDisplayPlans[key];
     const spotLevels={'hbll-commons':3,'hbll-west':3,'hbll-group':3,'hbll-think':2,'hbll-reading':2,'hbll-single':2};
