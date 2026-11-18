@@ -53,7 +53,6 @@ function nearestRoom(plan,xPct,yPct){
 function setHint(text){$('#pinHint').textContent=text}
 function applyZoom(){
   $('#reportStage').style.width=`${state.zoom*100}%`;
-  $('#reportZoomValue').textContent=`${Math.round(state.zoom*100)}%`;
   $('#reportZoomOut').disabled=state.zoom<=MIN_ZOOM;
   $('#reportZoomIn').disabled=state.zoom>=MAX_ZOOM;
 }

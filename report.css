@@ -1,10 +1,8 @@
 /* Report a Spot page. Loaded after styles.css, so colors, buttons, fields, the header and the floor-plan
  * palette all come from the main site's tokens. Only the page layout and the draggable pin live here. */
 
-a.brand,a.nav-link,a.primary-button,a.secondary-button,a.back-button{text-decoration:none}
+a.brand,a.nav-link,a.primary-button,a.secondary-button{text-decoration:none}
 a.nav-link{box-sizing:border-box}
-a.back-button{display:inline-flex;align-items:center;min-height:44px}
-.report-back{margin-bottom:6px}
 
 /* Three blocks: where, map, details. Two columns on wide screens, one column in reading order on small ones. */
 .report-layout{display:grid;grid-template-columns:minmax(300px,380px) minmax(0,1fr);grid-template-areas:"where map" "details map";gap:20px;align-items:start}

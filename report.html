@@ -8,12 +8,12 @@
   <title>Nook | Report a spot</title>
   <link rel="icon" type="image/png" href="assets/nook-logo.png">
   <!-- Same stylesheet and connection scripts as the main site; report.css only adds this page's layout. -->
-  <link rel="stylesheet" href="styles.css?v=20261117-arrival-panel">
-  <link rel="stylesheet" href="report.css?v=20261117-guest">
+  <link rel="stylesheet" href="styles.css?v=20261118-arrival-return">
+  <link rel="stylesheet" href="report.css?v=20261118-inline-back">
   <script defer src="supabase-config.js?v=20261104-restore"></script>
   <script defer src="database.js?v=20261117-fallback"></script>
   <script defer src="auth.js?v=20261113-profile"></script>
-  <script defer src="report.js?v=20261117-final"></script>
+  <script defer src="report.js?v=20261118-no-zoom-percent"></script>
 </head>
 <body>
   <a class="skip-link" href="#mainContent">Skip to content</a>
@@ -37,11 +37,10 @@
     </div>
 
     <main id="mainContent" tabindex="-1">
-      <a class="back-button report-back" href="index.html">← Back to explore</a>
       <div class="page-heading">
         <div>
           <p class="kicker">Report a spot</p>
-          <h1>Know a Nook we are missing?</h1>
+          <div class="inline-back-heading"><a id="reportBack" class="inline-back-btn" href="index.html" aria-label="Go back"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></a><h1>Know a Nook we are missing?</h1></div>
           <p class="intro">Tell us about it and drop a pin on the floor plan so we can find it. Our team reviews every report by hand before anything appears on the map.</p>
         </div>
       </div>
@@ -65,7 +64,6 @@
             <h2 id="mapTitle"><span class="step-num" aria-hidden="true">2</span> <span id="mapTitleText">Drop a pin</span></h2>
             <div class="campus-map-controls" role="group" aria-label="Floor plan zoom">
               <button id="reportZoomOut" type="button" aria-label="Zoom out">−</button>
-              <output id="reportZoomValue">100%</output>
               <button id="reportZoomIn" type="button" aria-label="Zoom in">+</button>
               <button id="reportZoomFit" type="button">Reset</button>
             </div>
